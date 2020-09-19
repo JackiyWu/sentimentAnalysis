@@ -15,3 +15,4 @@ result/
 test_export_saved_model.h5
 venv/
 config/
+__pycache__/
