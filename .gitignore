@@ -7,4 +7,10 @@
 *.iml
 out
 gen
-*.weights
+data/
+data2/
+*.h5
+models/
+modelsImage/
+result/
+test_export_saved_model.h5
