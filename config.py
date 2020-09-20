@@ -17,6 +17,6 @@ sentiment_dictionary = "C:\desktop\Research\情感词典\DLUT-Emotionontology-ma
 pre_word_embedding = "C:\desktop\Coding\preWordEmbedding\sgns.target.word-character.char1-2.dynwin5.thr10.neg5.dim300.iter5"
 
 # 百度点石数据集
-baidu_sentiment = "C:\desktop\Research\DataSet\百度点石大赛\data_train.csv"
-baidu_sentiment_test = "C:\desktop\Research\DataSet\百度点石大赛\data_test.csv"
+baidu_sentiment = "datasets/baidu/data_train.csv"
+baidu_sentiment_test = "datasets/baidu/data_test.csv"
 
