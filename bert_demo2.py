@@ -10,6 +10,10 @@ from keras.models import Model
 import keras.backend as K
 from keras.optimizers import Adam
 from keras.utils import to_categorical
+
+from sklearn.metrics import precision_recall_fscore_support as score
+from sklearn.metrics import classification_report, f1_score, accuracy_score
+
 import config
 
 # 读取训练集和测试集
@@ -129,12 +133,15 @@ def build_bert(nclass):
 
 # 训练数据、测试数据和标签转化为模型输入格式
 DATA_LIST = []
+LABELS = []
 for data_row in train_df.iloc[:].itertuples():
     # print("data_row = ", data_row)
     # print("data_row's type = ", type(data_row))
     DATA_LIST.append((data_row.contents, to_categorical(data_row.labels, 3)))
+    LABELS.append(int(data_row.labels))
 DATA_LIST = np.array(DATA_LIST)
-# print("DATA_LIST = ", DATA_LIST)
+print("DATA_LIST = ", DATA_LIST)
+print("LABELS = ", LABELS)
 # print("DATA_LIST's type = ", type(DATA_LIST))
 
 DATA_LIST_TEST = []
@@ -144,23 +151,29 @@ DATA_LIST_TEST = np.array(DATA_LIST_TEST)
 
 
 # 交叉验证训练和测试模型
-def run_cv(nfold, data, data_labels, data_test):
+def run_cv(nfold, data, data_labels, data_test, folds):
+# def run_cv(nfold, data, data_labels, data_test, folds, ratio):
     kf = KFold(n_splits=nfold, shuffle=True, random_state=520).split(data)
     train_model_pred = np.zeros((len(data), 3))
     # print("train_model_pred = ", train_model_pred)
     test_model_pred = np.zeros((len(data_test), 3))
 
     for i, (train_fold, test_fold) in enumerate(kf):
+    # for i in range(folds):
         # print("train_fold = ", train_fold)
         # print("train_fold's type = ", type(train_fold))
         # print("test_fold = ", test_fold)
         # print("test_fold's type = ", type(test_fold))
         X_train, X_valid, = data[train_fold, :], data[test_fold, :]
+        print("X_train's type = ", type(X_train))
+        # train_length = len(data) * ratio
+        # data = list(data)
+        # X_train, X_valid = data[:train_length], data[train_length:]
 
         model = build_bert(3)
         early_stopping = EarlyStopping(monitor='val_acc', patience=3)   # 早停法，防止过拟合
         plateau = ReduceLROnPlateau(monitor="val_acc", verbose=1, mode='max', factor=0.5, patience=2)  # 当评价指标不在提升时，减少学习率
-        checkpoint = ModelCheckpoint('./bert_dump/' + str(i) + '.hdf5', monitor='val_acc',verbose=2, save_best_only=True, mode='max', save_weights_only=True)  # 保存最好的模型
+        checkpoint = ModelCheckpoint('./bert_dump/' + str(i) + '.hdf5', monitor='val_acc', verbose=2, save_best_only=True, mode='max', save_weights_only=True)  # 保存最好的模型
 
         train_D = data_generator(X_train, shuffle=True)
         valid_D = data_generator(X_valid, shuffle=True)  # 验证集是从训练集中分出来的
@@ -172,30 +185,63 @@ def run_cv(nfold, data, data_labels, data_test):
             epochs=3,
             validation_data=valid_D.__iter__(),
             validation_steps=len(valid_D),
-            # verbose=2,
             callbacks=[early_stopping, plateau, checkpoint],
         )
+        '''
+
+        model.fit(train_D.__iter__(),
+                  steps_per_epoch=len(train_D),
+                  epochs=3,
+                  validation_split=0.33,
+                  # verbose=2,
+                  callbacks=[early_stopping, plateau, checkpoint],)
+        '''
 
         # model.load_weights('./bert_dump/' + str(i) + '.hdf5')
 
         # return model
+        # train_model_pred = model.predict(valid_D.__iter__(), steps=len(valid_D), verbose=1)
         train_model_pred[test_fold, :] = model.predict(valid_D.__iter__(), steps=len(valid_D), verbose=1)
         # train_model_pred[test_fold, :] = model.predict_generator(valid_D.__iter__(), steps=len(valid_D), verbose=1)
         # print("train_model_pred = ", train_model_pred)
         # print("train_model_pred's type = ", type(train_model_pred))
-        test_model_pred += model.predict_generator(test_D.__iter__(), steps=len(test_D), verbose=1)
+        test_model_pred += model.predict(test_D.__iter__(), steps=len(test_D), verbose=1)
 
         del model
         gc.collect()   # 清理内存
         K.clear_session()   # clear_session就是清除一个session
         # break
 
+    y_val_pred = np.argmax(train_model_pred, axis=1)
+
+    data_labels = np.array(data_labels)
+
+    # 准确率：在所有预测为正的样本中，确实为正的比例
+    # 召回率：本身为正的样本中，被预测为正的比例
+    # print("val_y = ", val_y)
+    # print("y_val_pred = ", list(y_val_pred))
+    precision, recall, fscore, support = score(data_labels, y_val_pred)
+    print("precision = ", precision)
+    print("recall = ", recall)
+    print("fscore = ", fscore)
+    print("support = ", support)
+
+    report = classification_report(data_labels, y_val_pred, digits=4, output_dict=True)
+
+    print(report)
+
+    F1_score = f1_score(y_val_pred, data_labels, average='macro')
+    # F1_score = f1_score(y_val_pred, val_y, average='weighted')
+
+    print('f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, data_labels))
+
     return train_model_pred, test_model_pred
 
 
 # model = build_bert(3)
 # n折交叉验证
-train_model_pred, test_model_pred = run_cv(2, DATA_LIST, None, DATA_LIST_TEST)
+train_model_pred, test_model_pred = run_cv(2, DATA_LIST, LABELS, DATA_LIST_TEST, 1)
+# train_model_pred, test_model_pred = run_cv(1, DATA_LIST, LABELS, DATA_LIST_TEST, 1, 0.75)
 print("train_model_pred = ", train_model_pred)
 print("test_model_pred = ", test_model_pred)
 
