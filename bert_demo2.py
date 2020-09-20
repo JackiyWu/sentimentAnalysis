@@ -12,25 +12,31 @@ from keras.optimizers import Adam
 from keras.utils import to_categorical
 import config
 
-#读取训练集和测试集
-train_df = pd.read_csv(config.baidu_sentiment, sep='\t', names=['id', 'type', 'contents', 'labels']).astype(str)
-test_df = pd.read_csv(config.baidu_sentiment_test, sep='\t', names=['id', 'type', 'contents']).astype(str)
+# 读取训练集和测试集
+train_df = pd.read_csv(config.baidu_sentiment, sep='\t', names=['id', 'type', 'contents', 'labels'])[:10].astype(str)
+test_df = pd.read_csv(config.baidu_sentiment_test, sep='\t', names=['id', 'type', 'contents'])[:5].astype(str)
+# test_df = pd.read_csv(config.baidu_sentiment_test, sep='\t', names=['id', 'type', 'contents'])[:3]
+# print("train_df = ", train_df)
+# print("train_df's type = ", type(train_df))
+# print("test_df = ", test_df)
+# print("test_df's type = ", type(test_df))
 
-maxlen = 100  #设置序列长度为120，要保证序列长度不超过512
+maxlen = 120  # 设置序列长度为120，要保证序列长度不超过512
 
-#预训练好的模型
+# 预训练好的模型
 config_path = 'config/keras_bert/chinese_L-12_H-768_A-12/bert_config.json'
 checkpoint_path = 'config/keras_bert/chinese_L-12_H-768_A-12/bert_model.ckpt'
 dict_path = 'config/keras_bert/chinese_L-12_H-768_A-12/vocab.txt'
 
-#将词表中的词编号转换为字典
+# 将词表中的词编号转换为字典
 token_dict = {}
 with codecs.open(dict_path, 'r', 'utf8') as reader:
     for line in reader:
         token = line.strip()
         token_dict[token] = len(token_dict)
 
-#重写tokenizer
+
+# 重写tokenizer
 class OurTokenizer(Tokenizer):
     def _tokenize(self, text):
         R = []
@@ -42,9 +48,12 @@ class OurTokenizer(Tokenizer):
             else:
                 R.append('[UNK]')  # 不在列表的字符用[UNK]表示
         return R
+
+
 tokenizer = OurTokenizer(token_dict)
 
-#让每条文本的长度相同，用0填充
+
+# 让每条文本的长度相同，用0填充
 def seq_padding(X, padding=0):
     L = [len(x) for x in X]
     ML = max(L)
@@ -82,18 +91,20 @@ class data_generator:
                 X1.append(x1)
                 X2.append(x2)
                 Y.append([y])
-                if len(X1) == self.batch_size or i == idxs[-1]:
+                if len(X1) == self.batch_size or i == idxs[-1]:  # 如果当前输入数据已经够一个batch_size了or已经处理到了最后一条数据，那么就进行编码
                     X1 = seq_padding(X1)
                     X2 = seq_padding(X2)
                     Y = seq_padding(Y)
                     yield [X1, X2], Y[:, 0, :]
-                    [X1, X2, Y] = [], [], []
+                    [X1, X2, Y] = [], [], []  # 此处可以测试一下什么效果
 
-#计算top-k正确率,当预测值的前k个值中存在目标类别即认为预测正确
+
+# 计算top-k正确率,当预测值的前k个值中存在目标类别即认为预测正确
 def acc_top2(y_true, y_pred):
     return top_k_categorical_accuracy(y_true, y_pred, k=2)
 
-#bert模型设置
+
+# bert模型设置
 def build_bert(nclass):
     # bert_model = load_trained_model_from_checkpoint(config_path, checkpoint_path, seq_len=768)  # 加载预训练模型
     bert_model = load_trained_model_from_checkpoint(config_path, checkpoint_path, seq_len=None)  # 加载预训练模型
@@ -110,71 +121,88 @@ def build_bert(nclass):
 
     model = Model([x1_in, x2_in], p)
     model.compile(loss='categorical_crossentropy',
-                  optimizer=Adam(1e-5),    #用足够小的学习率
+                  optimizer=Adam(1e-5),    # 用足够小的学习率
                   metrics=['accuracy', acc_top2])
     print(model.summary())
     return model
 
-#训练数据、测试数据和标签转化为模型输入格式
+
+# 训练数据、测试数据和标签转化为模型输入格式
 DATA_LIST = []
 for data_row in train_df.iloc[:].itertuples():
+    # print("data_row = ", data_row)
+    # print("data_row's type = ", type(data_row))
     DATA_LIST.append((data_row.contents, to_categorical(data_row.labels, 3)))
 DATA_LIST = np.array(DATA_LIST)
+# print("DATA_LIST = ", DATA_LIST)
+# print("DATA_LIST's type = ", type(DATA_LIST))
 
 DATA_LIST_TEST = []
 for data_row in test_df.iloc[:].itertuples():
     DATA_LIST_TEST.append((data_row.contents, to_categorical(0, 3)))
 DATA_LIST_TEST = np.array(DATA_LIST_TEST)
 
-#交叉验证训练和测试模型
+
+# 交叉验证训练和测试模型
 def run_cv(nfold, data, data_labels, data_test):
     kf = KFold(n_splits=nfold, shuffle=True, random_state=520).split(data)
     train_model_pred = np.zeros((len(data), 3))
+    # print("train_model_pred = ", train_model_pred)
     test_model_pred = np.zeros((len(data_test), 3))
 
     for i, (train_fold, test_fold) in enumerate(kf):
+        # print("train_fold = ", train_fold)
+        # print("train_fold's type = ", type(train_fold))
+        # print("test_fold = ", test_fold)
+        # print("test_fold's type = ", type(test_fold))
         X_train, X_valid, = data[train_fold, :], data[test_fold, :]
 
         model = build_bert(3)
-        early_stopping = EarlyStopping(monitor='val_acc', patience=3)   #早停法，防止过拟合
-        plateau = ReduceLROnPlateau(monitor="val_acc", verbose=1, mode='max', factor=0.5, patience=2) #当评价指标不在提升时，减少学习率
-        checkpoint = ModelCheckpoint('./bert_dump/' + str(i) + '.hdf5', monitor='val_acc',verbose=2, save_best_only=True, mode='max', save_weights_only=True) #保存最好的模型
+        early_stopping = EarlyStopping(monitor='val_acc', patience=3)   # 早停法，防止过拟合
+        plateau = ReduceLROnPlateau(monitor="val_acc", verbose=1, mode='max', factor=0.5, patience=2)  # 当评价指标不在提升时，减少学习率
+        checkpoint = ModelCheckpoint('./bert_dump/' + str(i) + '.hdf5', monitor='val_acc',verbose=2, save_best_only=True, mode='max', save_weights_only=True)  # 保存最好的模型
 
         train_D = data_generator(X_train, shuffle=True)
-        valid_D = data_generator(X_valid, shuffle=True)
+        valid_D = data_generator(X_valid, shuffle=True)  # 验证集是从训练集中分出来的
         test_D = data_generator(data_test, shuffle=False)
-        #模型训练
+        # 模型训练
         model.fit_generator(
             train_D.__iter__(),
             steps_per_epoch=len(train_D),
-            epochs=5,
+            epochs=3,
             validation_data=valid_D.__iter__(),
             validation_steps=len(valid_D),
+            # verbose=2,
             callbacks=[early_stopping, plateau, checkpoint],
         )
 
         # model.load_weights('./bert_dump/' + str(i) + '.hdf5')
 
         # return model
-        train_model_pred[test_fold, :] = model.predict_generator(valid_D.__iter__(), steps=len(valid_D), verbose=1)
+        train_model_pred[test_fold, :] = model.predict(valid_D.__iter__(), steps=len(valid_D), verbose=1)
+        # train_model_pred[test_fold, :] = model.predict_generator(valid_D.__iter__(), steps=len(valid_D), verbose=1)
+        # print("train_model_pred = ", train_model_pred)
+        # print("train_model_pred's type = ", type(train_model_pred))
         test_model_pred += model.predict_generator(test_D.__iter__(), steps=len(test_D), verbose=1)
 
         del model
-        gc.collect()   #清理内存
-        K.clear_session()   #clear_session就是清除一个session
+        gc.collect()   # 清理内存
+        K.clear_session()   # clear_session就是清除一个session
         # break
 
     return train_model_pred, test_model_pred
 
 
-model = build_bert(3)
-#n折交叉验证
+# model = build_bert(3)
+# n折交叉验证
 train_model_pred, test_model_pred = run_cv(2, DATA_LIST, None, DATA_LIST_TEST)
+print("train_model_pred = ", train_model_pred)
+print("test_model_pred = ", test_model_pred)
 
 test_pred = [np.argmax(x) for x in test_model_pred]
 
-#将测试集预测结果写入文件
-output=pd.DataFrame({'id':test_df.id,'sentiment':test_pred})
+# 将测试集预测结果写入文件
+output = pd.DataFrame({'id': test_df.id, 'sentiment': test_pred})
 output.to_csv('result/bert_results.csv', index=None)
 
 print("end of bert_demo2...")
