@@ -9,12 +9,12 @@ from keras.utils.np_utils import to_categorical
 from tensorflow.keras.utils import plot_model
 from sklearn.utils import class_weight
 
-import KMeansCluster as KMC
-import fuzzySystem as fsys
-import featureFusion_sentence as ff_s
+import sentimentAnalysis.KMeansCluster as KMC
+import sentimentAnalysis.fuzzySystem as fsys
+import sentimentAnalysis.featureFusion_sentence as ff_s
 import fuzzySentiment as fsent
 import test
-import dataProcess_sentence as dp_s
+import sentimentAnalysis.dataProcess_sentence as dp_s
 import fasttext
 
 import time

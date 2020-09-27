@@ -19,11 +19,10 @@ import keras
 
 import numpy as np
 import os
-from sklearn.model_selection import train_test_split
 import time
 
-import dataProcess as dp
-import config
+import sentimentAnalysis.dataProcess as dp
+import sentimentAnalysis.config
 
 
 '''

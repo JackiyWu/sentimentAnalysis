@@ -15,3 +15,5 @@ test_export_saved_model.h5
 venv/
 config/
 __pycache__/
+datasets/meituan/sentiment_analysis_training_set.csv
+datasets/meituan/sentiment_analysis_training_set_new.csv
