@@ -192,7 +192,7 @@ def save_result_to_csv(report, f1_score, experiment_id):
 # cnn
 # def create_cnn_model(cnn_maxlen, dict_length, filters, embedding_matrix):
 def create_cnn_model(cnn_maxlen, dict_length, filter, embedding_matrix, window_size, dropout):
-    inputs_cnn = Input(shape=(cnn_maxlen,), name="input_cnn")  # dict_length是词典长度，128是词向量的维度，512是每个input的长度
+    inputs_cnn = Input(shape=(cnn_maxlen,), name="input_cnn")  # dict_length是词典长度，300是词向量的维度，512是每个input的长度
     x_cnn = Embedding(input_dim=dict_length, output_dim=300, name='embedding_cnn', weights=[embedding_matrix], trainable=True)(inputs_cnn)
     # x_cnn = Embedding(input_dim=dict_length, output_dim=200, name='embedding_cnn')(inputs_cnn)
     x_cnn = Conv1D(filter, window_size, activation='relu', name='conv')(x_cnn)

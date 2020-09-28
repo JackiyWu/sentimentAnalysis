@@ -56,7 +56,7 @@ y_cols = []
 
 # 读取数据
 def initData(debug=False):
-    print("In initData function of dataProcess.py...")
+    # print("In initData function of dataProcess.py...")
     data = pd.read_csv(config.meituan_validation_new)
     # data = pd.read_csv(config.meituan_train)
     if debug:
@@ -70,7 +70,7 @@ def initData(debug=False):
     print("data's shape = ", data.shape)
     print("y_cols = ", y_cols)
 
-    print("end of initData function in dataProcess.py...")
+    # print("end of initData function in dataProcess.py...")
 
     return data, y_cols
 
@@ -385,13 +385,13 @@ def createBertEmbeddingModel():
 
     print(">>>Bert模型加载结束。。。")
 
-    return model, tokenizer
+    return model, tokenizer, token_dict
 
 
 # 根据bert模型和input_texts得到字符级向量和句子级向量
 # 评论长度限制为512个字符，后续可以扩大看效果
 def getBertEmbeddings(bert_model, tokenizer, origin_data, debug=False):
-    print(">>>获取bert字符级向量和句子级向量。。。")
+    # print(">>>获取bert字符级向量和句子级向量。。。")
     character_embeddings = []
     sentence_embeddings = []
 
@@ -426,7 +426,7 @@ def getBertEmbeddings(bert_model, tokenizer, origin_data, debug=False):
     # print("character_embeddings[0] = ", character_embeddings[0])
     # print("sentence_embeddings[0] = ", sentence_embeddings[0])
 
-    print(">>>bert字符级向量和句子级向量GET。。。")
+    # print(">>>bert字符级向量和句子级向量GET。。。")
 
     return character_embeddings, sentence_embeddings
 
@@ -471,7 +471,7 @@ def trainModel(sentence_embeddings):
 
 # 计算评论中的字向量与聚类中心的隶属度（余弦距离）
 def calculateMembershipDegree(cluster_centers, character_embeddings):
-    print(">>>开始计算评论文本的隶属度。。。")
+    # print(">>>开始计算评论文本的隶属度。。。")
     membership_degrees = []
     for character_embedding in character_embeddings:
         sentence_membership_degrees = []
@@ -483,7 +483,7 @@ def calculateMembershipDegree(cluster_centers, character_embeddings):
             sentence_membership_degrees.append(word_membership_degrees)
         membership_degrees.append(sentence_membership_degrees)
 
-    print(">>>评论文本的隶属度计算结束。。。")
+    # print(">>>评论文本的隶属度计算结束。。。")
     return membership_degrees
 
 
