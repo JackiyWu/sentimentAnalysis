@@ -475,5 +475,9 @@ def calculateMembershipDegree(cluster_centers, character_embeddings):
     for character_embedding in character_embeddings:
         for character in character_embedding:
             pass
-        pass
+
+
+# 使用余弦距离计算两个向量间的相似度
+def calculateCosinValue(vector1, vector2):
+    pass
 
