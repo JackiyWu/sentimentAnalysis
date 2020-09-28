@@ -21,8 +21,8 @@ import numpy as np
 import os
 import time
 
-import sentimentAnalysis.dataProcess as dp
-import sentimentAnalysis.config
+import dataProcess as dp
+import config
 
 
 '''

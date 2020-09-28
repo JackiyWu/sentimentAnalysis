@@ -4,7 +4,7 @@
 from sklearn.cluster import KMeans
 import numpy as np
 import xlrd
-import fuzzySentiment.config as config
+import config as config
 
 
 # 词语-序号字典,脏乱:0

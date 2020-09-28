@@ -15,13 +15,12 @@ from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import GlobalAveragePooling1D, GlobalMaxPooling1D, Conv1D, MaxPooling1D
 from tensorflow.keras.preprocessing.text import Tokenizer
 import tensorflow as tf
-import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, confusion_matrix
 from keras.utils.np_utils import to_categorical
 import keras
 
-import sentimentAnalysis.absa_config as config
+import absa_config as config
 import numpy as np
 import os
 import time
@@ -39,7 +38,7 @@ from keras.utils.np_utils import to_categorical
 
 from keras_bert import Tokenizer as bert_Tokenizer, load_trained_model_from_checkpoint
 
-import sentimentAnalysis.absa_config as config
+import absa_config as config
 
 
 '''
@@ -425,8 +424,8 @@ def getBertEmbeddings(bert_model, tokenizer, origin_data, debug=False):
             if token == "[CLS]":
                 sentence_embeddings.append(predicted)
         character_embeddings.append(current_embedding)
-    print("character_embeddings[0] = ", character_embeddings[0])
-    print("sentence_embeddings[0] = ", sentence_embeddings[0])
+    # print("character_embeddings[0] = ", character_embeddings[0])
+    # print("sentence_embeddings[0] = ", sentence_embeddings[0])
 
     return character_embeddings, sentence_embeddings
 
@@ -438,7 +437,7 @@ def getClusterCenters(sentence_embeddings):
 
     # 查看预测样本的中心点
     clusters_centers = kMeans_model.cluster_centers_
-    print("clusters' centers:", clusters_centers)
+    # print("clusters' centers:", clusters_centers)
 
     # 将聚类中心点写入文件
     with codecs.open(config.cluster_center, "w", "utf-8") as f:
@@ -453,7 +452,7 @@ def getClusterCenters(sentence_embeddings):
 
 # 从文件中读取聚类中心向量
 def getClusterCenterFromFile():
-    cluster_center = pd.read_csv(config.cluster_center).values.tolist()
+    cluster_center = pd.read_csv(config.cluster_center, header=None).values.tolist()
     print("cluster_center = ", cluster_center)
 
     return cluster_center
@@ -473,11 +472,58 @@ def trainModel(sentence_embeddings):
 def calculateMembershipDegree(cluster_centers, character_embeddings):
     membership_degrees = []
     for character_embedding in character_embeddings:
+        sentence_membership_degrees = []
         for character in character_embedding:
-            pass
+            word_membership_degrees = []
+            for cluster_center in cluster_centers:
+                result = calculateCosinValue(character, cluster_center)
+                word_membership_degrees.append(result)
+            sentence_membership_degrees.append(word_membership_degrees)
+        membership_degrees.append(sentence_membership_degrees)
+
+    return membership_degrees
 
 
 # 使用余弦距离计算两个向量间的相似度
 def calculateCosinValue(vector1, vector2):
-    pass
+    # print("vector1 = ", vector1)
+    # print("vector2 = ", vector2)
+    vector1 = np.mat(vector1)
+    vector2 = np.mat(vector2)
+    num = float(vector1 * vector2.T)
+    denom = np.linalg.norm(vector1) * np.linalg.norm(vector2)
+    cos = num / denom
+    sim = 0.5 + 0.5 * cos
+    # print("sim = ", sim)
+
+    return sim
+
+
+# 将assisted_vector拼接在main_vector后面
+def concatenateVector(main_vector, assisted_vector):
+    print("main_vector's length = ", len(main_vector))
+    # print("assisted_vector = ", assisted_vector)
+    print("assisted_vector's length = ", len(assisted_vector))
+
+    final_word_embeddings = []
+    length_1 = len(main_vector)
+    length_2 = len(assisted_vector)
+    if length_1 != length_2:
+        print("字向量和隶属值向量长度不一致!!!")
+        return None
+
+    for i in range(length_1):
+        main_vector_current = main_vector[i]
+        assisted_vector_current = assisted_vector[i]
+        # print("main_vector_current = ", main_vector_current)
+        # print("main_vector_current's length = ", len(main_vector_current))
+        # print("main_vector_current's type = ", type(main_vector_current))
+        # print("assisted_vector_current = ", assisted_vector_current)
+        # print("assisted_vector_current's length = ", len(assisted_vector_current))
+        # print("assisted_vector_current's type = ", type(assisted_vector_current))
+
+        final_word_embeddings.append(np.concatenate((main_vector_current, assisted_vector_current), axis=1).tolist())
+        # print("final_word_embeddings = ", final_word_embeddings)
+
+    return np.array(final_word_embeddings)
 

@@ -17,7 +17,7 @@ from keras.utils.np_utils import to_categorical
 
 from keras_bert import Tokenizer, load_trained_model_from_checkpoint
 
-import sentimentAnalysis.absa_config as config
+import absa_config as config
 
 # 一些超参数
 TOKEN_DICT = {}

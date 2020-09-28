@@ -22,7 +22,7 @@
     5.计算每条评论的特征向量（字符级向量）到聚类中心的距离distance_from_feature_to_cluster
     6.使用cosin距离来定义隶属函数,根据distance_from_feature_to_cluster和隶属函数计算特征向量对三个类别的隶属值review_sentiment_membership_degree([])（三维隶属值，表示负向、中性、正向）
 
-    7.将review_sentiment_membership_degree拼接在word_embedding后面生成最终的词向量final_word_embeddings
+    7.将review_sentiment_membership_degree拼接在wcharacter_embeddings后面生成最终的词向量final_word_embeddings
     ***************************************************************↑↑↑↑↑↑↑↑方面级情感分析流程↑↑↑↑↑↑↑↑***************************************************************
 
     ***************************************************************↓↓↓暂时没用，后续可考虑词典增强的情感分析↓↓↓***************************************************************
@@ -41,9 +41,9 @@
 
 import time
 
-import sentimentAnalysis.absa_dataProcess as dp
-import sentimentAnalysis.config as config
-import sentimentAnalysis.absa_models as absa_models
+import absa_dataProcess as dp
+import config as config
+import absa_models as absa_models
 
 # 几个超参数，全部大写
 CONCATENATE_ADD = True  # 拼接两个字符级向量的方式-ADD
@@ -85,9 +85,10 @@ if __name__ == "__main__":
 
     # 5.计算每条评论的特征向量（字符级向量）到不同聚类中心的隶属值 distance_from_feature_to_cluster
     # 6.使用cosin余弦距离来定义隶属函数,根据distance_from_feature_to_cluster和隶属函数计算特征向量对三个类别的隶属值review_sentiment_membership_degree([])（三维隶属值，表示负向、中性、正向）
-    membership_degrees = dp.calculateMembershipDegree(cluster_centers, character_embeddings)
+    review_sentiment_membership_degree = dp.calculateMembershipDegree(cluster_centers, character_embeddings)
 
-    # 7.将review_sentiment_membership_degree拼接在word_embedding后面生成最终的词向量final_word_embeddings
+    # 7.将review_sentiment_membership_degree拼接在character_embeddings后面生成最终的词向量final_word_embeddings
+    final_word_embeddings = dp.concatenateVector(character_embeddings, review_sentiment_membership_degree)
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))

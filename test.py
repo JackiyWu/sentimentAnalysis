@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 
 import numpy
-import fuzzySentiment.KMeansCluster as km
+import KMeansCluster as km
 import keras
 import keras.backend as K
 import tensorflow as tf
@@ -386,8 +386,25 @@ def read_csv2(experiment_id):
             print("row = ", row)
 
 
+def concatenate_vectors():
+    vec1 = [[5, 2, 7, 8, 9], [9, 0, 6, 4, 3]]
+    vec2 = [[1, 5, 2], [4, 2, 0]]
+
+    vec3 = [[[5, 2, 7, 8, 9], [9, 0, 6, 4, 3]], [[51, 21, 71, 81, 91], [91, 1, 61, 41, 31]]]
+    vec4 = [[[1, 5, 2], [4, 2, 0]], [[12, 52, 22], [42, 22, 20]]]
+
+    print("vec1's type = ", type(vec1))
+    print("vec2's type = ", type(vec2))
+
+    con = numpy.concatenate((vec1, vec2), axis=1)
+
+    print(con)
+
+
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
+
+    concatenate_vectors()
 
     # name = "learning_rate"
     # read_csv(name)
@@ -405,8 +422,8 @@ if __name__ == "__main__":
 
     # for i in range(10):
     #     print("hello world")
-    columns = ['id', 'review', 'service', 'price', 'self', 'outside', 'safety', 'inside', 'useful', 'times']
-    print(columns[2: -1])
+    # columns = ['id', 'review', 'service', 'price', 'self', 'outside', 'safety', 'inside', 'useful', 'times']
+    # print(columns[2: -1])
 
     print(">>>in the end...")
 

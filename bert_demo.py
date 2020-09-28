@@ -11,7 +11,7 @@ from keras.models import Model
 import keras.backend as K
 from keras.optimizers import Adam
 
-import sentimentAnalysis.absa_config as config
+import absa_config as config
 
 maxlen = 100
 batch_size = 16
