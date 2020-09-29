@@ -62,7 +62,7 @@ import absa_config as config
 import absa_models as absa_models
 
 # 如果DEBUG为True，则只测试少部分数据
-DEBUG = True
+DEBUG = False
 
 # 句子的最大长度
 MAXLEN = 512
@@ -100,9 +100,9 @@ if __name__ == "__main__":
 
     # 4.对sentence_embeddings进行聚类，得到三个聚类中心cluster_centers，并输出到文件
     print("》》》【4】获取三个聚类中心**********************************************************************************************************************************************************************************")
-    # cluster_centers = dp.getClusterCenters(sentence_embeddings)
+    cluster_centers = dp.getClusterCenters(sentence_embeddings)
     # 4.直接从文件中读取聚类中心向量
-    cluster_centers = dp.getClusterCenterFromFile()
+    # cluster_centers = dp.getClusterCenterFromFile()
 
     # 5.计算每条评论的特征向量（字符级向量）到不同聚类中心的隶属值 distance_from_feature_to_cluster
     print("》》》【5、6】计算评论对聚类中心的隶属值*********************************************************************************************************************************************************************")
@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
     # 9.训练模型
     print("》》》【9】训练模型******************************************************************************************************************************************************************************************")
-    absa_models.trainModel(model, final_word_embeddings, origin_data, y_cols, True, debug=DEBUG)
+    absa_models.trainModel(model, final_word_embeddings, origin_data, y_cols, ratio_style=True, debug=DEBUG)
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))

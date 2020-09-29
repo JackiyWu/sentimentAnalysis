@@ -70,7 +70,7 @@ def createTextCNNModel(maxlen, embedding_dim, debug=False):
     tensor_output = Dense(4, activation='softmax')(dropout)
 
     model = Model(inputs=tensor_input, outputs = tensor_output)
-    print(model.summary())
+    # print(model.summary())
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
@@ -140,4 +140,30 @@ def trainModel(model, x, origin_data, y_cols, ratio_style, epoch=3, batch_size=1
         print(">>>y_validation.shape = ", y_validation.shape)
 
         history = model.fit(x_train, y_train_onehot, validation_data=(x_validation, y_validation_onehot), epochs=epoch, batch_size=batch_size)
+
+        # 预测验证集
+        y_validation_pred = model.predict(x_validation)
+        y_validation_pred = np.argmax(y_validation_pred, axis=1)
+
+        # 准确率：在所有预测为正的样本中，确实为正的比例
+        # 召回率：本身为正的样本中，被预测为正的比例
+        print("y_val_pred = ", list(y_validation_pred))
+        precision, recall, fscore, support = score(y_validation, y_validation_pred)
+        print("precision = ", precision)
+        print("recall = ", recall)
+        print("fscore = ", fscore)
+        print("support = ", support)
+
+        print(classification_report(y_validation, y_validation_pred, digits=4))
+
+        F1_score = f1_score(y_validation_pred, y_validation, average='macro')
+        F1_scores += F1_score
+
+        print('第', index, '个细粒度', col, 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_validation_pred, y_validation))
+        print("%Y-%m%d %H:%M:%S", time.localtime())
+
+    print('all F1_score:', F1_scores/len(y_cols))
+    print("result:", result)
+
+    return result
 
