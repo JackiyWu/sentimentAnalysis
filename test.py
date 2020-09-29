@@ -408,6 +408,17 @@ def my_padding():
                                            "根本没空位置，\n"
                                            "所以停在了旁边的地下停车场。", "还有一个汤", "还有一个汤2"], "B": [5,6,7,8], "C": [1,1,1,1]})
     print("df = ", df)
+    print("df.loc[:2] = ", df.loc[:2])
+
+    df2 = pd.DataFrame({"A": [5, 6, 7, 8], "B": [5, 6, 7, 8], "C": [1, 1, 1, 1], "D": [1, 2, 1, 4]})
+    print("df2.loc[:2] = ", df2.loc[:2])
+
+    ls = [1, 2, 3, 4, 5, 6, 7]
+    print(ls[:2])
+
+    df_array = np.array(df)
+    print("df_array's type = ", type(df_array))
+    print("df_array = ", df_array)
 
 
 def deleteEnter(df):
@@ -443,6 +454,18 @@ def CutTest():
     for text in texts:
         print("text = ", text)
         print("text's length = ", len(text))
+
+
+def train_test_split_test():
+    X = ["我是中国人", "你是中国人吗", "真的挺好玩的是不是", "挺好的", "今天吃的什么饭呀？好不好吃呀？", "不开心", "不高兴", "今天吃的什么饭呀？好不好吃呀？", "不开心", "不高兴"]
+    y = [1, 0, 1, 1, 0, 0, 1, 0, 0, 1]
+    X = np.array(X)
+    y = np.array(y)
+    X_train, X_validation, y_train, y_validation = train_test_split(X, y, test_size=0.3)
+    print("X_train = ", X_train)
+    print("y_train = ", y_train)
+    print("X_validation = ", X_validation)
+    print("y_validation = ", y_validation)
 
 
 if __name__ == "__main__":

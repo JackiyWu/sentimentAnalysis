@@ -60,15 +60,15 @@ def initData(debug=False, clean=False):
     data = pd.read_csv(config.meituan_validation_new)
     # data = pd.read_csv(config.meituan_train)
     if debug:
-        data = data[:10]
+        data = data[:50]
 
     global y_cols
     # y_cols = data.columns.values.tolist()[2:22]
     y_cols = data.columns.values.tolist()[2:7]
-    print("data = ", data.head())
-    print("data'type = ", type(data))
-    print("data's shape = ", data.shape)
-    print("y_cols = ", y_cols)
+    print(">>>data = ", data.head())
+    print(">>>data'type = ", type(data))
+    print(">>>data's shape = ", data.shape)
+    print(">>>y_cols = ", y_cols)
 
     # print("end of initData function in dataProcess.py...")
 
@@ -363,11 +363,11 @@ def train_CNN(train_x, test_x, val_x, y_cols, debug=False, folds=1):
         F1_score = f1_score(y_val_pred, val_y, average='macro')
         F1_scores += F1_score
 
-        print('第', index, '个细粒度', col, 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
+        print(' 第', index, '个细粒度', col, 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
         y_test_pred = np.argmax(y_test_pred, axis=1)
         result[col] = y_test_pred-2
-    print('all F1_score:', F1_scores/len(y_cols))
-    print("result:", result)
+    print(' all F1_score:', F1_scores/len(y_cols))
+    print(" result:", result)
     return result
 
 
@@ -377,7 +377,7 @@ def textsPadding(tokens, maxlen):
     if length == maxlen:
         return tokens
     elif length > maxlen:
-        print("啊啊啊啊啊啊出错了！maxlen最大才是512！！！现在length居然等于", length)
+        print(" 啊啊啊啊啊啊出错了！maxlen最大才是512！！！现在length居然等于", length)
     pad = '[PAD]'
     tokens += [pad] * (maxlen - length)
 
@@ -387,7 +387,7 @@ def textsPadding(tokens, maxlen):
 # 将文本截取至maxlen-2的长度
 def textsCut(input_texts, maxlen):
     result = []
-    print("maxlen - 2 = ", maxlen - 2)
+    print(" maxlen - 2 = ", maxlen - 2)
     for text in input_texts:
         # print("text in textsCut = ", list(text))
         length = len(text)
@@ -403,7 +403,7 @@ def textsCut(input_texts, maxlen):
 
 # 创建bert模型
 def createBertEmbeddingModel():
-    print(">>>开始Bert模型。。。")
+    print(">>>开始加载Bert模型。。。")
     token_dict = {}
     with codecs.open(config.bert_dict_path, 'r', 'utf8') as reader:
         for line in reader:
@@ -421,7 +421,7 @@ def createBertEmbeddingModel():
 # 根据bert模型和input_texts得到字符级向量和句子级向量
 # 评论长度限制为512个字符，后续可以扩大看效果
 def getBertEmbeddings(bert_model, tokenizer, origin_data, maxlen, debug=False):
-    # print(">>>获取bert字符级向量和句子级向量。。。")
+    print(">>>正在飞速获取bert字符级向量和句子级向量")
     character_embeddings = []
     sentence_embeddings = []
 
@@ -482,7 +482,7 @@ def getClusterCenters(sentence_embeddings):
         writer.writerows(clusters_centers)
         f.close()
 
-    print(">>>End of getClusterCenters in absa_dataProcess.py...")
+    print(" End of getClusterCenters in absa_dataProcess.py...")
 
     return clusters_centers
 
@@ -490,7 +490,7 @@ def getClusterCenters(sentence_embeddings):
 # 从文件中读取聚类中心向量
 def getClusterCenterFromFile():
     cluster_center = pd.read_csv(config.cluster_center, header=None).values.tolist()
-    print("cluster_center = ", cluster_center)
+    print(">>>cluster_center = ", cluster_center)
 
     return cluster_center
 
@@ -540,15 +540,15 @@ def calculateCosinValue(vector1, vector2):
 
 # 将assisted_vector拼接在main_vector后面
 def concatenateVector(main_vector, assisted_vector):
-    print("main_vector's length = ", len(main_vector))
+    print(">>>main_vector's length = ", len(main_vector))
     # print("assisted_vector = ", assisted_vector)
-    print("assisted_vector's length = ", len(assisted_vector))
+    print(">>>assisted_vector's length = ", len(assisted_vector))
 
     final_word_embeddings = []
     length_1 = len(main_vector)
     length_2 = len(assisted_vector)
     if length_1 != length_2:
-        print("字向量和隶属值向量长度不一致!!!")
+        print(">>>字向量和隶属值向量长度不一致!!!")
         return None
 
     for i in range(length_1):
