@@ -106,3 +106,12 @@ def createTextCNNBiGRU(maxlen, embedding_dim):
     # print(">>>TextCNNBiGRU模型构建结束。。。")
     return model
 
+
+# 训练模型,origin_data中包含多个属性的标签
+def trainModel(model, x, origin_data, epoch=3, batch_size=64, debug=False):
+    F1_scores = 0
+    F1_score = 0
+    result = {}
+    if debug:
+        y_cols = ['location']
+

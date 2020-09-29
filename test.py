@@ -401,10 +401,54 @@ def concatenate_vectors():
     print(con)
 
 
+def my_padding():
+    df = pd.DataFrame({"A": ["趁着国庆节。\n"
+                             "一家人在白天在山里玩耍之后。\n"
+                             "晚上决定吃李记搅团。", "东门外这家店门口停车太难了，\n"
+                                           "根本没空位置，\n"
+                                           "所以停在了旁边的地下停车场。", "还有一个汤", "还有一个汤2"], "B": [5,6,7,8], "C": [1,1,1,1]})
+    print("df = ", df)
+
+
+def deleteEnter(df):
+    pass
+
+
+def padding(text, maxlen):
+    length = len(text)
+    if length < 512:
+        pass
+
+# 将文本截取至maxlen-2的长度
+def textsCut(input_texts, maxlen):
+    result = []
+    for text in input_texts:
+        print("text = ", text)
+        length = len(text)
+        print("length before = ", length)
+        if length <= maxlen - 2:
+            result.append(text)
+            print("length after1 = ", len(text))
+            continue
+        print("length after2 = ", len(text[:maxlen - 2]))
+        result.append(text[:maxlen - 2])
+
+    return result
+
+
+def CutTest():
+    texts = ["我是中国人", "你是中国人吗", "真的挺好玩的是不是", "挺好的", "今天吃的什么饭呀？好不好吃呀？"]
+    texts = textsCut(texts, 8)
+    print("*" * 100)
+    for text in texts:
+        print("text = ", text)
+        print("text's length = ", len(text))
+
+
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
 
-    concatenate_vectors()
+    my_padding()
 
     # name = "learning_rate"
     # read_csv(name)

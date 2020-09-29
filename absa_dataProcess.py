@@ -55,7 +55,7 @@ y_cols = []
 
 
 # 读取数据
-def initData(debug=False):
+def initData(debug=False, clean=False):
     # print("In initData function of dataProcess.py...")
     data = pd.read_csv(config.meituan_validation_new)
     # data = pd.read_csv(config.meituan_train)
@@ -371,6 +371,36 @@ def train_CNN(train_x, test_x, val_x, y_cols, debug=False, folds=1):
     return result
 
 
+# 如果文本长度小于maxlen，则进行[pad]补齐
+def textsPadding(tokens, maxlen):
+    length = len(tokens)
+    if length == maxlen:
+        return tokens
+    elif length > maxlen:
+        print("啊啊啊啊啊啊出错了！maxlen最大才是512！！！现在length居然等于", length)
+    pad = '[PAD]'
+    tokens += [pad] * (maxlen - length)
+
+    return tokens
+
+
+# 将文本截取至maxlen-2的长度
+def textsCut(input_texts, maxlen):
+    result = []
+    print("maxlen - 2 = ", maxlen - 2)
+    for text in input_texts:
+        # print("text in textsCut = ", list(text))
+        length = len(text)
+        # print("length before = ", length)
+        if length <= maxlen - 2:
+            result.append(text)
+            continue
+        # print("length after = ", len(text[:maxlen - 2]))
+        result.append(text[:maxlen - 2])
+
+    return result
+
+
 # 创建bert模型
 def createBertEmbeddingModel():
     print(">>>开始Bert模型。。。")
@@ -390,18 +420,24 @@ def createBertEmbeddingModel():
 
 # 根据bert模型和input_texts得到字符级向量和句子级向量
 # 评论长度限制为512个字符，后续可以扩大看效果
-def getBertEmbeddings(bert_model, tokenizer, origin_data, debug=False):
+def getBertEmbeddings(bert_model, tokenizer, origin_data, maxlen, debug=False):
     # print(">>>获取bert字符级向量和句子级向量。。。")
     character_embeddings = []
     sentence_embeddings = []
 
     input_texts = origin_data["content"]
+    input_texts = textsCut(input_texts, maxlen)  # 对长句子进行截断
 
     for text in input_texts:
         current_embedding = []
         # print("text = ", text)
         # print("text's length = ", len(text))
         tokens = tokenizer.tokenize(text)
+        # print("tokens = ", tokens)
+        # print("tokens' length = ", len(tokens))
+        tokens = textsPadding(tokens, maxlen)
+        # print("tokens after = ", tokens)
+        # print("tokens' length = ", len(tokens))
         indices, segments = tokenizer.encode(first=text, max_len=512)
         # print("indices = ", indices[:10])
         # print("segments = ", segments[:10])
@@ -410,8 +446,8 @@ def getBertEmbeddings(bert_model, tokenizer, origin_data, debug=False):
         # print("tokens' length = ", len(tokens))
         for i, token in enumerate(tokens):
             # 此处为了限制评论最长是512个字符，后续可以做实验扩大
-            if i >= 512:
-                break
+            # if i >= maxlen:
+            #     break
 
             if debug:
                 predicted = predicts[i].tolist()[:5]
@@ -434,7 +470,7 @@ def getBertEmbeddings(bert_model, tokenizer, origin_data, debug=False):
 # 对输入的评论文本向量（一个向量表示一个句子）进行聚类，得到三个聚类中心，并写入文件
 def getClusterCenters(sentence_embeddings):
     print(">>>In getClusterCenters of absa_dataProcess.py...")
-    kMeans_model = trainModel(sentence_embeddings)
+    kMeans_model = trainKMeansModel(sentence_embeddings)
 
     # 查看预测样本的中心点
     clusters_centers = kMeans_model.cluster_centers_
@@ -460,7 +496,7 @@ def getClusterCenterFromFile():
 
 
 # 接收sentence_embeddings，训练模型并返回
-def trainModel(sentence_embeddings):
+def trainKMeansModel(sentence_embeddings):
     # 创建KMeans 对象
     cluster = KMeans(n_clusters=3, random_state=0, n_jobs=-1)
     # print("sentence_embeddings = ", sentence_embeddings)
