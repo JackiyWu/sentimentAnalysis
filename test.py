@@ -421,8 +421,40 @@ def my_padding():
     print("df_array = ", df_array)
 
 
-def deleteEnter(df):
-    pass
+def deleteEnter():
+    df = pd.DataFrame({"A": ["趁着国庆节。\n"
+                             "一家人在白天在山里玩耍之后。\n"
+                             "晚上决定吃李记搅团。", "东门外这家店门口停车太难了，\n"
+                                           "根本没空位置，\n"
+                                           "所以停在了旁边的地下停车场。\n", "还有一个汤", "还有一个汤2\n"], "B": [5, 6, 7, 8], "C": [1,1,1,1]})
+    df2 = pd.DataFrame({"A": ["趁着国庆节。"
+                              "一家人在白天在山里玩耍之后。"
+                              "晚上决定吃李记搅团。", "东门外这家店门口停车太难了，"
+                                            "根本没空位置，"
+                                            "所以停在了旁边的地下停车场。", "还有一个汤", "还有一个汤2"], "B": [5, 6, 7, 8], "C": [1,1,1,1]})
+    # print("df['A']_1 = ", df["A"])
+    # print("df2 = ", df2)
+    # df["A"] = df["A"].apply(lambda x: x.strip())
+    # print("df['A']_2 = ", df["A"])
+    # df["A"] = df["A"].apply(lambda x: x.replace("\n", "").replace('\r', ''))
+    # print("df['A']_3 = ", df["A"])
+    print(df)
+
+    # 遍历清洗
+    rows = len(df)
+    print("rows = ", rows)
+    for i in range(rows):
+        current = df.loc[i, 'A']
+        print("current_0 = ", current)
+        current = current.replace('\n', '')
+        print("current_1 = ", current)
+        df.loc[i, 'A'] = current
+    print("df_final = ", df)
+
+
+def delete_enter(df):
+    if "\n" in df["A"]:
+        return df["A"]
 
 
 def padding(text, maxlen):
@@ -471,7 +503,7 @@ def train_test_split_test():
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
 
-    my_padding()
+    deleteEnter()
 
     # name = "learning_rate"
     # read_csv(name)

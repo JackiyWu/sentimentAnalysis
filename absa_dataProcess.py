@@ -16,12 +16,20 @@ import absa_config as config
 
 
 # 读取数据
-def initData(debug=False, clean=False):
+def initData(debug=False, clean_enter=False, clean_space=False):
     # print("In initData function of dataProcess.py...")
     data = pd.read_csv(config.meituan_validation_new)
     # data = pd.read_csv(config.meituan_train)
     if debug:
         data = data[:50]
+
+    # 对原评论文本进行清洗，去回车符 去空格
+    # print("data['content']_0 = ", data['content'])
+    if clean_enter:
+        data = dataCleanEnter(data)
+    if clean_space:
+        data = dataCleanSpace(data)
+    # print("data['content']_1 = ", data['content'])
 
     global y_cols
     # y_cols = data.columns.values.tolist()[2:22]
@@ -34,6 +42,28 @@ def initData(debug=False, clean=False):
     # print("end of initData function in dataProcess.py...")
 
     return data, y_cols
+
+
+# 对原评论文本进行清洗,去回车符
+def dataCleanEnter(data):
+    rows = len(data)
+
+    for i in range(rows):
+        # print("i = ", i)
+        # print("data.loc[i, 'content']_0 = ", data.loc[i, 'content'])
+        current = data.loc[i, 'content']
+        # print("current_0 = ", current)
+        current = current.replace('\n', '')
+        # print("current_1 = ", current)
+        data.loc[i, 'content'] = current
+        # print("data.loc[i, 'content']_1 = ", data.loc[i, 'content'])
+
+    return data
+
+
+# 对原评论文本进行清洗，去空格
+def dataCleanSpace(data):
+    pass
 
 
 # 传入细粒度属性的label，输出粗粒度属性label

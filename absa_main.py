@@ -68,7 +68,8 @@ DEBUG = True
 MAXLEN = 512
 
 # 是否对原始数据进行清洗，如去掉换行符、空格,后续测试
-CLEAN = False
+CLEAN_ENTER = True
+CLEAN_SPACE = False
 
 
 if __name__ == "__main__":
@@ -78,7 +79,7 @@ if __name__ == "__main__":
 
     # 1.读取原始训练数据集origin_data
     print("》》》【1】读取原始训练数据集,去掉换行符、空格（测试）*******************************************************************************************************************************************************")
-    origin_data, y_cols = dp.initData(DEBUG, CLEAN)
+    origin_data, y_cols = dp.initData(DEBUG, CLEAN_ENTER, CLEAN_SPACE)
 
     # 把细粒度属性标签转为粗粒度属性标签
     # dp.processDataToTarget(origin_data)
