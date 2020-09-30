@@ -100,7 +100,7 @@ def createTextCNNBiGRU(maxlen, embedding_dim):
     dropout = Dropout(0.2)(dense)
     tensor_output = Dense(4, activation='softmax')(dropout)
 
-    model = Model(inputs=tensor_input, outputs = tensor_output)
+    model = Model(inputs=tensor_input, outputs=tensor_output)
     # print(model.summary())
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
