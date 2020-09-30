@@ -13,12 +13,14 @@ from sklearn.metrics import classification_report
 from sklearn.utils import class_weight
 
 import keras
-from keras.layers import Input, Flatten, Dense, Dropout, Activation, GRU, Bidirectional, Conv1D, SeparableConvolution1D
+from keras.layers import Input, Flatten, Dense, Dropout, Activation, GRU, Bidirectional, Conv1D
 from keras.layers import Embedding, merge, Lambda, Reshape, BatchNormalization, MaxPool1D, GlobalAveragePooling1D
 from keras import Model, Sequential
 from keras.utils import to_categorical
 from keras import regularizers
 from keras.layers.merge import concatenate
+
+from tensorflow.keras.layers import SeparableConvolution1D
 
 from keras_bert import Tokenizer, load_trained_model_from_checkpoint
 
