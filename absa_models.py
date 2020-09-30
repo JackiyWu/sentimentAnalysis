@@ -126,21 +126,34 @@ def trainModel(model, x, origin_data, y_cols, ratio_style, epoch=3, batch_size=1
     print(">>>勿扰！训练模型ing...")
     print(">>>x's type = ", type(x))
     print(">>>origin_data's type = ", type(origin_data))
+    origin_data_content = np.array(origin_data['content'])
 
     F1_scores = 0
     F1_score = 0
     result = {}
-    if debug:
-        y_cols = ['location']
+    # if debug:
+    #     y_cols = ['location']
     for index, col in enumerate(y_cols):
         origin_data_current_col = origin_data[col] + 2
+        origin_data_current_col = np.array(origin_data_current_col)
+        # 生成测试集,比例为0.1,x为numpy类型，origin_data为dataFrame类型
+        ratio = 0.1
+        length = int(len(origin_data_current_col) * ratio)
+        print("测试集的长度为", length)
+        x_test = x[:length]
+        x_current = x[length:]
+        x_test_content = origin_data_content[:length]
+
+        y_test = origin_data_current_col[:length]
+        origin_data_current_col = origin_data_current_col[length:]
+
         # print("x = ", x)
         # print("origin_data_current.shape = ", origin_data_current_col.shape)
         # print("origin_data_current_col = ", origin_data_current_col)
         # print("origin_data = ", origin_data[col])
         # print("origin_data[content] = ", origin_data["content"])
         if ratio_style:
-            x_train, x_validation, y_train, y_validation = train_test_split(x, np.array(origin_data_current_col), test_size=0.3)
+            x_train, x_validation, y_train, y_validation = train_test_split(x_current, origin_data_current_col, test_size=0.3)
 
         print(">>>x_train.shape = ", x_train.shape)
         print(">>>x_validation.shape = ", x_validation.shape)
@@ -156,6 +169,13 @@ def trainModel(model, x, origin_data, y_cols, ratio_style, epoch=3, batch_size=1
         # 预测验证集
         y_validation_pred = model.predict(x_validation)
         y_validation_pred = np.argmax(y_validation_pred, axis=1)
+
+        # 预测并打印测试集
+        y_test_pred = model.predict(x_test)
+        y_test_pred = np.argmax(y_test_pred, axis=1)
+        length_test = len(y_test)
+        # for i in range(length_test):
+        #     print(origin_data_content[i]+" : realLabel-", y_test[i], ",predictedLabel-", y_test_pred[i])
 
         # 准确率：在所有预测为正的样本中，确实为正的比例
         # 召回率：本身为正的样本中，被预测为正的比例
