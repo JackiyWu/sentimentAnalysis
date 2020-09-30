@@ -81,33 +81,43 @@ def createTextCNNModel(maxlen, embedding_dim, debug=False):
 
 
 # 构建模型CNN+BiGRU
-def createTextCNNBiGRU(maxlen, embedding_dim):
-    # print(">>>开始构建TextCNNBiGRU模型。。。")
+def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    # print(">>>开始构建TextCNNBiGRUModel模型。。。")
     tensor_input = Input(shape=(maxlen, embedding_dim))
-    cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001))(tensor_input)
+    cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_0")(tensor_input)
     cnn1 = BatchNormalization()(cnn1)
     cnn1 = MaxPool1D(pool_size=100)(cnn1)
-    cnn2 = SeparableConvolution1D(200, 4, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001))(tensor_input)
+    cnn2 = SeparableConvolution1D(200, 4, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(tensor_input)
     cnn2 = BatchNormalization()(cnn2)
     cnn2 = MaxPool1D(pool_size=100)(cnn2)
-    cnn3 = SeparableConvolution1D(200, 5, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001))(tensor_input)
+    cnn3 = SeparableConvolution1D(200, 5, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(tensor_input)
     cnn3 = BatchNormalization()(cnn3)
     cnn3 = MaxPool1D(pool_size=100)(cnn3)
     cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
 
     dropout = Dropout(0.2)(cnn)
-    flatten = Flatten()(dropout)
+    # flatten = Flatten()(dropout)
+
+    bi_gru1 = Bidirectional(GRU(128, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
+    bi_gru1 = BatchNormalization()(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(256, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = BatchNormalization()(bi_gru2)
+
+    flatten = Flatten()(bi_gru2)
+
     dense = Dense(512, activation='relu')(flatten)
     dense = BatchNormalization()(dense)
     dropout = Dropout(0.2)(dense)
     tensor_output = Dense(4, activation='softmax')(dropout)
 
     model = Model(inputs=tensor_input, outputs=tensor_output)
-    # print(model.summary())
+    print(model.summary())
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-    # print(">>>TextCNNBiGRU模型构建结束。。。")
+    # print(">>>TextCNNBiGRUModel模型构建结束。。。")
     return model
 
 
