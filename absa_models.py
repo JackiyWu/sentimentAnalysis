@@ -5,6 +5,7 @@ import numpy as np
 import os
 import time
 import codecs
+import csv
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, confusion_matrix
@@ -122,7 +123,7 @@ def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
 
 
 # 训练模型,origin_data中包含多个属性的标签
-def trainModel(model, x, origin_data, y_cols, ratio_style, epoch=3, batch_size=16, debug=False):
+def trainModel(experiment_name, model, x, origin_data, y_cols, ratio_style, epoch=3, batch_size=16, debug=False):
     print(">>>勿扰！训练模型ing...")
     print(">>>x's type = ", type(x))
     print(">>>origin_data's type = ", type(origin_data))
@@ -134,6 +135,7 @@ def trainModel(model, x, origin_data, y_cols, ratio_style, epoch=3, batch_size=1
     # if debug:
     #     y_cols = ['location']
     for index, col in enumerate(y_cols):
+        experiment_name_aspect = experiment_name + "_" + col
         origin_data_current_col = origin_data[col] + 2
         origin_data_current_col = np.array(origin_data_current_col)
         # 生成测试集,比例为0.1,x为numpy类型，origin_data为dataFrame类型
@@ -186,10 +188,14 @@ def trainModel(model, x, origin_data, y_cols, ratio_style, epoch=3, batch_size=1
         print("fscore = ", fscore)
         print("support = ", support)
 
-        print(classification_report(y_validation, y_validation_pred, digits=4))
+        report = classification_report(y_validation, y_validation_pred, digits=4, output_dict=True)
+        print(report)
 
         F1_score = f1_score(y_validation_pred, y_validation, average='macro')
         F1_scores += F1_score
+
+        # 保存当前属性的结果,整体的结果根据所有属性的结果来计算
+        save_result_to_csv(report, F1_score, experiment_name_aspect)
 
         print('第', index, '个细粒度', col, 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_validation_pred, y_validation))
         print("%Y-%m%d %H:%M:%S", time.localtime())
@@ -198,4 +204,26 @@ def trainModel(model, x, origin_data, y_cols, ratio_style, epoch=3, batch_size=1
     print("result:", result)
 
     return result
+
+
+# 把结果保存到csv
+# report是classification_report生成的字典结果
+def save_result_to_csv(report, f1_score, experiment_id):
+    accuracy = report.get("accuracy")
+
+    macro_avg = report.get("macro avg")
+    macro_precision = macro_avg.get("precision")
+    macro_recall = macro_avg.get("recall")
+    macro_f1 = macro_avg.get('f1-score')
+
+    weighted_avg = report.get("weighted avg")
+    weighted_precision = weighted_avg.get("precision")
+    weighted_recall = weighted_avg.get("recall")
+    weighted_f1 = weighted_avg.get('f1-score')
+    data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
+
+    with codecs.open("result/result.csv", "a", "utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(data)
+        f.close()
 

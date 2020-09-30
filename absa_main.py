@@ -120,9 +120,12 @@ if __name__ == "__main__":
     # bert词向量的维度时768，增加不同类别的隶属度三个维度，一共771维
     model = absa_models.createTextCNNBiGRUModel(512, 771, DEBUG)
 
+    # ?.设置循环跑任务
+    name = "name"
+
     # 9.训练模型
     print("》》》【9】训练模型******************************************************************************************************************************************************************************************")
-    absa_models.trainModel(model, final_word_embeddings, origin_data, y_cols, ratio_style=True, debug=DEBUG)
+    absa_models.trainModel(name, model, final_word_embeddings, origin_data, y_cols, ratio_style=True, debug=DEBUG)
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))
