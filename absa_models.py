@@ -123,7 +123,7 @@ def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
 
 
 # 训练模型,origin_data中包含多个属性的标签
-def trainModel(experiment_name, model, x, origin_data, y_cols, ratio_style, epoch=3, batch_size=16, debug=False):
+def trainModel(experiment_name, model, x, origin_data, y_cols, ratio_style, epoch=3, batch_size=64, debug=False):
     print(">>>勿扰！训练模型ing...")
     print(">>>x's type = ", type(x))
     print(">>>origin_data's type = ", type(origin_data))
@@ -166,7 +166,7 @@ def trainModel(experiment_name, model, x, origin_data, y_cols, ratio_style, epoc
         print(">>>y_train.shape = ", y_train.shape)
         print(">>>y_validation.shape = ", y_validation.shape)
 
-        history = model.fit(x_train, y_train_onehot, validation_data=(x_validation, y_validation_onehot), epochs=epoch, batch_size=batch_size)
+        history = model.fit(x_train, y_train_onehot, validation_data=(x_validation, y_validation_onehot), epochs=epoch, batch_size=batch_size, verbose=2)
 
         # 预测验证集
         y_validation_pred = model.predict(x_validation)

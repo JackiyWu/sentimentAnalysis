@@ -23,6 +23,8 @@ def initData(debug=False, clean_enter=False, clean_space=False):
     if debug:
         data = data[:50]
 
+    data = data[:1000]
+
     # 对原评论文本进行清洗，去回车符 去空格
     # print("data['content']_0 = ", data['content'])
     if clean_enter:
