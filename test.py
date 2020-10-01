@@ -500,10 +500,72 @@ def train_test_split_test():
     print("y_validation = ", y_validation)
 
 
+def save3Darray():
+    '''
+    :return:
+    data = [
+        [
+            [[0.1, 0.2, 0.3, 0.4, 0.5]],
+            [0.11, 0.22, 0.33, 0.44, 0.55],
+            [0.111, 0.222, 0.333, 0.444, 0.555]
+        ],
+        [
+            [[0.5, 0.4, 0.3, 0.2, 0.1]],
+            [0.51, 0.42, 0.33, 0.24, 0.15],
+            [0.511, 0.422, 0.333, 0.244, 0.155]
+        ],
+        [
+            [[0.51, 0.41, 0.31, 0.21, 0.11]],
+            [0.512, 0.422, 0.333, 0.244, 0.155],
+            [0.5141, 0.4221, 0.3332, 0.2442, 0.1551]
+        ],
+        [
+            [[0.31, 0.21, 0.1, 0.41, 0.15]],
+            [0.562, 0.422, 0.333, 0.244, 0.155],
+            [0.1141, 0.431, 0.33, 0.21, 0.01]
+        ]
+    ]
+    print(data)
+    data = np.array(data)
+    print(data)
+    print("data.shape = ", data.shape)
+
+
+    data2 = [
+        [0.1, 0.2, 0.3, 0.4, 0.5], [0.5, 0.4, 0.3, 0.2, 0.1], [0.31, 0.21, 0.1, 0.41, 0.15]
+    ]
+    print("data2 = ", data2)
+    data2 = np.array(data2)
+    print("data2's shape = ", data2.shape)
+    '''
+
+    # data = np.array([[1, 2],
+    #                  [3, 4]])
+    # print("data's dimension = ", data.ndim)
+    # np.savetxt("result/test.txt", data)
+    data2 = np.array([
+        [[0.1, 0.2, 0.3], [0.3, 0.2, 0.1], [0.1, 0.1, 0.1]],
+        [[0.2, 0.1, 0.1], [0.2, 0.2, 0.3], [0.3, 0.3, 0.3]]
+    ])
+    print("data2's shape = ", data2.shape)
+    print("data2's dimension = ", data2.ndim)
+    print("data2 = ", data2)
+    data2.tofile("result/test2.bin")
+    A = np.fromfile("result/test2.bin", dtype=np.float)
+    print("A = ", A)
+    aaa = np.reshape(A, (-1, 3, 3))
+    print("aaa = ", aaa)
+    # np.savetxt("result/test2.txt", data2)
+
+def listTest():
+    ll = [1, 2, 3, 4, 5, 6]
+    print(ll[:3])
+
+
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
 
-    deleteEnter()
+    listTest()
 
     # name = "learning_rate"
     # read_csv(name)

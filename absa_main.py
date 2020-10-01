@@ -18,6 +18,8 @@
 
     2.加载bert模型bert_model
     3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
+    3.1 保存字符向量character_embeddings、句子级向量sentence_embeddings至文件 character_embeddings.csv和sentence_embeddings.csv,格式
+    3.2 直接读取两个向量文件
 
     4.对sentence_embeddings进行聚类，得到三个聚类中心cluster_centers，并输出到文件
     5.计算每条评论的特征向量（字符级向量）到聚类中心的距离distance_from_feature_to_cluster

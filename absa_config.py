@@ -23,3 +23,8 @@ bert_dict_path = 'config/keras_bert/chinese_L-12_H-768_A-12/vocab.txt'
 # 结果保存
 cluster_center = 'result/cluster_center.csv'
 
+character_embeddings_validation = 'result/character_embeddings_validation.bin'
+character_embeddings_train = 'result/character_embeddings_train.bin'
+sentence_embeddings_validation = 'result/sentence_embeddings_validation.bin'
+sentence_embeddings_train = 'result/sentence_embeddings_train.bin'
+

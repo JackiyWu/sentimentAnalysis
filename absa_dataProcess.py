@@ -4,6 +4,7 @@
 import csv
 from collections import Counter
 import pandas as pd
+import sys
 
 import numpy as np
 import codecs
@@ -23,7 +24,7 @@ def initData(debug=False, clean_enter=False, clean_space=False):
     if debug:
         data = data[:50]
 
-    data = data[:1000]
+    # data = data[:1000]
 
     # 对原评论文本进行清洗，去回车符 去空格
     # print("data['content']_0 = ", data['content'])
@@ -112,12 +113,13 @@ def calculateSampleNumber(origin_data):
 # 如果文本长度小于maxlen，则进行[pad]补齐
 def textsPadding(tokens, maxlen):
     length = len(tokens)
-    if length == maxlen:
-        return tokens
+    if length < maxlen:
+        pad = '[PAD]'
+        tokens += [pad] * (maxlen - length)
     elif length > maxlen:
         print(" 啊啊啊啊啊啊出错了！maxlen最大才是512！！！现在length居然等于", length)
-    pad = '[PAD]'
-    tokens += [pad] * (maxlen - length)
+        print("再cut一次！！！")
+        tokens = tokens[:maxlen]
 
     return tokens
 
@@ -171,8 +173,9 @@ def getBertEmbeddings(bert_model, tokenizer, origin_data, maxlen, debug=False):
         # print("text = ", text)
         # print("text's length = ", len(text))
         tokens = tokenizer.tokenize(text)
-        # print("tokens = ", tokens)
-        # print("tokens' length = ", len(tokens))
+        if len(tokens) > maxlen:
+            print("tokens = ", tokens)
+            print("tokens' length = ", len(tokens))
         tokens = textsPadding(tokens, maxlen)
         # print("tokens after = ", tokens)
         # print("tokens' length = ", len(tokens))
@@ -202,7 +205,56 @@ def getBertEmbeddings(bert_model, tokenizer, origin_data, maxlen, debug=False):
 
     # print(">>>bert字符级向量和句子级向量GET。。。")
 
+    character_path = config.character_embeddings_validation
+    sentence_path = config.sentence_embeddings_validation
+    save_character_embeddings(character_embeddings, character_path)
+    save_sentence_embeddings(sentence_embeddings, sentence_path)
+
     return character_embeddings, sentence_embeddings
+
+
+# 保存字符向量的结果
+def save_character_embeddings(character_embeddings, save_path):
+    print(">>>正在保存字符级向量至文件...")
+    character_embeddings = np.array(character_embeddings)
+    print("character_embeddings' shape = ", character_embeddings.shape)
+    print("character_embeddings' dim = ", character_embeddings.ndim)
+
+    character_embeddings.tofile(save_path)
+
+
+# 读取字符级向量
+def get_character_embeddings(path):
+    result = np.fromfile(path, dtype=np.float)
+    # result = np.reshape(result, (-1, 512, 5))
+    result = np.reshape(result, (-1, 512, 768))
+
+    print("character_embeddings' shape = ", result.shape)
+    print("character_embeddings' dim = ", result.ndim)
+
+    return result
+
+
+# 保存句子向量的结果
+def save_sentence_embeddings(sentence_embeddings, save_path):
+    print(">>>正在保存句子级向量至文件...")
+    sentence_embeddings = np.array(sentence_embeddings)
+    print("sentence_embeddings' shape = ", sentence_embeddings.shape)
+    print("sentence_embeddings' dim = ", sentence_embeddings.ndim)
+
+    sentence_embeddings.tofile(save_path)
+
+
+# 读取句子级向量
+def get_sentence_embeddings(path):
+    result = np.fromfile(path, dtype=np.float)
+    # result = np.reshape(result, (-1, 5))
+    result = np.reshape(result, (-1, 768))
+
+    print("sentence_embeddings' shape = ", result.shape)
+    print("sentence_embeddings' dim = ", result.ndim)
+
+    return result
 
 
 # 对输入的评论文本向量（一个向量表示一个句子）进行聚类，得到三个聚类中心，并写入文件
@@ -228,7 +280,7 @@ def getClusterCenters(sentence_embeddings):
 # 从文件中读取聚类中心向量
 def getClusterCenterFromFile():
     cluster_center = pd.read_csv(config.cluster_center, header=None).values.tolist()
-    print(">>>cluster_center = ", cluster_center)
+    # print(">>>cluster_center = ", cluster_center)
 
     return cluster_center
 
