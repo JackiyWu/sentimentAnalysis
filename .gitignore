@@ -17,3 +17,4 @@ config/
 __pycache__/
 datasets/meituan/sentiment_analysis_training_set.csv
 datasets/meituan/sentiment_analysis_training_set_new.csv
+result/result.csv
