@@ -65,7 +65,7 @@ import absa_config as config
 import absa_models as absa_models
 
 # 如果DEBUG为True，则只测试少部分数据
-DEBUG = True
+DEBUG = False
 
 # 句子的最大长度
 MAXLEN = 512
@@ -98,39 +98,18 @@ if __name__ == "__main__":
     print("》》》【2】加载bert模型**************************************************************************************************************************************************************************************")
     bert_model, tokenizer, token_dict = dp.createBertEmbeddingModel()
 
-    # 3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
-    print("》》》【3】正在从bert模型获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings(此处比较耗时间注意哦~）****************************************************************************")
-    character_embeddings, sentence_embeddings = dp.getBertEmbeddings(bert_model, tokenizer, origin_data, MAXLEN, DEBUG)
-    # 3.1 从文件中读取character_embeddings, sentence_embeddings
-    character_embeddings = dp.get_character_embeddings(config.character_embeddings_validation)
-    sentence_embeddings = dp.get_sentence_embeddings(config.sentence_embeddings_validation)
+    # character_embeddings, sentence_embeddings = dp.getBertEmbeddings(bert_model, tokenizer, origin_data, MAXLEN, DEBUG)
 
-    # 4.对sentence_embeddings进行聚类，得到三个聚类中心cluster_centers，并输出到文件
-    print("》》》【4】获取三个聚类中心**********************************************************************************************************************************************************************************")
-    cluster_centers = dp.getClusterCenters(sentence_embeddings)
-    # 4.1 直接从文件中读取聚类中心向量
-    # cluster_centers = dp.getClusterCenterFromFile()
-
-    # 5.计算每条评论的特征向量（字符级向量）到不同聚类中心的隶属值 distance_from_feature_to_cluster
-    print("》》》【5、6】计算评论对聚类中心的隶属值*********************************************************************************************************************************************************************")
-    # 6.使用cosin余弦距离来定义隶属函数,根据distance_from_feature_to_cluster和隶属函数计算特征向量对三个类别的隶属值review_sentiment_membership_degree([])（三维隶属值，表示负向、中性、正向）
-    review_sentiment_membership_degree = dp.calculateMembershipDegree(cluster_centers, character_embeddings)
-
-    # 7.将review_sentiment_membership_degree拼接在character_embeddings后面生成最终的词向量final_word_embeddings
-    print("》》》【7】将隶属值拼接在原词向量上生成最终的词向量**********************************************************************************************************************************************************")
-    final_word_embeddings = dp.concatenateVector(character_embeddings, review_sentiment_membership_degree)
-
-    # 8.构建CNN模型
-    print("》》》【8】构建深度学习模型**********************************************************************************************************************************************************************************")
-    # bert词向量的维度时768，增加不同类别的隶属度三个维度，一共771维
-    model = absa_models.createTextCNNBiGRUModel(512, 771, DEBUG)
-
-    # ?.设置循环跑任务
-    name = "name"
-
-    # 9.训练模型
-    print("》》》【9】训练模型******************************************************************************************************************************************************************************************")
-    absa_models.trainModel(name, model, final_word_embeddings, origin_data, y_cols, ratio_style=True, debug=DEBUG)
+    length = len(origin_data)
+    batch = 3000
+    index = 0
+    while index < length:
+        # 3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
+        print("》》》【3】正在从bert模型获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings(此处比较耗时间注意哦~）****************************************************************************")
+        step_length = min(index + batch, length)
+        current_data = origin_data[index: step_length]
+        character_embeddings, sentence_embeddings = dp.getBertEmbeddings(bert_model, tokenizer, current_data, MAXLEN, DEBUG)
+        index = step_length
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))

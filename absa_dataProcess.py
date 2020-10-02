@@ -22,7 +22,7 @@ def initData(debug=False, clean_enter=False, clean_space=False):
     data = pd.read_csv(config.meituan_validation_new)
     # data = pd.read_csv(config.meituan_train)
     if debug:
-        data = data[50:100]
+        data = data[:50]
 
     # data = data[:1000]
 
