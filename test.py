@@ -29,6 +29,7 @@ import dataProcess_sentence as dp_s
 
 import codecs
 import csv
+import h5py
 
 from collections import Counter
 import config
@@ -551,21 +552,113 @@ def save3Darray():
     print("data2's dimension = ", data2.ndim)
     print("data2 = ", data2)
     data2.tofile("result/test2.bin")
-    A = np.fromfile("result/test2.bin", dtype=np.float)
-    print("A = ", A)
-    aaa = np.reshape(A, (-1, 3, 3))
-    print("aaa = ", aaa)
+    # A = np.fromfile("result/test2.bin", dtype=np.float)
+    # print("A = ", A)
+    # aaa = np.reshape(A, (-1, 3, 3))
+    # print("aaa = ", aaa)
     # np.savetxt("result/test2.txt", data2)
+
+
+def readFile():
+    print("in readFile...")
+    path = "result/test2.bin"
+    data = np.fromfile(path, dtype=np.float)
+    data = np.reshape(data, (-1, 3, 3))
+    print("data = ", data)
+
 
 def listTest():
     ll = [1, 2, 3, 4, 5, 6]
     print(ll[:3])
 
 
+def h5pyTest():
+    data2 = np.array([
+        [[0.111, 0.212, 0.3], [0.323, 0.2, 0.1], [0.133, 0.51, 0.1]],
+        [[0.211, 0.112, 0.1], [0.224, 0.2, 0.3], [0.334, 0.345, 0.3]]
+    ])
+    print("data2's shape = ", data2.shape)
+    print("data2's dimension = ", data2.ndim)
+    path = "result/test2.bin"
+    h5f = h5py.File(path, 'a')
+    h5f.create_dataset('b', data=data2)
+    h5f.close()
+
+def readH5py():
+    path = "result/test2.bin"
+    h5f = h5py.File(path, 'r')
+    print(type(h5f))
+    data = h5f['a'][:]
+    print(data)
+    data_b = h5f['b'][:]
+    print("data_b = ", data_b)
+    h5f.close()
+
+def listTest():
+    ll = [
+        [
+            0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.4, 0.5, 0.6, 0.7, 0.8, 0.6, 0.7, 0.8
+        ],
+        [
+            0.11, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.81, 0.41, 0.5, 0.6, 0.7, 0.8, 0.6, 0.7, 0.81
+        ]
+    ]
+    # ll_np = np.reshape(ll, (-1, 2, 2))
+    # print(ll_np)
+    # ll_np2 = np.reshape(ll, (-1, 2))
+    # print(ll_np2)
+    path = "result/test.txt"
+    ll_np = np.array(ll)
+    # np.savetxt(path, ll_np, fmt='%f', delimiter=',')
+
+    with open(path, 'ab') as file_object:
+        np.savetxt(file_object, ll_np, fmt='%f', delimiter=',')
+
+    # for l in ll_np:
+    #     map(saveOperation, l)
+
+def saveOperation(ll_np):
+    path = "result/test.txt"
+    with open(path, 'ab') as file_object:
+        np.savetxt(file_object, ll_np, fmt='%f', delimiter=',')
+
+def readTest():
+    path = "result/test.txt"
+    ll = np.loadtxt(path, delimiter=',')
+    print("ll = ", ll)
+    print("ll's type = ", type(ll))
+
+    # for l in ll:
+    #     print("l's type = ", type(l))
+    #     for l_i in l:
+    #         print("l_i's type = ", type(l_i))
+
+def readList():
+    path = "result/test.txt"
+    with open(path, 'r') as f:
+        while True:
+            lines = f.readline()
+            if not lines:
+                break
+            print("lines = ", lines)
+            print("lines' type before = ", type(lines))
+            lines = list(lines)
+            print("lines' type after = ", type(lines))
+            for line in lines:
+                line = list(map(float, line))
+                for l in line:
+                    print("l = ", l)
+                    print("l's type = ", type(l))
+
+
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
 
     listTest()
+    readTest()
+    # h5pyTest()
+    # readH5py()
+    # readFile()
 
     # name = "learning_rate"
     # read_csv(name)
