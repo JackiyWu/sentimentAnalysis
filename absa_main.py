@@ -88,8 +88,8 @@ if __name__ == "__main__":
     # dp.processDataToTarget(origin_data)
 
     # 1.1 统计输入语料中不同属性-不同标签的样本数
-    sample_statistics = dp.calculateSampleNumber(origin_data)
-    print(">>>sample_statistics = ", sample_statistics)
+    # sample_statistics = dp.calculateSampleNumber(origin_data)
+    # print(">>>sample_statistics = ", sample_statistics)
 
     # 1.2 对评论文本进行[pad]操作，补到长度为512
     # origin_data = dp.textsPadding(origin_data, 512)
