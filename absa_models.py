@@ -139,7 +139,7 @@ def trainModel(experiment_name, model, x, y, y_cols, ratio_style, epoch=5, batch
         origin_data_current_col = y[col] + 2
         origin_data_current_col = np.array(origin_data_current_col)
         # 生成测试集,比例为0.1,x为numpy类型，origin_data为dataFrame类型
-        ratio = 0.1
+        ratio = 0.3
         length = int(len(origin_data_current_col) * ratio)
         print("测试集的长度为", length)
         x_validation = x[:length]
@@ -160,7 +160,7 @@ def trainModel(experiment_name, model, x, y, y_cols, ratio_style, epoch=5, batch
         print(">>>x_train.shape = ", x_train.shape)
         print(">>>x_validation.shape = ", x_validation.shape)
 
-        y_train_onehot = to_categorical(y_train)
+        # y_train_onehot = to_categorical(y_train)
         y_validation_onehot = to_categorical(y_validation)
 
         print(">>>y_train.shape = ", y_train.shape)
