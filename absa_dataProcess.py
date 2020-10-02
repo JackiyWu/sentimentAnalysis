@@ -209,14 +209,14 @@ def getBertEmbeddings(bert_model, tokenizer, origin_data, maxlen, debug=False):
 
     character_path = config.character_embeddings_validation
     sentence_path = config.sentence_embeddings_validation
-    save_character_embeddings(character_embeddings, character_path)
-    save_sentence_embeddings(sentence_embeddings, sentence_path)
+    saveCharacterEmbeddings(character_embeddings, character_path)
+    saveSentenceEmbeddings(sentence_embeddings, sentence_path)
 
     return character_embeddings, sentence_embeddings
 
 
 # 保存字符向量的结果
-def save_character_embeddings(character_embeddings, save_path):
+def saveCharacterEmbeddings(character_embeddings, save_path):
     print(">>>正在保存字符级向量至文件...")
     character_embeddings = np.array(character_embeddings)
     # print("character_embeddings' shape = ", character_embeddings.shape)
@@ -227,7 +227,7 @@ def save_character_embeddings(character_embeddings, save_path):
 
 
 # 读取字符级向量
-def get_character_embeddings(path):
+def getCharacterEmbeddings(path):
     result = np.loadtxt(path, delimiter=',')
     # result = np.reshape(result, (-1, 512, 768))
     result = np.reshape(result, (-1, 512, 5))  # 测试
@@ -239,7 +239,7 @@ def get_character_embeddings(path):
 
 
 # 保存句子向量的结果
-def save_sentence_embeddings(sentence_embeddings, save_path):
+def saveSentenceEmbeddings(sentence_embeddings, save_path):
     print(">>>正在保存句子级向量至文件...")
     sentence_embeddings = np.array(sentence_embeddings)
     # print("sentence_embeddings' shape = ", sentence_embeddings.shape)
@@ -250,7 +250,7 @@ def save_sentence_embeddings(sentence_embeddings, save_path):
 
 
 # 读取句子级向量
-def get_sentence_embeddings(path):
+def getSentenceEmbeddings(path):
     result = np.loadtxt(path, delimiter=',')
 
     print("sentence_embeddings' shape = ", result.shape)
@@ -354,7 +354,33 @@ def concatenateVector(main_vector, assisted_vector):
         # print("assisted_vector_current's type = ", type(assisted_vector_current))
 
         final_word_embeddings.append(np.concatenate((main_vector_current, assisted_vector_current), axis=1).tolist())
-        # print("final_word_embeddings = ", final_word_embeddings)
+        if i == 0:
+            print("current_final_word_embeddings = ", final_word_embeddings)
 
     return np.array(final_word_embeddings)
+
+
+# 将最终的包含隶属度向量的embedding存入文件
+def saveFinalEmbeddings(final_word_embeddings, save_path):
+    print(">>>正在保存final_word_embeddings向量至文件...")
+    final_word_embeddings = np.array(final_word_embeddings)
+    final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 8))
+    # final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 771))
+
+    with open(save_path, 'ab') as file_object:
+        np.savetxt(file_object, final_word_embeddings, fmt='%f', delimiter=',')
+
+
+def getFinalEmbeddings(path):
+    print("正在获取final_word_embeddings。。。")
+
+    result = np.loadtxt(path, delimiter=',')
+
+    # result = np.reshape(result, (-1, 512, 771))
+    result = np.reshape(result, (-1, 512, 8))  # 测试
+
+    print("正在获取final_word_embeddings' shape = ", result.shape)
+    print("正在获取final_word_embeddings' dim = ", result.ndim)
+
+    return result
 

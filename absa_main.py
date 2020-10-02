@@ -41,6 +41,7 @@
     4.使用交叉验证和直接划分比例看效果
     5.给执行时间较长的函数加上时间，如【3】
     6.写的差不多了可以先放到服务器上面跑着，同时改进代码
+    7.去掉bert的[CLS] [SEP]符号
     ?.还没想到
     ***************************************************************↑↑↑↑↑↑↑↑几个需要后期测试的点↑↑↑↑↑↑↑***************************************************************
 
@@ -96,14 +97,14 @@ if __name__ == "__main__":
 
     # 2.加载bert模型bert_model
     print("》》》【2】加载bert模型**************************************************************************************************************************************************************************************")
-    bert_model, tokenizer, token_dict = dp.createBertEmbeddingModel()
+    # bert_model, tokenizer, token_dict = dp.createBertEmbeddingModel()
 
     # 3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
     print("》》》【3】正在从bert模型获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings(此处比较耗时间注意哦~）****************************************************************************")
-    character_embeddings, sentence_embeddings = dp.getBertEmbeddings(bert_model, tokenizer, origin_data, MAXLEN, DEBUG)
+    # character_embeddings, sentence_embeddings = dp.getBertEmbeddings(bert_model, tokenizer, origin_data, MAXLEN, DEBUG)
     # 3.1 从文件中读取character_embeddings, sentence_embeddings
-    character_embeddings = dp.get_character_embeddings(config.character_embeddings_validation)
-    sentence_embeddings = dp.get_sentence_embeddings(config.sentence_embeddings_validation)
+    character_embeddings = dp.getCharacterEmbeddings(config.character_embeddings_validation)
+    sentence_embeddings = dp.getSentenceEmbeddings(config.sentence_embeddings_validation)
 
     # 4.对sentence_embeddings进行聚类，得到三个聚类中心cluster_centers，并输出到文件
     print("》》》【4】获取三个聚类中心**********************************************************************************************************************************************************************************")
@@ -119,10 +120,14 @@ if __name__ == "__main__":
     # 7.将review_sentiment_membership_degree拼接在character_embeddings后面生成最终的词向量final_word_embeddings
     print("》》》【7】将隶属值拼接在原词向量上生成最终的词向量**********************************************************************************************************************************************************")
     final_word_embeddings = dp.concatenateVector(character_embeddings, review_sentiment_membership_degree)
+    # 将final_word_embeddings存入文件
+    final_word_embeddings_path = config.final_word_embeddings_validation
+    dp.saveFinalEmbeddings(final_word_embeddings, final_word_embeddings_path)
+    final_word_embeddings = dp.getFinalEmbeddings(final_word_embeddings_path)
 
     # 8.构建CNN模型
     print("》》》【8】构建深度学习模型**********************************************************************************************************************************************************************************")
-    # bert词向量的维度时768，增加不同类别的隶属度三个维度，一共771维
+    # bert词向量的维度是768，增加不同类别的隶属度三个维度，一共771维
     model = absa_models.createTextCNNBiGRUModel(512, 771, DEBUG)
 
     # ?.设置循环跑任务

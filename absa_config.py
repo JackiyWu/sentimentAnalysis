@@ -28,3 +28,6 @@ character_embeddings_train = 'result/character_embeddings_train.txt'
 sentence_embeddings_validation = 'result/sentence_embeddings_validation.txt'
 sentence_embeddings_train = 'result/sentence_embeddings_train.txt'
 
+final_word_embeddings_validation = 'result/final_word_embeddings_validation.txt'
+final_word_embeddings_train = 'result/final_word_embeddings_train.txt'
+
