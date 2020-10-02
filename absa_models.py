@@ -26,6 +26,7 @@ from tensorflow.keras.layers import SeparableConvolution1D
 from keras_bert import Tokenizer, load_trained_model_from_checkpoint
 
 import absa_config as config
+import absa_dataProcess as dp
 
 # 一些超参数
 TOKEN_DICT = {}
@@ -123,7 +124,7 @@ def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
 
 
 # 训练模型,origin_data中包含多个属性的标签
-def trainModel(experiment_name, model, x, y, y_cols, ratio_style, epoch=3, batch_size=64, debug=False):
+def trainModel(experiment_name, model, x, y, y_cols, ratio_style, epoch=5, batch_size=64, debug=False):
     print(">>>勿扰！训练模型ing...")
     print(">>>x's type = ", type(x))
     print(">>>y's type = ", type(y))
@@ -141,19 +142,20 @@ def trainModel(experiment_name, model, x, y, y_cols, ratio_style, epoch=3, batch
         ratio = 0.1
         length = int(len(origin_data_current_col) * ratio)
         print("测试集的长度为", length)
-        x_test = x[:length]
-        x_current = x[length:]
+        x_validation = x[:length]
+        x_train = x[length:]
 
-        y_test = origin_data_current_col[:length]
-        origin_data_current_col = origin_data_current_col[length:]
+        y_validation = origin_data_current_col[:length]
+        y_train = origin_data_current_col[length:]
+        # print("y_train = ", y_train)
 
         # print("x = ", x)
         # print("origin_data_current.shape = ", origin_data_current_col.shape)
         # print("origin_data_current_col = ", origin_data_current_col)
         # print("origin_data = ", origin_data[col])
         # print("origin_data[content] = ", origin_data["content"])
-        if ratio_style:
-            x_train, x_validation, y_train, y_validation = train_test_split(x_current, origin_data_current_col, test_size=0.3)
+        # if ratio_style:
+        #     x_train, x_validation, y_train, y_validation = train_test_split(x_current, origin_data_current_col, test_size=0.3)
 
         print(">>>x_train.shape = ", x_train.shape)
         print(">>>x_validation.shape = ", x_validation.shape)
@@ -164,16 +166,16 @@ def trainModel(experiment_name, model, x, y, y_cols, ratio_style, epoch=3, batch
         print(">>>y_train.shape = ", y_train.shape)
         print(">>>y_validation.shape = ", y_validation.shape)
 
-        history = model.fit(x_train, y_train_onehot, validation_data=(x_validation, y_validation_onehot), epochs=epoch, batch_size=batch_size, verbose=2)
+        history = model.fit(dp.generateTrainSet(x_train, y_train, batch_size), validation_data=(x_validation, y_validation_onehot), epochs=epoch, verbose=2)
 
         # 预测验证集
         y_validation_pred = model.predict(x_validation)
         y_validation_pred = np.argmax(y_validation_pred, axis=1)
 
         # 预测并打印测试集
-        y_test_pred = model.predict(x_test)
-        y_test_pred = np.argmax(y_test_pred, axis=1)
-        length_test = len(y_test)
+        # y_test_pred = model.predict(x_test)
+        # y_test_pred = np.argmax(y_test_pred, axis=1)
+        # length_test = len(y_test)
         # for i in range(length_test):
         #     print(origin_data_content[i]+" : realLabel-", y_test[i], ",predictedLabel-", y_test_pred[i])
 

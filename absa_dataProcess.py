@@ -12,6 +12,7 @@ import codecs
 from sklearn.cluster import KMeans
 
 from keras_bert import Tokenizer as bert_Tokenizer, load_trained_model_from_checkpoint
+from keras.utils import to_categorical
 
 import absa_config as config
 
@@ -402,4 +403,14 @@ def getFinalEmbeddings(path):
     print("正在获取final_word_embeddings' dim = ", result.ndim)
 
     return result
+
+
+# 使用generator yield批量训练数据
+def generateTrainSet(X_train, Y_train, batch_size):
+    print("X_train's length = ", len(X_train))
+    print("Y_train's length = ", len(Y_train))
+    for i in range(0, len(X_train), batch_size):
+        x = X_train[i: i + batch_size]
+        y = Y_train[i: i + batch_size]
+        yield np.array(x), to_categorical(y)
 

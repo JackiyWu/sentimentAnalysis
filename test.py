@@ -26,6 +26,7 @@ from sklearn.metrics import classification_report
 
 from dataProcess_sentence import adaption_predict
 import dataProcess_sentence as dp_s
+import absa_dataProcess as dp
 
 import codecs
 import csv
@@ -654,11 +655,45 @@ def readList():
                     print("l's type = ", type(l))
 
 
+def rangeTest():
+    arr = [1, 2, 1, 3, 4, 14, 15, 6, 3, 4, 141, 15, 64, 33, 41, 14]
+    length = len(arr)
+    print("length = ", length)
+    batch_size = 3
+    for i in range(0, length, batch_size):
+        print("i = ", i)
+        print("batch_size = ", batch_size)
+        print(arr[i: i + batch_size])
+    print("final arr[13:18] = ", arr[13: 18])
+
+
+def yieldTest():
+    X_train = [0.1, 0.5, 3, 4, 0.1, 1, 0.6, 0.5, 0.5, 5, 10]
+    Y_train = [-1, -1, 1, 1, -1, 1, -1, -1, -1, 1, 1]
+    length = len(X_train)
+    if length != len(Y_train):
+        print("长度不相等")
+        return
+    batch_size = 5
+    x = dp.generateTrainSet(X_train, Y_train, batch_size)
+    print("x = ", x)
+    print(next(x))
+    print("x2 = ", next(x))
+    print("x's type = ", type(x))
+    print(next(x))
+    print(next(x))
+    # print("x2 = ", next(x))
+    # print("x's type = ", type(x))
+    # print(next(x))
+    # print("x2 = ", next(x))
+    # print("x's type = ", type(x))
+
+
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
 
     # listTest()
-    readTest()
+    yieldTest()
     # h5pyTest()
     # readH5py()
     # readFile()
