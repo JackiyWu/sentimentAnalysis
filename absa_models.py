@@ -123,11 +123,10 @@ def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
 
 
 # 训练模型,origin_data中包含多个属性的标签
-def trainModel(experiment_name, model, x, origin_data, y_cols, ratio_style, epoch=3, batch_size=64, debug=False):
+def trainModel(experiment_name, model, x, y, y_cols, ratio_style, epoch=3, batch_size=64, debug=False):
     print(">>>勿扰！训练模型ing...")
     print(">>>x's type = ", type(x))
-    print(">>>origin_data's type = ", type(origin_data))
-    origin_data_content = np.array(origin_data['content'])
+    print(">>>y's type = ", type(y))
 
     F1_scores = 0
     F1_score = 0
@@ -136,7 +135,7 @@ def trainModel(experiment_name, model, x, origin_data, y_cols, ratio_style, epoc
     #     y_cols = ['location']
     for index, col in enumerate(y_cols):
         experiment_name_aspect = experiment_name + "_" + col
-        origin_data_current_col = origin_data[col] + 2
+        origin_data_current_col = y[col] + 2
         origin_data_current_col = np.array(origin_data_current_col)
         # 生成测试集,比例为0.1,x为numpy类型，origin_data为dataFrame类型
         ratio = 0.1
@@ -144,7 +143,6 @@ def trainModel(experiment_name, model, x, origin_data, y_cols, ratio_style, epoc
         print("测试集的长度为", length)
         x_test = x[:length]
         x_current = x[length:]
-        x_test_content = origin_data_content[:length]
 
         y_test = origin_data_current_col[:length]
         origin_data_current_col = origin_data_current_col[length:]

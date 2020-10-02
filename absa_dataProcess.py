@@ -25,6 +25,7 @@ def initData(debug=False, clean_enter=False, clean_space=False):
         data = data[:300]
 
     # data = data[:1000]
+    y = data[['location', 'service', 'price', 'environment', 'dish']]
 
     # 对原评论文本进行清洗，去回车符 去空格
     # print("data['content']_0 = ", data['content'])
@@ -34,17 +35,35 @@ def initData(debug=False, clean_enter=False, clean_space=False):
         data = dataCleanSpace(data)
     # print("data['content']_1 = ", data['content'])
 
-    global y_cols
-    # y_cols = data.columns.values.tolist()[2:22]
-    y_cols = data.columns.values.tolist()[2:7]
+    # y_cols_name = data.columns.values.tolist()[2:22]
+    y_cols_name = data.columns.values.tolist()[2:7]
     print(">>>data = ", data.head())
     print(">>>data'type = ", type(data))
     print(">>>data's shape = ", data.shape)
-    print(">>>y_cols = ", y_cols)
+    print(">>>y_cols_name = ", y_cols_name)
 
     # print("end of initData function in dataProcess.py...")
 
-    return data, y_cols
+    return data, y_cols_name, y
+
+
+def initDataLabels(debug=False):
+    # print("In initDataLabels function of dataProcess.py...")
+    data = pd.read_csv(config.meituan_validation_new)
+    # data = pd.read_csv(config.meituan_train)
+    if debug:
+        data = data[:300]
+
+    y = data[['location', 'service', 'price', 'environment', 'dish']]
+
+    # y_cols_name = data.columns.values.tolist()[2:22]
+    y_cols_name = data.columns.values.tolist()[2:7]
+    print(">>>data = ", data.head())
+    print(">>>data'type = ", type(data))
+    print(">>>data's shape = ", data.shape)
+    print(">>>y_cols_name = ", y_cols_name)
+
+    return y_cols_name, y
 
 
 # 对原评论文本进行清洗,去回车符
@@ -260,7 +279,7 @@ def getSentenceEmbeddings(path):
 
 
 # 对输入的评论文本向量（一个向量表示一个句子）进行聚类，得到三个聚类中心，并写入文件
-def getClusterCenters(sentence_embeddings):
+def getClusterCenters(sentence_embeddings, cluster_centers_path):
     print(">>>In getClusterCenters of absa_dataProcess.py...")
     kMeans_model = trainKMeansModel(sentence_embeddings)
 
@@ -269,7 +288,7 @@ def getClusterCenters(sentence_embeddings):
     # print("clusters' centers:", clusters_centers)
 
     # 将聚类中心点写入文件
-    with codecs.open(config.cluster_center, "w", "utf-8") as f:
+    with codecs.open(cluster_centers_path, "w", "utf-8") as f:
         writer = csv.writer(f)
         writer.writerows(clusters_centers)
         f.close()
@@ -280,8 +299,8 @@ def getClusterCenters(sentence_embeddings):
 
 
 # 从文件中读取聚类中心向量
-def getClusterCenterFromFile():
-    cluster_center = pd.read_csv(config.cluster_center, header=None).values.tolist()
+def getClusterCenterFromFile(path):
+    cluster_center = pd.read_csv(path, header=None).values.tolist()
     # print(">>>cluster_center = ", cluster_center)
 
     return cluster_center

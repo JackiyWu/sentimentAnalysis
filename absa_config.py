@@ -21,7 +21,8 @@ bert_checkpoint_path = 'config/keras_bert/chinese_L-12_H-768_A-12/bert_model.ckp
 bert_dict_path = 'config/keras_bert/chinese_L-12_H-768_A-12/vocab.txt'
 
 # 结果保存
-cluster_center = 'result/cluster_center.csv'
+cluster_center_validation = 'result/cluster_center_validation.csv'
+cluster_center_train = 'result/cluster_center_train.csv'
 
 character_embeddings_validation = 'result/character_embeddings_validation.txt'
 character_embeddings_train = 'result/character_embeddings_train.txt'
