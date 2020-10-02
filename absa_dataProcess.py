@@ -22,7 +22,7 @@ def initData(debug=False, clean_enter=False, clean_space=False):
     data = pd.read_csv(config.meituan_validation_new)
     # data = pd.read_csv(config.meituan_train)
     if debug:
-        data = data[:50]
+        data = data[:300]
 
     # data = data[:1000]
 
@@ -49,9 +49,10 @@ def initData(debug=False, clean_enter=False, clean_space=False):
 
 # 对原评论文本进行清洗,去回车符
 def dataCleanEnter(data):
-    rows = len(data)
+    ids = data['id']
+    # print("ids = ", ids)
 
-    for i in range(rows):
+    for i in ids:
         # print("i = ", i)
         # print("data.loc[i, 'content']_0 = ", data.loc[i, 'content'])
         current = data.loc[i, 'content']
