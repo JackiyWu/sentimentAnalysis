@@ -20,3 +20,5 @@ datasets/meituan/sentiment_analysis_training_set_new.csv
 result/result.csv
 result/*.bin
 result/cluster_center.csv
+result/cluster_center_validation.csv
+result/cluster_center_train.csv

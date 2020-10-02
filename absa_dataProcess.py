@@ -331,7 +331,7 @@ def calculateMembershipDegree(cluster_centers, character_embeddings):
             sentence_membership_degrees.append(word_membership_degrees)
         membership_degrees.append(sentence_membership_degrees)
 
-    # print(">>>评论文本的隶属度计算结束。。。")
+    print(">>>评论文本的隶属度计算结束。。。")
     return membership_degrees
 
 
@@ -351,12 +351,11 @@ def calculateCosinValue(vector1, vector2):
 
 
 # 将assisted_vector拼接在main_vector后面
-def concatenateVector(main_vector, assisted_vector):
+def concatenateVector(main_vector, assisted_vector, save_path):
     print(">>>main_vector's length = ", len(main_vector))
     # print("assisted_vector = ", assisted_vector)
     print(">>>assisted_vector's length = ", len(assisted_vector))
 
-    final_word_embeddings = []
     length_1 = len(main_vector)
     length_2 = len(assisted_vector)
     if length_1 != length_2:
@@ -373,16 +372,16 @@ def concatenateVector(main_vector, assisted_vector):
         # print("assisted_vector_current's length = ", len(assisted_vector_current))
         # print("assisted_vector_current's type = ", type(assisted_vector_current))
 
-        final_word_embeddings.append(np.concatenate((main_vector_current, assisted_vector_current), axis=1).tolist())
-        if i == 0:
-            print("current_final_word_embeddings = ", final_word_embeddings)
+        current_final_word_embeddings = np.concatenate((main_vector_current, assisted_vector_current), axis=1).tolist()
+        # print("current_final_word_embeddings = ", current_final_word_embeddings)
 
-    return np.array(final_word_embeddings)
+        # 直接追加写入文件
+        saveFinalEmbeddings(current_final_word_embeddings, save_path)
 
 
 # 将最终的包含隶属度向量的embedding存入文件
 def saveFinalEmbeddings(final_word_embeddings, save_path):
-    print(">>>正在保存final_word_embeddings向量至文件...")
+    # print(">>>正在保存final_word_embeddings向量至文件...")
     final_word_embeddings = np.array(final_word_embeddings)
     final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 8))
     # final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 771))
