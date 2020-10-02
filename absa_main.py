@@ -65,7 +65,7 @@ import absa_config as config
 import absa_models as absa_models
 
 # 如果DEBUG为True，则只测试少部分数据
-DEBUG = False
+DEBUG = True
 
 # 句子的最大长度
 MAXLEN = 512
@@ -101,11 +101,14 @@ if __name__ == "__main__":
     # 3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
     print("》》》【3】正在从bert模型获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings(此处比较耗时间注意哦~）****************************************************************************")
     character_embeddings, sentence_embeddings = dp.getBertEmbeddings(bert_model, tokenizer, origin_data, MAXLEN, DEBUG)
+    # 3.1 从文件中读取character_embeddings, sentence_embeddings
+    character_embeddings = dp.get_character_embeddings(config.character_embeddings_validation)
+    sentence_embeddings = dp.get_sentence_embeddings(config.sentence_embeddings_validation)
 
     # 4.对sentence_embeddings进行聚类，得到三个聚类中心cluster_centers，并输出到文件
     print("》》》【4】获取三个聚类中心**********************************************************************************************************************************************************************************")
     cluster_centers = dp.getClusterCenters(sentence_embeddings)
-    # 4.直接从文件中读取聚类中心向量
+    # 4.1 直接从文件中读取聚类中心向量
     # cluster_centers = dp.getClusterCenterFromFile()
 
     # 5.计算每条评论的特征向量（字符级向量）到不同聚类中心的隶属值 distance_from_feature_to_cluster

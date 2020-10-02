@@ -195,7 +195,8 @@ def getBertEmbeddings(bert_model, tokenizer, origin_data, maxlen, debug=False):
             else:
                 predicted = predicts[i].tolist()
             # print(token, predicted)
-            current_embedding.append(predicted)
+            # 注意此处！！将一个句子的所有字符向量进行拼接extend，方面后面存放
+            current_embedding.extend(predicted)
             # current_embedding.append(predicts[i].tolist())
             if token == "[CLS]":
                 sentence_embeddings.append(predicted)
@@ -217,17 +218,18 @@ def getBertEmbeddings(bert_model, tokenizer, origin_data, maxlen, debug=False):
 def save_character_embeddings(character_embeddings, save_path):
     print(">>>正在保存字符级向量至文件...")
     character_embeddings = np.array(character_embeddings)
-    print("character_embeddings' shape = ", character_embeddings.shape)
-    print("character_embeddings' dim = ", character_embeddings.ndim)
+    # print("character_embeddings' shape = ", character_embeddings.shape)
+    # print("character_embeddings' dim = ", character_embeddings.ndim)
 
-    character_embeddings.tofile(save_path)
+    with open(save_path, 'ab') as file_object:
+        np.savetxt(file_object, character_embeddings, fmt='%f', delimiter=',')
 
 
 # 读取字符级向量
 def get_character_embeddings(path):
-    result = np.fromfile(path, dtype=np.float)
-    # result = np.reshape(result, (-1, 512, 5))
-    result = np.reshape(result, (-1, 512, 768))
+    result = np.loadtxt(path, delimiter=',')
+    # result = np.reshape(result, (-1, 512, 768))
+    result = np.reshape(result, (-1, 512, 5))  # 测试
 
     print("character_embeddings' shape = ", result.shape)
     print("character_embeddings' dim = ", result.ndim)
@@ -239,17 +241,16 @@ def get_character_embeddings(path):
 def save_sentence_embeddings(sentence_embeddings, save_path):
     print(">>>正在保存句子级向量至文件...")
     sentence_embeddings = np.array(sentence_embeddings)
-    print("sentence_embeddings' shape = ", sentence_embeddings.shape)
-    print("sentence_embeddings' dim = ", sentence_embeddings.ndim)
+    # print("sentence_embeddings' shape = ", sentence_embeddings.shape)
+    # print("sentence_embeddings' dim = ", sentence_embeddings.ndim)
 
-    sentence_embeddings.tofile(save_path)
+    with open(save_path, 'ab') as file_object:
+        np.savetxt(file_object, sentence_embeddings, fmt='%f', delimiter=',')
 
 
 # 读取句子级向量
 def get_sentence_embeddings(path):
-    result = np.fromfile(path, dtype=np.float)
-    # result = np.reshape(result, (-1, 5))
-    result = np.reshape(result, (-1, 768))
+    result = np.loadtxt(path, delimiter=',')
 
     print("sentence_embeddings' shape = ", result.shape)
     print("sentence_embeddings' dim = ", result.ndim)

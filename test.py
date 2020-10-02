@@ -627,6 +627,9 @@ def readTest():
     ll = np.loadtxt(path, delimiter=',')
     print("ll = ", ll)
     print("ll's type = ", type(ll))
+    print("ll.ndim = ", np.ndim(ll))
+    ll2 = np.reshape(ll, (-1, 2, 8))
+    print("ll2 = ", ll2)
 
     # for l in ll:
     #     print("l's type = ", type(l))
@@ -654,7 +657,7 @@ def readList():
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
 
-    listTest()
+    # listTest()
     readTest()
     # h5pyTest()
     # readH5py()
