@@ -1,282 +1,463 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import numpy as np
-import os
-import time
-import codecs
 import csv
+from collections import Counter
+import pandas as pd
+import sys
 import math
 
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, confusion_matrix
-from sklearn.metrics import precision_recall_fscore_support as score
-from sklearn.metrics import classification_report
-from sklearn.utils import class_weight
+import numpy as np
+import codecs
 
-import keras
-from keras.layers import Input, Flatten, Dense, Dropout, Activation, GRU, Bidirectional, Conv1D
-from keras.layers import Embedding, merge, Lambda, Reshape, BatchNormalization, MaxPool1D, GlobalAveragePooling1D
-from keras import Model, Sequential
+from sklearn.cluster import KMeans
+
+from keras_bert import Tokenizer as bert_Tokenizer, load_trained_model_from_checkpoint
 from keras.utils import to_categorical
-from keras import regularizers
-from keras.layers.merge import concatenate
-
-from tensorflow.keras.layers import SeparableConvolution1D
-
-from keras_bert import Tokenizer, load_trained_model_from_checkpoint
 
 import absa_config as config
-import absa_dataProcess as dp
-
-# 一些超参数
-TOKEN_DICT = {}
 
 
-# 创建bert+fc模型
-def createBertFcModel():
+# 读取数据
+def initData(debug=False, clean_enter=False, clean_space=False):
+    # print("In initData function of dataProcess.py...")
+    data = pd.read_csv(config.meituan_validation_new)
+    # data = pd.read_csv(config.meituan_train)
+    if debug:
+        data = data[:300]
+
+    # data = data[:1000]
+    y = data[['location', 'service', 'price', 'environment', 'dish']]
+
+    # 对原评论文本进行清洗，去回车符 去空格
+    # print("data['content']_0 = ", data['content'])
+    if clean_enter:
+        data = dataCleanEnter(data)
+    if clean_space:
+        data = dataCleanSpace(data)
+    # print("data['content']_1 = ", data['content'])
+
+    # y_cols_name = data.columns.values.tolist()[2:22]
+    y_cols_name = data.columns.values.tolist()[2:7]
+    print(">>>data = ", data.head())
+    print(">>>data'type = ", type(data))
+    print(">>>data's shape = ", data.shape)
+    print(">>>y_cols_name = ", y_cols_name)
+
+    # print("end of initData function in dataProcess.py...")
+
+    return data, y_cols_name, y
+
+
+def initDataLabels(debug=False):
+    # print("In initDataLabels function of dataProcess.py...")
+    data = pd.read_csv(config.meituan_validation_new)
+    # data = pd.read_csv(config.meituan_train)
+    if debug:
+        data = data[:300]
+
+    y = data[['location', 'service', 'price', 'environment', 'dish']]
+
+    # y_cols_name = data.columns.values.tolist()[2:22]
+    y_cols_name = data.columns.values.tolist()[2:7]
+    print(">>>data = ", data.head())
+    print(">>>data'type = ", type(data))
+    print(">>>data's shape = ", data.shape)
+    print(">>>y_cols_name = ", y_cols_name)
+
+    return y_cols_name, y
+
+
+# 对原评论文本进行清洗,去回车符
+def dataCleanEnter(data):
+    ids = data['id']
+    # print("ids = ", ids)
+
+    for i in ids:
+        # print("i = ", i)
+        # print("data.loc[i, 'content']_0 = ", data.loc[i, 'content'])
+        current = data.loc[i, 'content']
+        # print("current_0 = ", current)
+        current = current.replace('\n', '')
+        # print("current_1 = ", current)
+        data.loc[i, 'content'] = current
+        # print("data.loc[i, 'content']_1 = ", data.loc[i, 'content'])
+
+    return data
+
+
+# 对原评论文本进行清洗，去空格
+def dataCleanSpace(data):
     pass
 
 
-# 创建bert模型
-def createBertEmbeddingModel():
-    with codecs.open(config.bert_dict_path, 'r', 'utf8') as reader:
-        for line in reader:
-            token = line.strip()
-            TOKEN_DICT[token] = len(TOKEN_DICT)
+# 传入细粒度属性的label，输出粗粒度属性label
+def processLabel(aspect):
+    # print("aspect = ", aspect)
+    if -2 not in aspect:  # 如果标签没有-2，则求整体平均
+        average = np.average(np.array(aspect))
+    else:  # label中有-2分为两种情况
+        length = len(set(aspect))
 
-    model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path)
+        if length > 1:  # 不全是-2
+            while -2 in aspect:
+                aspect.remove(-2)
+            average = np.average(aspect)
+        else:  # 全是-2
+            average = -2
 
-    return model
+    # 如果average非整数&≠-2
+    if average != -2:
+        if average > 0:
+            average = 1
+        elif average < 0:
+            average = -1
+        else:
+            average = 0
 
-
-# CNN模型
-def createTextCNN(maxlen, embedding_dim, debug=False):
-    if debug:
-        embedding_dim = 8
-    print("开始构建TextCNN模型。。。")
-    tensor_input = Input(shape=(maxlen, embedding_dim))
-    cnn = Conv1D(64, 4, padding='same', strides=1, activation='relu', name='conv')(tensor_input)
-    cnn = BatchNormalization()(cnn)
-    cnn = MaxPool1D(name='max_pool')(cnn)
-    cnn = Flatten()(cnn)
-
-    x = Dense(64, activation='relu', name='dense_1')(cnn)
-    x = Dropout(0.4, name='dropout')(x)
-    x = Dense(4, activation='softmax', name='softmax')(x)
-
-    model = Model(inputs=tensor_input, outputs=x)
-
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    print(model.summary())
-
-    return model
+    # print("average = ", average)
+    return average
 
 
-# GRU模型
-def createGRU(maxlen, embedding_dim, debug=False):
-    pass
+# 传入语料数据，输出不同属性-label的样本数,依次为位置、服务、价格、环境、菜品、其他
+def calculateSampleNumber(origin_data):
+    aspects = ["location", "service", "price", "environment", "dish"]
 
-
-# 根据textCNN模型输出词向量
-def createSeparableCNNModel(maxlen, embedding_dim, debug=False):
-    if debug:
-        embedding_dim = 8
-    # print(">>>开始构建TextCNN模型。。。")
-    tensor_input = Input(shape=(maxlen, embedding_dim))
-    cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(tensor_input)
-    cnn1 = BatchNormalization()(cnn1)
-    cnn1 = MaxPool1D(pool_size=100)(cnn1)
-    cnn2 = SeparableConvolution1D(200, 4, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(tensor_input)
-    cnn2 = BatchNormalization()(cnn2)
-    cnn2 = MaxPool1D(pool_size=100)(cnn2)
-    cnn3 = SeparableConvolution1D(200, 5, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_3")(tensor_input)
-    cnn3 = BatchNormalization()(cnn3)
-    cnn3 = MaxPool1D(pool_size=100)(cnn3)
-    cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
-
-    dropout = Dropout(0.2)(cnn)
-    flatten = Flatten()(dropout)
-    dense = Dense(512, activation='relu')(flatten)
-    dense = BatchNormalization()(dense)
-    dropout = Dropout(0.2)(dense)
-    tensor_output = Dense(4, activation='softmax')(dropout)
-
-    model = Model(inputs=tensor_input, outputs = tensor_output)
-    # print(model.summary())
-
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-
-    # print(">>>TextCNN模型构建结束。。。")
-    return model
-
-
-# 构建模型CNN+BiGRU
-def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
-    if debug:
-        embedding_dim = 8
-    # print(">>>开始构建TextCNNBiGRUModel模型。。。")
-    tensor_input = Input(shape=(maxlen, embedding_dim))
-    cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_0")(tensor_input)
-    cnn1 = BatchNormalization()(cnn1)
-    cnn1 = MaxPool1D(pool_size=100)(cnn1)
-    cnn2 = SeparableConvolution1D(200, 4, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(tensor_input)
-    cnn2 = BatchNormalization()(cnn2)
-    cnn2 = MaxPool1D(pool_size=100)(cnn2)
-    cnn3 = SeparableConvolution1D(200, 5, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(tensor_input)
-    cnn3 = BatchNormalization()(cnn3)
-    cnn3 = MaxPool1D(pool_size=100)(cnn3)
-    cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
-
-    dropout = Dropout(0.2)(cnn)
-    # flatten = Flatten()(dropout)
-
-    bi_gru1 = Bidirectional(GRU(128, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
-    bi_gru1 = BatchNormalization()(bi_gru1)
-    bi_gru2 = Bidirectional(GRU(256, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
-    bi_gru2 = BatchNormalization()(bi_gru2)
-
-    flatten = Flatten()(bi_gru2)
-
-    dense = Dense(512, activation='relu')(flatten)
-    dense = BatchNormalization()(dense)
-    dropout = Dropout(0.2)(dense)
-    tensor_output = Dense(4, activation='softmax')(dropout)
-
-    model = Model(inputs=tensor_input, outputs=tensor_output)
-    print(model.summary())
-
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-
-    # print(">>>TextCNNBiGRUModel模型构建结束。。。")
-    return model
-
-
-# 训练模型，直接从文件中读取词向量
-# 先取前0.3的比例为验证集，使用y来统计长度
-def trainModelFromFile(experiment_name, model, embeddings_path, y, y_cols, epoch=3, batch_size=128, debug=False):
-    print("勿扰！训练模型ing。。。in trainModelFromFile。。。")
-    if len(embeddings_path.strip()) > 0:
-        print("从文件中直接读取词向量。。。")
-
-    length = len(y)
-    print(">>>y's length = ", length)
-    y_cols = ["service"]
-
-    F1_scores = 0
-    F1_score = 0
-    result = {}
-
-    for index, col in enumerate(y_cols):
-        experiment_name_aspect = experiment_name + "_" + col
-        origin_data_current_col = y[col] + 2
-        origin_data_current_col = np.array(origin_data_current_col)
-
-        # history = model.fit(dp.generateTrainSetFromFile(embeddings_path, origin_data_current_col, batch_size), steps_per_epoch=3, batch_size=128, epochs=epoch, verbose=2)
-        history = model.fit(dp.generateTrainSetFromFile(embeddings_path, origin_data_current_col, batch_size), steps_per_epoch=math.ceil(length / batch_size), batch_size=batch_size, epochs=epoch)
-
-
-# 训练模型,origin_data中包含多个属性的标签
-def trainModel(experiment_name, model, x, embeddings_path, y, y_cols, ratio_style, epoch=5, batch_size=64, debug=False):
-    print(">>>勿扰！训练模型ing...")
-    print(">>>x's type = ", type(x))
-    print(">>>y's type = ", type(y))
-
-    F1_scores = 0
-    F1_score = 0
-    result = {}
-    # if debug:
-    #     y_cols = ['location']
-    for index, col in enumerate(y_cols):
-        experiment_name_aspect = experiment_name + "_" + col
-        origin_data_current_col = y[col] + 2
-        origin_data_current_col = np.array(origin_data_current_col)
-        # 生成测试集,比例为0.1,x为numpy类型，origin_data为dataFrame类型
-        ratio = 0.3
-        length = int(len(origin_data_current_col) * ratio)
-        print("测试集的长度为", length)
-        x_validation = x[:length]
-        x_train = x[length:]
-
-        y_validation = origin_data_current_col[:length]
-        y_train = origin_data_current_col[length:]
-        # print("y_train = ", y_train)
-
-        # print("x = ", x)
-        # print("origin_data_current.shape = ", origin_data_current_col.shape)
-        # print("origin_data_current_col = ", origin_data_current_col)
-        # print("origin_data = ", origin_data[col])
-        # print("origin_data[content] = ", origin_data["content"])
-        # if ratio_style:
-        #     x_train, x_validation, y_train, y_validation = train_test_split(x_current, origin_data_current_col, test_size=0.3)
-
-        print(">>>x_train.shape = ", x_train.shape)
-        print(">>>x_validation.shape = ", x_validation.shape)
-
-        # y_train_onehot = to_categorical(y_train)
-        y_validation_onehot = to_categorical(y_validation)
-
-        print(">>>y_train.shape = ", y_train.shape)
-        print(">>>y_validation.shape = ", y_validation.shape)
-
-        history = model.fit(dp.generateTrainSet(x_train, y_train, batch_size), validation_data=(x_validation, y_validation_onehot), epochs=epoch, verbose=2)
-
-        # 预测验证集
-        y_validation_pred = model.predict(x_validation)
-        y_validation_pred = np.argmax(y_validation_pred, axis=1)
-
-        # 预测并打印测试集
-        # y_test_pred = model.predict(x_test)
-        # y_test_pred = np.argmax(y_test_pred, axis=1)
-        # length_test = len(y_test)
-        # for i in range(length_test):
-        #     print(origin_data_content[i]+" : realLabel-", y_test[i], ",predictedLabel-", y_test_pred[i])
-
-        # 准确率：在所有预测为正的样本中，确实为正的比例
-        # 召回率：本身为正的样本中，被预测为正的比例
-        print("y_val_pred = ", list(y_validation_pred))
-        precision, recall, fscore, support = score(y_validation, y_validation_pred)
-        print("precision = ", precision)
-        print("recall = ", recall)
-        print("fscore = ", fscore)
-        print("support = ", support)
-
-        report = classification_report(y_validation, y_validation_pred, digits=4, output_dict=True)
-        print(report)
-
-        F1_score = f1_score(y_validation_pred, y_validation, average='macro')
-        F1_scores += F1_score
-
-        # 保存当前属性的结果,整体的结果根据所有属性的结果来计算
-        save_result_to_csv(report, F1_score, experiment_name_aspect)
-
-        print('第', index, '个细粒度', col, 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_validation_pred, y_validation))
-        print("%Y-%m%d %H:%M:%S", time.localtime())
-
-    print('all F1_score:', F1_scores/len(y_cols))
-    print("result:", result)
+    result = []
+    for aspect in aspects:
+        current = list(origin_data[aspect])
+        # print(aspect, " = ", current)
+        result.append(Counter(current))
 
     return result
 
 
-# 把结果保存到csv
-# report是classification_report生成的字典结果
-def save_result_to_csv(report, f1_score, experiment_id):
-    accuracy = report.get("accuracy")
+# 如果文本长度小于maxlen，则进行[pad]补齐
+def textsPadding(tokens, maxlen):
+    length = len(tokens)
+    if length < maxlen:
+        pad = '[PAD]'
+        tokens += [pad] * (maxlen - length)
+    elif length > maxlen:
+        print(" 啊啊啊啊啊啊出错了！maxlen最大才是512！！！现在length居然等于", length)
+        print("再cut一次！！！")
+        tokens = tokens[:maxlen]
 
-    macro_avg = report.get("macro avg")
-    macro_precision = macro_avg.get("precision")
-    macro_recall = macro_avg.get("recall")
-    macro_f1 = macro_avg.get('f1-score')
+    return tokens
 
-    weighted_avg = report.get("weighted avg")
-    weighted_precision = weighted_avg.get("precision")
-    weighted_recall = weighted_avg.get("recall")
-    weighted_f1 = weighted_avg.get('f1-score')
-    data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
 
-    with codecs.open("result/result.csv", "a", "utf-8") as f:
+# 将文本截取至maxlen-2的长度
+def textsCut(input_texts, maxlen):
+    result = []
+    print(" maxlen - 2 = ", maxlen - 2)
+    for text in input_texts:
+        # print("text in textsCut = ", list(text))
+        length = len(text)
+        # print("length before = ", length)
+        if length <= maxlen - 2:
+            result.append(text)
+            continue
+        # print("length after = ", len(text[:maxlen - 2]))
+        result.append(text[:maxlen - 2])
+
+    return result
+
+
+# 创建bert模型
+def createBertEmbeddingModel():
+    print(">>>开始加载Bert模型。。。")
+    token_dict = {}
+    with codecs.open(config.bert_dict_path, 'r', 'utf8') as reader:
+        for line in reader:
+            token = line.strip()
+            token_dict[token] = len(token_dict)
+
+    model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path)
+    tokenizer = bert_Tokenizer(token_dict)
+
+    print(">>>Bert模型加载结束。。。")
+
+    return model, tokenizer, token_dict
+
+
+# 根据bert模型和input_texts得到字符级向量和句子级向量
+# 评论长度限制为512个字符，后续可以扩大看效果
+def getBertEmbeddings(bert_model, tokenizer, origin_data, maxlen, debug=False):
+    print(">>>正在飞速获取bert字符级向量和句子级向量")
+    character_embeddings = []
+    sentence_embeddings = []
+
+    input_texts = origin_data["content"]
+    input_texts = textsCut(input_texts, maxlen)  # 对长句子进行截断
+
+    for text in input_texts:
+        current_embedding = []
+        # print("text = ", text)
+        # print("text's length = ", len(text))
+        tokens = tokenizer.tokenize(text)
+        if len(tokens) > maxlen:
+            print("tokens = ", tokens)
+            print("tokens' length = ", len(tokens))
+        tokens = textsPadding(tokens, maxlen)
+        # print("tokens after = ", tokens)
+        # print("tokens' length = ", len(tokens))
+        indices, segments = tokenizer.encode(first=text, max_len=512)
+        # print("indices = ", indices[:10])
+        # print("segments = ", segments[:10])
+
+        predicts = bert_model.predict([np.array([indices]), np.array([segments])])[0]
+        # print("tokens' length = ", len(tokens))
+        for i, token in enumerate(tokens):
+            # 此处为了限制评论最长是512个字符，后续可以做实验扩大
+            # if i >= maxlen:
+            #     break
+
+            if debug:
+                predicted = predicts[i].tolist()[:5]
+            else:
+                predicted = predicts[i].tolist()
+            # print(token, predicted)
+            # 注意此处！！将一个句子的所有字符向量进行拼接extend，方面后面存放
+            current_embedding.extend(predicted)
+            # current_embedding.append(predicts[i].tolist())
+            if token == "[CLS]":
+                sentence_embeddings.append(predicted)
+        character_embeddings.append(current_embedding)
+    # print("character_embeddings[0] = ", character_embeddings[0])
+    # print("sentence_embeddings[0] = ", sentence_embeddings[0])
+
+    # print(">>>bert字符级向量和句子级向量GET。。。")
+
+    character_path = config.character_embeddings_validation
+    sentence_path = config.sentence_embeddings_validation
+    saveCharacterEmbeddings(character_embeddings, character_path)
+    saveSentenceEmbeddings(sentence_embeddings, sentence_path)
+
+    return character_embeddings, sentence_embeddings
+
+
+# 保存字符向量的结果
+def saveCharacterEmbeddings(character_embeddings, save_path):
+    print(">>>正在保存字符级向量至文件...")
+    character_embeddings = np.array(character_embeddings)
+    # print("character_embeddings' shape = ", character_embeddings.shape)
+    # print("character_embeddings' dim = ", character_embeddings.ndim)
+
+    with open(save_path, 'ab') as file_object:
+        np.savetxt(file_object, character_embeddings, fmt='%f', delimiter=',')
+
+
+# 读取字符级向量
+def getCharacterEmbeddings(path):
+    result = np.loadtxt(path, delimiter=',')
+    # result = np.reshape(result, (-1, 512, 768))
+    result = np.reshape(result, (-1, 512, 5))  # 测试
+
+    print("character_embeddings' shape = ", result.shape)
+    print("character_embeddings' dim = ", result.ndim)
+
+    return result
+
+
+# 保存句子向量的结果
+def saveSentenceEmbeddings(sentence_embeddings, save_path):
+    print(">>>正在保存句子级向量至文件...")
+    sentence_embeddings = np.array(sentence_embeddings)
+    # print("sentence_embeddings' shape = ", sentence_embeddings.shape)
+    # print("sentence_embeddings' dim = ", sentence_embeddings.ndim)
+
+    with open(save_path, 'ab') as file_object:
+        np.savetxt(file_object, sentence_embeddings, fmt='%f', delimiter=',')
+
+
+# 读取句子级向量
+def getSentenceEmbeddings(path):
+    result = np.loadtxt(path, delimiter=',')
+
+    print("sentence_embeddings' shape = ", result.shape)
+    print("sentence_embeddings' dim = ", result.ndim)
+
+    return result
+
+
+# 对输入的评论文本向量（一个向量表示一个句子）进行聚类，得到三个聚类中心，并写入文件
+def getClusterCenters(sentence_embeddings, cluster_centers_path):
+    print(">>>In getClusterCenters of absa_dataProcess.py...")
+    kMeans_model = trainKMeansModel(sentence_embeddings)
+
+    # 查看预测样本的中心点
+    clusters_centers = kMeans_model.cluster_centers_
+    # print("clusters' centers:", clusters_centers)
+
+    # 将聚类中心点写入文件
+    with codecs.open(cluster_centers_path, "w", "utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(data)
+        writer.writerows(clusters_centers)
         f.close()
+
+    print(" End of getClusterCenters in absa_dataProcess.py...")
+
+    return clusters_centers
+
+
+# 从文件中读取聚类中心向量
+def getClusterCenterFromFile(path):
+    cluster_center = pd.read_csv(path, header=None).values.tolist()
+    # print(">>>cluster_center = ", cluster_center)
+
+    return cluster_center
+
+
+# 接收sentence_embeddings，训练模型并返回
+def trainKMeansModel(sentence_embeddings):
+    # 创建KMeans 对象
+    cluster = KMeans(n_clusters=3, random_state=0, n_jobs=-1)
+    # print("sentence_embeddings = ", sentence_embeddings)
+    result = cluster.fit(sentence_embeddings)
+
+    return result
+
+
+# 计算评论中的字向量与聚类中心的隶属度（余弦距离）
+def calculateMembershipDegree(cluster_centers, character_embeddings):
+    # print(">>>开始计算评论文本的隶属度。。。")
+    membership_degrees = []
+    for character_embedding in character_embeddings:
+        sentence_membership_degrees = []
+        for character in character_embedding:
+            word_membership_degrees = []
+            for cluster_center in cluster_centers:
+                result = calculateCosinValue(character, cluster_center)
+                word_membership_degrees.append(result)
+            sentence_membership_degrees.append(word_membership_degrees)
+        membership_degrees.append(sentence_membership_degrees)
+
+    print(">>>评论文本的隶属度计算结束。。。")
+    return membership_degrees
+
+
+# 计算评论中的字向量与聚类中心的隶属度（余弦距离），并存入文件
+# character_embeddings太大，所以需要一边读 一边计算隶属度 然后保存
+# cluster_centers_path直接读进内存
+def calculateSaveMembershipDegree(cluster_centers, character_embeddings_path, save_path):
+    pass
+
+
+# 使用余弦距离计算两个向量间的相似度
+def calculateCosinValue(vector1, vector2):
+    # print("vector1 = ", vector1)
+    # print("vector2 = ", vector2)
+    vector1 = np.mat(vector1)
+    vector2 = np.mat(vector2)
+    num = float(vector1 * vector2.T)
+    denom = np.linalg.norm(vector1) * np.linalg.norm(vector2)
+    cos = num / denom
+    sim = 0.5 + 0.5 * cos
+    # print("sim = ", sim)
+
+    return sim
+
+
+# 将assisted_vector拼接在main_vector后面
+def concatenateVector(main_vector, assisted_vector, save_path):
+    print(">>>main_vector's length = ", len(main_vector))
+    # print("assisted_vector = ", assisted_vector)
+    print(">>>assisted_vector's length = ", len(assisted_vector))
+
+    length_1 = len(main_vector)
+    length_2 = len(assisted_vector)
+    if length_1 != length_2:
+        print(">>>字向量和隶属值向量长度不一致!!!")
+        return None
+
+    for i in range(length_1):
+        main_vector_current = main_vector[i]
+        assisted_vector_current = assisted_vector[i]
+        # print("main_vector_current = ", main_vector_current)
+        # print("main_vector_current's length = ", len(main_vector_current))
+        # print("main_vector_current's type = ", type(main_vector_current))
+        # print("assisted_vector_current = ", assisted_vector_current)
+        # print("assisted_vector_current's length = ", len(assisted_vector_current))
+        # print("assisted_vector_current's type = ", type(assisted_vector_current))
+
+        current_final_word_embeddings = np.concatenate((main_vector_current, assisted_vector_current), axis=1).tolist()
+        # print("current_final_word_embeddings = ", current_final_word_embeddings)
+
+        # 直接追加写入文件
+        saveFinalEmbeddings(current_final_word_embeddings, save_path)
+
+
+def getFinalEmbeddings(path):
+    print("正在获取final_word_embeddings。。。")
+
+    result = np.loadtxt(path, delimiter=',')
+
+    # result = np.reshape(result, (-1, 512, 771))
+    result = np.reshape(result, (-1, 512, 8))  # 测试
+
+    print("正在获取final_word_embeddings' shape = ", result.shape)
+    print("正在获取final_word_embeddings' dim = ", result.ndim)
+
+    return result
+
+
+# 使用generator yield批量训练数据
+def generateTrainSet(X_train, Y_train, batch_size):
+    print("X_train's length = ", len(X_train))
+    print("Y_train's length = ", len(Y_train))
+    for i in range(0, len(X_train), batch_size):
+        x = X_train[i: i + batch_size]
+        y = Y_train[i: i + batch_size]
+        yield np.array(x), to_categorical(y)
+
+
+# 将最终的包含隶属度向量的embedding存入文件
+def saveFinalEmbeddings(final_word_embeddings, save_path):
+    # print(">>>正在保存final_word_embeddings向量至文件...")
+    final_word_embeddings = np.array(final_word_embeddings)
+    final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 8))
+    # final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 771))
+
+    with open(save_path, 'ab') as file_object:
+        np.savetxt(file_object, final_word_embeddings, fmt='%f', delimiter=',')
+
+
+# 使用generator yield批量训练数据，从文件中读取X
+def generateTrainSetFromFile(X_path, Y_train, batch_size):
+    # print("从", X_path, "中读取X_train数据")
+    length = len(Y_train)
+    # print("Y_train's length = ", length)
+    while True:
+        f = open(X_path)
+        cnt = 0
+        X = []
+        Y = []
+        i = 0  # 记录Y_train的遍历
+        cnt_Y = 0
+        for line in f:
+            X.append(parseLine(line))
+            i += 1
+            cnt += 1
+            if cnt == batch_size or i == length:
+
+                Y = Y_train[cnt_Y: i]
+                cnt_Y += batch_size
+
+                cnt = 0
+                # print("X's length = ", len(X))
+                # print("Y's length = ", len(Y))
+                yield (np.array(X), to_categorical(Y))
+                X = []
+                Y = []
+
+
+def parseLine(line):
+    # print("line = ", line)
+    line = [float(x) for x in line.split(',')]
+    # print("line = ", line)
+    # print("line's length = ", len(line))
+    # reshape
+    line = np.reshape(list(line), (-1, 8))  # 测试
+    # line = np.reshape(line, (-1, 771))
+    return line
 

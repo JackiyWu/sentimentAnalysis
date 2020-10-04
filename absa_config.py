@@ -32,3 +32,5 @@ sentence_embeddings_train = 'result/sentence_embeddings_train.txt'
 final_word_embeddings_validation = 'result/final_word_embeddings_validation.txt'
 final_word_embeddings_train = 'result/final_word_embeddings_train.txt'
 
+membership_degree_train = 'result/membership_degree_train.txt'
+
