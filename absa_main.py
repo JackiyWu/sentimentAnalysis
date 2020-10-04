@@ -122,6 +122,8 @@ if __name__ == "__main__":
     # review_sentiment_membership_degree = dp.calculateMembershipDegree(cluster_centers, character_embeddings)
     # 计算并保存评论文本的隶属度
     review_sentiment_membership_degree = dp.calculateAndSaveMembershipDegree(cluster_centers, config.character_embeddings_train, config.membership_degree_train)
+    # 直接读取评论文本的隶属度
+    # review_sentiment_membership_degree = dp.getMembershipDegrees(config.membership_degree_train)
 
     # 7.将review_sentiment_membership_degree拼接在character_embeddings后面生成最终的词向量final_word_embeddings
     print("》》》【7】将隶属值拼接在原词向量上生成最终的词向量**********************************************************************************************************************************************************")
@@ -130,6 +132,8 @@ if __name__ == "__main__":
     # 将final_word_embeddings存入文件
     # dp.saveFinalEmbeddings(final_word_embeddings, final_word_embeddings_path)
     # final_word_embeddings = dp.getFinalEmbeddings(final_word_embeddings_path)
+    # 训练集的数据太大，只能一边读取 一边拼接 一边存入文件
+    # dp.saveFinalEmbeddingLittleByLittle(review_sentiment_membership_degree, config.character_embeddings_train, config.final_word_embeddings_train)
 
     # 8.构建CNN模型
     print("》》》【8】构建深度学习模型**********************************************************************************************************************************************************************************")

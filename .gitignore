@@ -22,3 +22,4 @@ result/*.bin
 result/cluster_center.csv
 result/cluster_center_validation.csv
 result/cluster_center_train.csv
+temp.py

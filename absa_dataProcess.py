@@ -353,17 +353,19 @@ def calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_train
         # print("sentence_membership_degree = ", sentence_membership_degree)
         cache.append(sentence_membership_degree)
 
-        if i % 5000 == 0:
-        # if i % 5 == 0:  # 测试
+        # if i % 5000 == 0:
+        if i % 500 == 0:  # 测试
             # 写入文件
-            writerToFile(cache, membership_degree_train_path)
+            writeToFile(cache, membership_degree_train_path)
             cache = []
             print("写入文件。。。i = ", i)
 
         i += 1
+    if len(cache) > 0:
+        writeToFile(cache, membership_degree_train_path)
 
 
-def writerToFile(cache, save_path):
+def writeToFile(cache, save_path):
     # 评论文本的词嵌入向量转为2D
     cache = np.reshape(cache, (-1, 512 * 3))
 
@@ -404,6 +406,14 @@ def calculateCosinValue(vector1, vector2):
     return sim
 
 
+# 读取评论文本的隶属度
+def getMembershipDegrees(path):
+    result = np.loadtxt(path, delimiter=',')
+    result = np.reshape(result, (-1, 512, 3))
+
+    return result
+
+
 # 将assisted_vector拼接在main_vector后面
 def concatenateVector(main_vector, assisted_vector, save_path):
     print(">>>main_vector's length = ", len(main_vector))
@@ -437,11 +447,37 @@ def concatenateVector(main_vector, assisted_vector, save_path):
 def saveFinalEmbeddings(final_word_embeddings, save_path):
     # print(">>>正在保存final_word_embeddings向量至文件...")
     final_word_embeddings = np.array(final_word_embeddings)
-    final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 8))
-    # final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 771))
+    # final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 8))
+    final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 771))
 
     with open(save_path, 'ab') as file_object:
         np.savetxt(file_object, final_word_embeddings, fmt='%f', delimiter=',')
+
+
+# 将最终的包含隶属度的向量存入文件
+def saveFinalEmbeddingLittleByLittle(membership_degrees, embeddings_path, save_path):
+    i = 0
+
+    f = open(embeddings_path)
+    cache = []
+    membership_degree_cache = []
+
+    for line in f:
+        line = parseLine2(line)
+        cache.append(line)
+        membership_degree_cache.append(membership_degrees[i])
+
+        if i % 300 == 0:
+            # 写入文件
+            concatenateVector(cache, membership_degree_cache, save_path)
+            cache = []
+            membership_degree_cache = []
+            print("final_embeddings写入文件中。。。i = ", i)
+
+        i += 1
+
+    if len(cache) > 0:
+        concatenateVector(cache, membership_degree_cache, save_path)
 
 
 def getFinalEmbeddings(path):

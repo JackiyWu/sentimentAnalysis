@@ -339,8 +339,54 @@ def calculateMembershipDegree(cluster_centers, character_embeddings):
 # 计算评论中的字向量与聚类中心的隶属度（余弦距离），并存入文件
 # character_embeddings太大，所以需要一边读 一边计算隶属度 然后保存
 # cluster_centers_path直接读进内存
-def calculateSaveMembershipDegree(cluster_centers, character_embeddings_path, save_path):
-    pass
+# 每500条评论就写入一次文件
+def calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_train_path, membership_degree_train_path):
+    i = 1
+
+    f = open(character_embeddings_train_path)
+    cache = []
+
+    for line in f:
+        line = parseLine2(line)  # 一个line表示一条评论
+
+        sentence_membership_degree = calculateMembershipDegreeForSingleSentence(cluster_centers, line)
+        # print("sentence_membership_degree = ", sentence_membership_degree)
+        cache.append(sentence_membership_degree)
+
+        if i % 5000 == 0:
+            # if i % 5 == 0:  # 测试
+            # 写入文件
+            writerToFile(cache, membership_degree_train_path)
+            cache = []
+            print("写入文件。。。i = ", i)
+
+        i += 1
+
+
+def writerToFile(cache, save_path):
+    # 评论文本的词嵌入向量转为2D
+    cache = np.reshape(cache, (-1, 512 * 3))
+
+    with open(save_path, 'ab') as file_object:
+        np.savetxt(file_object, cache, fmt='%f', delimiter=',')
+
+
+# 计算一条评论语句与聚类中心的隶属度
+def calculateMembershipDegreeForSingleSentence(cluster_centers, character_embedding):
+    sentence_membership_degree = []
+    for character in character_embedding:
+        character_membership_degrees = calculateMembershipDegreeForSingleCharacter(cluster_centers, character)
+        sentence_membership_degree.append(character_membership_degrees)
+    return sentence_membership_degree
+
+
+# 计算一个字符向量与聚类中心的隶属度
+def calculateMembershipDegreeForSingleCharacter(cluster_centers, character):
+    character_membership_degrees = []
+    for cluster_center in cluster_centers:
+        result = calculateCosinValue(character, cluster_center)
+        character_membership_degrees.append(result)
+    return character_membership_degrees
 
 
 # 使用余弦距离计算两个向量间的相似度
@@ -356,6 +402,14 @@ def calculateCosinValue(vector1, vector2):
     # print("sim = ", sim)
 
     return sim
+
+
+# 读取评论文本的隶属度
+def getMembershipDegrees(path):
+    result = np.loadtxt(path, delimiter=',')
+    result = np.reshape(result, (-1, 512, 3))
+
+    return result
 
 
 # 将assisted_vector拼接在main_vector后面
@@ -387,6 +441,23 @@ def concatenateVector(main_vector, assisted_vector, save_path):
         saveFinalEmbeddings(current_final_word_embeddings, save_path)
 
 
+# 将最终的包含隶属度向量的embedding存入文件
+def saveFinalEmbeddings(final_word_embeddings, save_path):
+    # print(">>>正在保存final_word_embeddings向量至文件...")
+    final_word_embeddings = np.array(final_word_embeddings)
+    final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 8))
+    # final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 771))
+
+    with open(save_path, 'ab') as file_object:
+        np.savetxt(file_object, final_word_embeddings, fmt='%f', delimiter=',')
+
+
+# 将最终的包含隶属度的向量存入文件
+def saveFinalEmbeddingLittleByLittle(membership_degrees, save_path):
+
+    pass
+
+
 def getFinalEmbeddings(path):
     print("正在获取final_word_embeddings。。。")
 
@@ -409,17 +480,6 @@ def generateTrainSet(X_train, Y_train, batch_size):
         x = X_train[i: i + batch_size]
         y = Y_train[i: i + batch_size]
         yield np.array(x), to_categorical(y)
-
-
-# 将最终的包含隶属度向量的embedding存入文件
-def saveFinalEmbeddings(final_word_embeddings, save_path):
-    # print(">>>正在保存final_word_embeddings向量至文件...")
-    final_word_embeddings = np.array(final_word_embeddings)
-    final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 8))
-    # final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 771))
-
-    with open(save_path, 'ab') as file_object:
-        np.savetxt(file_object, final_word_embeddings, fmt='%f', delimiter=',')
 
 
 # 使用generator yield批量训练数据，从文件中读取X
@@ -459,5 +519,16 @@ def parseLine(line):
     # reshape
     line = np.reshape(list(line), (-1, 8))  # 测试
     # line = np.reshape(line, (-1, 771))
+    return line
+
+
+def parseLine2(line):
+    # print("line = ", line)
+    line = [float(x) for x in line.split(',')]
+    # print("line = ", line)
+    # print("line's length = ", len(line))
+    # reshape
+    # line = np.reshape(list(line), (-1, 5))  # 测试
+    line = np.reshape(line, (-1, 768))
     return line
 
