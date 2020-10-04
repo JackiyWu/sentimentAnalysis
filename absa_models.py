@@ -6,6 +6,7 @@ import os
 import time
 import codecs
 import csv
+import math
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, confusion_matrix
@@ -142,6 +143,7 @@ def trainModelFromFile(experiment_name, model, embeddings_path, y, y_cols, epoch
 
     length = len(y)
     print(">>>y's length = ", length)
+    y_cols = ["service"]
 
     F1_scores = 0
     F1_score = 0
@@ -152,7 +154,8 @@ def trainModelFromFile(experiment_name, model, embeddings_path, y, y_cols, epoch
         origin_data_current_col = y[col] + 2
         origin_data_current_col = np.array(origin_data_current_col)
 
-        history = model.fit(dp.generateTrainSetFromFile(embeddings_path, origin_data_current_col, batch_size), epochs=epoch, verbose=2)
+        # history = model.fit(dp.generateTrainSetFromFile(embeddings_path, origin_data_current_col, batch_size), steps_per_epoch=3, batch_size=128, epochs=epoch, verbose=2)
+        history = model.fit(dp.generateTrainSetFromFile(embeddings_path, origin_data_current_col, batch_size), steps_per_epoch=math.ceil(length / batch_size), batch_size=batch_size, epochs=epoch)
 
 
 # 训练模型,origin_data中包含多个属性的标签

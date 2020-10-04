@@ -66,7 +66,7 @@ import absa_config as config
 import absa_models as absa_models
 
 # 如果DEBUG为True，则只测试少部分数据
-DEBUG = False
+DEBUG = True
 
 # 句子的最大长度
 MAXLEN = 512
