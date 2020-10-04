@@ -2,331 +2,254 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-import xlrd
-from collections import Counter
+import os
+import time
+import codecs
+import csv
 
-import config
-import KMeansCluster
-import dataProcess
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, confusion_matrix
+from sklearn.metrics import precision_recall_fscore_support as score
+from sklearn.metrics import classification_report
+from sklearn.utils import class_weight
 
+import keras
+from keras.layers import Input, Flatten, Dense, Dropout, Activation, GRU, Bidirectional, Conv1D
+from keras.layers import Embedding, merge, Lambda, Reshape, BatchNormalization, MaxPool1D, GlobalAveragePooling1D
+from keras import Model, Sequential
+from keras.utils import to_categorical
+from keras import regularizers
+from keras.layers.merge import concatenate
 
-# 计算语料库中每个input包含情感词的个数
-# 查询每个input包含情感词的特征向量
-def calculate_sentiment_words_feature(input, word_feature):
-    print(">>>in calculate_sentiment_words function in fuzzySystem.py...")
+from tensorflow.keras.layers import SeparableConvolution1D
 
-    '''
-    # 首先拿到情感词汇本体库
-    word_feature, word_index, index_word = KMeansCluster.read_excel()
-    print(len(word_feature))
-    '''
+from keras_bert import Tokenizer, load_trained_model_from_checkpoint
 
-    # 输入语料的情感特征向量
-    input_word_feature = []
-    for text in input:
-        wf = []
-        for word in text:
-            if word in word_feature.keys():
-                wf.append(word_feature.get(word))
-        # 如果输入语料中不包含情感词汇，会传入一个空的列表
-        input_word_feature.append(wf)
-    # print("input_word_feature:", input_word_feature)
+import absa_config as config
+import absa_dataProcess as dp
 
-    print(">>>end of calculate_sentiment_words function in fuzzySystem.py...")
-
-    return input_word_feature
+# 一些超参数
+TOKEN_DICT = {}
 
 
-# 计算某个数据属于某个类别的隶属度
-def cal_fuzzy_membership_degree(features, clusters_centers, texts, ratios):
-    print(">>>calculate membership degree in fuzzySystem.py...")
-    print("features.type = ", type(features))
-    print("clusters_centers.type = ", type(clusters_centers))
-    # 计算样本点到所有中心点的距离
-    distance = []
-    # print("texts = ", texts)
-    i = 0
-    for feature in features:
-        d = []
-        # print("feature = ", feature)
-        i += 1
-
-        for f in feature:
-            d.append(cal_distance(f, clusters_centers))
-        d = np.array(d)
-        distance.append(d)
-
-    # print("distance = ", distance)
-    # distance = np.array(distance)
-    # print("distance's type = ", type(distance))
-    # 计算样本的隶属度
-    membership_degree = membership_degree_solo(distance)
-
-    membership_degree_fuzzy = fuzzy_calculate(membership_degree)
-
-    print("end of fuzzySystem function in fuzzySystem.py...")
-
-    # 数据划分，重新分为训练集，测试集和验证集
-    membership_degrer_fuzzy_length = membership_degree_fuzzy.shape[0]
-    print("membership_degree_fuzzy_length = ", membership_degrer_fuzzy_length)
-    size_train = int(membership_degrer_fuzzy_length * ratios[0])
-    size_test = int(membership_degrer_fuzzy_length * ratios[1])
-
-    dealed_train = membership_degree_fuzzy[: size_train]
-    dealed_val = membership_degree_fuzzy[size_train: (size_train + size_test)]
-    dealed_test = membership_degree_fuzzy[(size_train + size_test):]
-
-    return dealed_train, dealed_val, dealed_test
+# 创建bert+fc模型
+def createBertFcModel():
+    pass
 
 
-# 根据输入语料的极性和强度特征，计算其模糊特征
-def calculate_fuzzy_feature(features, ratios):
-    # fuzzy_feature分别保存负向、中性、正向的最终特征值
-    fuzzy_feature = []
-    # 对features中的每一条输入语料求均值
-    features_mean = []
-    for feature in features:
-        features_mean.append(np.mean(feature, axis=0))
+# 创建bert模型
+def createBertEmbeddingModel():
+    with codecs.open(config.bert_dict_path, 'r', 'utf8') as reader:
+        for line in reader:
+            token = line.strip()
+            TOKEN_DICT[token] = len(TOKEN_DICT)
 
-    # 遍历输入语料的均值，计算其对应的模糊特征
-    for feature in features_mean:
-        fuzzy_feature.append(calculate_fuzzy_feature_by_polar_intensity(feature))
+    model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path)
+
+    return model
 
 
-# 根据传入的polar和intensity计算其模糊特征
-def calculate_fuzzy_feature_by_polar_intensity(feature):
-    result = []
-    if len(feature) <= 0:
-        return result
-    polar = feature[0]
-    intensity = feature[1]
+# 根据textCNN模型输出词向量
+def createTextCNNModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    # print(">>>开始构建TextCNN模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+    cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(tensor_input)
+    cnn1 = BatchNormalization()(cnn1)
+    cnn1 = MaxPool1D(pool_size=100)(cnn1)
+    cnn2 = SeparableConvolution1D(200, 4, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(tensor_input)
+    cnn2 = BatchNormalization()(cnn2)
+    cnn2 = MaxPool1D(pool_size=100)(cnn2)
+    cnn3 = SeparableConvolution1D(200, 5, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_3")(tensor_input)
+    cnn3 = BatchNormalization()(cnn3)
+    cnn3 = MaxPool1D(pool_size=100)(cnn3)
+    cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
 
-    # 计算polar的隶属度
-    polar_membership = calculate_polar_membership_degree(polar)
-    # 计算intensity的隶属度
-    intensity_membership = calculate_intensity_membership_degree(intensity)
+    dropout = Dropout(0.2)(cnn)
+    flatten = Flatten()(dropout)
+    dense = Dense(512, activation='relu')(flatten)
+    dense = BatchNormalization()(dense)
+    dropout = Dropout(0.2)(dense)
+    tensor_output = Dense(4, activation='softmax')(dropout)
 
-    # 计算负向、中性、正向三种特征值
-    result.append(calculate_feature(polar_membership, intensity_membership))
+    model = Model(inputs=tensor_input, outputs = tensor_output)
+    # print(model.summary())
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    # print(">>>TextCNN模型构建结束。。。")
+    return model
+
+
+# 构建模型CNN+BiGRU
+def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    # print(">>>开始构建TextCNNBiGRUModel模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+    cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_0")(tensor_input)
+    cnn1 = BatchNormalization()(cnn1)
+    cnn1 = MaxPool1D(pool_size=100)(cnn1)
+    cnn2 = SeparableConvolution1D(200, 4, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(tensor_input)
+    cnn2 = BatchNormalization()(cnn2)
+    cnn2 = MaxPool1D(pool_size=100)(cnn2)
+    cnn3 = SeparableConvolution1D(200, 5, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(tensor_input)
+    cnn3 = BatchNormalization()(cnn3)
+    cnn3 = MaxPool1D(pool_size=100)(cnn3)
+    cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
+
+    dropout = Dropout(0.2)(cnn)
+    # flatten = Flatten()(dropout)
+
+    bi_gru1 = Bidirectional(GRU(128, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
+    bi_gru1 = BatchNormalization()(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(256, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = BatchNormalization()(bi_gru2)
+
+    flatten = Flatten()(bi_gru2)
+
+    dense = Dense(512, activation='relu')(flatten)
+    dense = BatchNormalization()(dense)
+    dropout = Dropout(0.2)(dense)
+    tensor_output = Dense(4, activation='softmax')(dropout)
+
+    model = Model(inputs=tensor_input, outputs=tensor_output)
+    print(model.summary())
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    # print(">>>TextCNNBiGRUModel模型构建结束。。。")
+    return model
+
+
+# 训练模型，直接从文件中读取词向量
+# 先取前0.3的比例为验证集，使用y来统计长度
+def trainModelFromFile(experiment_name, model, x, embeddings_path, y, y_cols, epoch=5, batch_size=64, debug=False):
+    print("勿扰！训练模型ing。。。in trainModelFromFile。。。")
+    if len(embeddings_path.strip()) > 0:
+        print("从文件中直接读取词向量。。。")
+
+    length = len(y)
+    print(">>>y's length = ", length)
+
+
+
+    F1_scores = 0
+    F1_score = 0
+    result = {}
+
+    for index, col in enumerate(y_cols):
+        experiment_name_aspect = experiment_name + "_" + col
+        origin_data_current_col = y[col] + 2
+        origin_data_current_col = np.array(origin_data_current_col)
+        # 生成测试集,比例为0.1,x为numpy类型，origin_data为dataFrame类型
+        ratio = 0.3
+        length = int(len(origin_data_current_col) * ratio)
+        print("测试集的长度为", length)
+
+
+# 训练模型,origin_data中包含多个属性的标签
+def trainModel(experiment_name, model, x, embeddings_path, y, y_cols, ratio_style, epoch=5, batch_size=64, debug=False):
+    print(">>>勿扰！训练模型ing...")
+    print(">>>x's type = ", type(x))
+    print(">>>y's type = ", type(y))
+
+    F1_scores = 0
+    F1_score = 0
+    result = {}
+    # if debug:
+    #     y_cols = ['location']
+    for index, col in enumerate(y_cols):
+        experiment_name_aspect = experiment_name + "_" + col
+        origin_data_current_col = y[col] + 2
+        origin_data_current_col = np.array(origin_data_current_col)
+        # 生成测试集,比例为0.1,x为numpy类型，origin_data为dataFrame类型
+        ratio = 0.3
+        length = int(len(origin_data_current_col) * ratio)
+        print("测试集的长度为", length)
+        x_validation = x[:length]
+        x_train = x[length:]
+
+        y_validation = origin_data_current_col[:length]
+        y_train = origin_data_current_col[length:]
+        # print("y_train = ", y_train)
+
+        # print("x = ", x)
+        # print("origin_data_current.shape = ", origin_data_current_col.shape)
+        # print("origin_data_current_col = ", origin_data_current_col)
+        # print("origin_data = ", origin_data[col])
+        # print("origin_data[content] = ", origin_data["content"])
+        # if ratio_style:
+        #     x_train, x_validation, y_train, y_validation = train_test_split(x_current, origin_data_current_col, test_size=0.3)
+
+        print(">>>x_train.shape = ", x_train.shape)
+        print(">>>x_validation.shape = ", x_validation.shape)
+
+        # y_train_onehot = to_categorical(y_train)
+        y_validation_onehot = to_categorical(y_validation)
+
+        print(">>>y_train.shape = ", y_train.shape)
+        print(">>>y_validation.shape = ", y_validation.shape)
+
+        history = model.fit(dp.generateTrainSet(x_train, y_train, batch_size), validation_data=(x_validation, y_validation_onehot), epochs=epoch, verbose=2)
+
+        # 预测验证集
+        y_validation_pred = model.predict(x_validation)
+        y_validation_pred = np.argmax(y_validation_pred, axis=1)
+
+        # 预测并打印测试集
+        # y_test_pred = model.predict(x_test)
+        # y_test_pred = np.argmax(y_test_pred, axis=1)
+        # length_test = len(y_test)
+        # for i in range(length_test):
+        #     print(origin_data_content[i]+" : realLabel-", y_test[i], ",predictedLabel-", y_test_pred[i])
+
+        # 准确率：在所有预测为正的样本中，确实为正的比例
+        # 召回率：本身为正的样本中，被预测为正的比例
+        print("y_val_pred = ", list(y_validation_pred))
+        precision, recall, fscore, support = score(y_validation, y_validation_pred)
+        print("precision = ", precision)
+        print("recall = ", recall)
+        print("fscore = ", fscore)
+        print("support = ", support)
+
+        report = classification_report(y_validation, y_validation_pred, digits=4, output_dict=True)
+        print(report)
+
+        F1_score = f1_score(y_validation_pred, y_validation, average='macro')
+        F1_scores += F1_score
+
+        # 保存当前属性的结果,整体的结果根据所有属性的结果来计算
+        save_result_to_csv(report, F1_score, experiment_name_aspect)
+
+        print('第', index, '个细粒度', col, 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_validation_pred, y_validation))
+        print("%Y-%m%d %H:%M:%S", time.localtime())
+
+    print('all F1_score:', F1_scores/len(y_cols))
+    print("result:", result)
 
     return result
 
 
-def calculate_feature(polar_membership, intensity_membership):
-    polar_membership_1 = polar_membership[0]
-    polar_membership_2 = polar_membership[1]
-    polar_membership_3 = polar_membership[2]
+# 把结果保存到csv
+# report是classification_report生成的字典结果
+def save_result_to_csv(report, f1_score, experiment_id):
+    accuracy = report.get("accuracy")
 
-    intensity_membership_1 = intensity_membership[0]
-    intensity_membership_2 = intensity_membership[1]
-    intensity_membership_3 = intensity_membership[2]
+    macro_avg = report.get("macro avg")
+    macro_precision = macro_avg.get("precision")
+    macro_recall = macro_avg.get("recall")
+    macro_f1 = macro_avg.get('f1-score')
 
-    Neural = [min(polar_membership_1, intensity_membership_1), min(polar_membership_2, intensity_membership_1),
-              min(polar_membership_3, intensity_membership_1), min(polar_membership_2, intensity_membership_2),
-              min(polar_membership_2, intensity_membership_3)]
+    weighted_avg = report.get("weighted avg")
+    weighted_precision = weighted_avg.get("precision")
+    weighted_recall = weighted_avg.get("recall")
+    weighted_f1 = weighted_avg.get('f1-score')
+    data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
 
-    Negative = [min(polar_membership_3, intensity_membership_3), min(polar_membership_3, intensity_membership_2)]
-
-    Positive = [min(polar_membership_1, intensity_membership_3), min(polar_membership_1, intensity_membership_2)]
-
-    # print("Neural = ", Neural)
-    # print("Negative = ", Negative)
-    # print("Positive = ", Positive)
-
-    Neural = np.sum(Neural) / count_number(Neural) if count_number(Neural) > 0 else 0
-    Negative = np.sum(Negative) / count_number(Negative) if count_number(Negative) > 0 else 0
-    Positive = np.sum(Positive) / count_number(Positive) if count_number(Positive) > 0 else 0
-
-    # print("Neural = ", Neural)
-    # print("Negative = ", Negative)
-    # print("Positive = ", Positive)
-
-    return [Negative, Neural, Positive]
-
-
-# 统计列表的非零值数量
-def count_number(ll):
-    number = 0
-    for l in ll:
-        if l != 0:
-            number += 1
-
-    return number
-
-
-# 计算polar的隶属度
-def calculate_polar_membership_degree(polar):
-    # result的三个值一次是负向、中性、正向的隶属度
-    result = []
-
-    # 计算负向隶属度
-    if polar < 0.75:
-        result.append(1)
-    elif polar > 1.5:
-        result.append(0)
-    else:
-        result.append(-4 * polar / 3 + 2)
-
-    # 计算中性隶属度
-    if polar < 0.75 or polar > 2.25:
-        result.append(0)
-    elif 0.75 <= polar <= 1.5:
-        result.append(4 * polar / 3 - 1)
-    else:
-        result.append(-4.0 * polar / 3 + 3)
-
-    # 计算正向隶属度
-    if polar > 2.25:
-        result.append(1)
-    elif polar < 1.5:
-        result.append(0)
-    else:
-        result.append(4 * polar / 3 - 2)
-
-    return result
-
-
-# 计算intensity的隶属度
-def calculate_intensity_membership_degree(intensity):
-    # result的三个值依次是弱、中、强的隶属度
-    result = []
-
-    # 计算弱的隶属度
-    if intensity <= 2.5:
-        result.append(1)
-    elif intensity > 5:
-        result.append(0)
-    else:
-        result.append(-0.4 * intensity + 2)
-
-    # 计算中 的隶属度
-    if intensity < 2.5 or intensity > 7.5:
-        result.append(0)
-    elif 2.5 < intensity < 5:
-        result.append(0.4 * intensity - 1)
-    else:
-        result.append(-0.4 * intensity + 3)
-
-    # 计算强 的隶属度
-    if intensity < 5:
-        result.append(0)
-    elif intensity > 7.5:
-        result.append(1)
-    else:
-        result.append(0.4 * intensity - 2)
-
-    return result
-
-
-# 传入距离矩阵，输出对应的隶属度
-def membership_degree_solo(distance):
-    membership_degree = []
-    # print("distance = ", distance)
-    for dis in distance:
-        if len(dis) <= 0:
-            membership_degree.append([])
-            continue
-        # print("dis = ", dis)
-        membership = []
-        dis_turn = 1 / dis  # 距离的倒数
-        # print("dis_turn = ", dis_turn)
-        dis_sum = dis_turn.sum(axis=1)  # 计算每个词向量的距离和
-        for i in range(len(dis_turn)):
-            temp = dis_turn[i] / dis_sum[i]
-            # print("temp = ", temp)
-            membership.append(list(temp))
-            # print("membership'type1 = ", type(membership))
-        # print("membership = ", membership)
-        # for m in membership:
-        # print("m's type = ", type(m))
-        membership_degree.append(membership)
-        # membership_degree.append(np.array(membership))
-    # print("membership_degree = ", np.array(membership_degree))
-
-    # return np.array(membership_degree)
-    return membership_degree
-
-
-# 传入总体隶属度，输出3个维度的特征
-def fuzzy_calculate(membership_degree):
-    print(">>>in fuzzy_calculate function of fuzzySystem.py...")
-    result = []
-    for input_membership_degree in membership_degree:
-        if input_membership_degree:
-            # print("input_membershi_degree = ", input_membership_degree)
-            result.append(list(np.average(input_membership_degree, axis=0)))
-            # result.append(np.average(input_membership_degree, axis=0))
-        else:
-            result.append([0., 0., 0.])
-            # result.append(np.array([0., 0., 0.]))
-
-    # print("result = ", result)
-
-    print(">>>end of fuzzy_calculate function in fuzzySystem.py...")
-
-    return np.array(result)
-
-
-# 传入情感隶属度特征，得到输入向量的维度
-def calculate_input_dimension(input_word_membership_degree):
-    return len(input_word_membership_degree[0])
-
-
-# 定义欧几里得距离
-def cal_distance(vector1, centers):
-    vector1 = np.array(vector1)
-
-    distance = []
-    for center in centers:
-        center = np.array(center)
-        distance.append(np.sqrt(np.sum(np.square(vector1 - center))))
-    # print("distance = ", distance)
-
-    return distance
-
-
-'''
-if __name__ == '__main__':
-    print(">>>in fuzzySystem.py...")
-
-    clusters_centers = KMeansCluster.clusters_centers
-
-    print('clusters_centers = ', clusters_centers)
-
-    origin_data = dataProcess.initData()[0]
-    print("origin_data's shape = ", origin_data.shape)
-    stoplist = dataProcess.getStopList()
-    # print(len(origin_data))
-    # print(origin_data)
-    # print(len(stoplist))
-
-    # 获取输入语料的文本
-    input_texts = dataProcess.processDataToTexts(origin_data, stoplist)
-    # print("input_texts = ", input_texts)
-
-    # 首先拿到情感词汇本体库
-    word_feature, word_index, index_word = KMeansCluster.read_excel()
-    print(len(word_feature))
-
-    input_word_feature = calculate_sentiment_words_feature(input_texts, word_feature)
-    print(input_word_feature)
-
-    input_word_membership_degree = cal_fuzzy_membership_degree(input_word_feature, clusters_centers, input_texts)
-    print("input_word_membership_degree = ", input_word_membership_degree)
-    # print("input_word_membership_degree.shape = ", input_word_membership_degree.shape)
-
-    # 统计输入语料的文本包含多少个情感词汇
-    sentiment_words_count = []
-    for text in input_texts:
-        count = 0
-        for word in text:
-            if word in word_feature.keys():
-                count += 1
-        sentiment_words_count.append(count)
-    # print("sentiment_words_count = ", sentiment_words_count)
-    # print("sentiment_words_count'length = ", len(sentiment_words_count))
-    # print(Counter(sentiment_words_count))
-
-    print(">>>end of fuzzySystem.py...")
-'''
+    with codecs.open("result/result.csv", "a", "utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(data)
+        f.close()
 

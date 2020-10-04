@@ -5,6 +5,7 @@ import csv
 from collections import Counter
 import pandas as pd
 import sys
+import math
 
 import numpy as np
 import codecs
@@ -412,4 +413,43 @@ def generateTrainSet(X_train, Y_train, batch_size):
         x = X_train[i: i + batch_size]
         y = Y_train[i: i + batch_size]
         yield np.array(x), to_categorical(y)
+
+
+# 使用generator yield批量训练数据，从文件中读取X
+def generateTrainSetFromFile(X_path, Y_train, batch_size):
+    # print("从", X_path, "中读取X_train数据")
+    length = len(Y_train)
+    # print("Y_train's length = ", length)
+    f = open(X_path)
+    cnt = 0
+    X = []
+    Y = []
+    i = 0  # 记录Y_train的遍历
+    cnt_Y = 0
+    for line in f:
+        X.append(parseLine(line))
+        i += 1
+        cnt += 1
+        if cnt == batch_size or i == length:
+
+            Y = Y_train[cnt_Y: i]
+            cnt_Y += batch_size
+
+            cnt = 0
+            # print("X's length = ", len(X))
+            # print("Y's length = ", len(Y))
+            yield (np.array(X), to_categorical(Y))
+            X = []
+            Y = []
+
+
+def parseLine(line):
+    # print("line = ", line)
+    line = [float(x) for x in line.split(',')]
+    # print("line = ", line)
+    # print("line's length = ", len(line))
+    # reshape
+    # line = np.reshape(list(line), (-1, 8))  # 测试
+    line = np.reshape(line, (-1, 771))
+    return line
 

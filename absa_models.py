@@ -123,8 +123,30 @@ def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
     return model
 
 
+# 训练模型，直接从文件中读取词向量
+# 先取前0.3的比例为验证集，使用y来统计长度
+def trainModelFromFile(experiment_name, model, embeddings_path, y, y_cols, epoch=3, batch_size=128, debug=False):
+    print("勿扰！训练模型ing。。。in trainModelFromFile。。。")
+    if len(embeddings_path.strip()) > 0:
+        print("从文件中直接读取词向量。。。")
+
+    length = len(y)
+    print(">>>y's length = ", length)
+
+    F1_scores = 0
+    F1_score = 0
+    result = {}
+
+    for index, col in enumerate(y_cols):
+        experiment_name_aspect = experiment_name + "_" + col
+        origin_data_current_col = y[col] + 2
+        origin_data_current_col = np.array(origin_data_current_col)
+
+        history = model.fit(dp.generateTrainSetFromFile(embeddings_path, origin_data_current_col, batch_size), epochs=epoch, verbose=2)
+
+
 # 训练模型,origin_data中包含多个属性的标签
-def trainModel(experiment_name, model, x, y, y_cols, ratio_style, epoch=5, batch_size=64, debug=False):
+def trainModel(experiment_name, model, x, embeddings_path, y, y_cols, ratio_style, epoch=5, batch_size=64, debug=False):
     print(">>>勿扰！训练模型ing...")
     print(">>>x's type = ", type(x))
     print(">>>y's type = ", type(y))
