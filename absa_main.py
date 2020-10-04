@@ -131,7 +131,17 @@ if __name__ == "__main__":
     # 8.构建CNN模型
     print("》》》【8】构建深度学习模型**********************************************************************************************************************************************************************************")
     # bert词向量的维度是768，增加不同类别的隶属度三个维度，一共771维
-    model = absa_models.createTextCNNBiGRUModel(512, 771, DEBUG)
+    model_name = "GRU"
+    if model_name == "CNN":
+        model = absa_models.createCNNModel(512, 771, DEBUG)
+    elif model_name == "SeparableCNN":
+        model = absa_models.createSeparableCNNModel(512, 771, DEBUG)
+    elif model_name == "GRU":
+        model = absa_models.createGRUModel(512, 771, DEBUG)
+    elif model_name == "CNNBiGRU":
+        model = absa_models.createTextCNNBiGRUModel(512, 771, DEBUG)
+    elif model_name == "LSTM":
+        model = absa_models.createLSTMModel(512, 771, DEBUG)
 
     # ?.设置循环跑任务
     name = "name"

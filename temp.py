@@ -6,6 +6,7 @@ import os
 import time
 import codecs
 import csv
+import math
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, confusion_matrix
@@ -49,8 +50,36 @@ def createBertEmbeddingModel():
     return model
 
 
+# CNN模型
+def createTextCNN(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    print("开始构建TextCNN模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+    cnn = Conv1D(64, 4, padding='same', strides=1, activation='relu', name='conv')(tensor_input)
+    cnn = BatchNormalization()(cnn)
+    cnn = MaxPool1D(name='max_pool')(cnn)
+    cnn = Flatten()(cnn)
+
+    x = Dense(64, activation='relu', name='dense_1')(cnn)
+    x = Dropout(0.4, name='dropout')(x)
+    x = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model(inputs=tensor_input, outputs=x)
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+
+    return model
+
+
+# GRU模型
+def createGRU(maxlen, embedding_dim, debug=False):
+    pass
+
+
 # 根据textCNN模型输出词向量
-def createTextCNNModel(maxlen, embedding_dim, debug=False):
+def createSeparableCNNModel(maxlen, embedding_dim, debug=False):
     if debug:
         embedding_dim = 8
     # print(">>>开始构建TextCNN模型。。。")
@@ -125,15 +154,14 @@ def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
 
 # 训练模型，直接从文件中读取词向量
 # 先取前0.3的比例为验证集，使用y来统计长度
-def trainModelFromFile(experiment_name, model, x, embeddings_path, y, y_cols, epoch=5, batch_size=64, debug=False):
+def trainModelFromFile(experiment_name, model, embeddings_path, y, y_cols, epoch=3, batch_size=128, debug=False):
     print("勿扰！训练模型ing。。。in trainModelFromFile。。。")
     if len(embeddings_path.strip()) > 0:
         print("从文件中直接读取词向量。。。")
 
     length = len(y)
     print(">>>y's length = ", length)
-
-
+    y_cols = ["service"]
 
     F1_scores = 0
     F1_score = 0
@@ -143,10 +171,9 @@ def trainModelFromFile(experiment_name, model, x, embeddings_path, y, y_cols, ep
         experiment_name_aspect = experiment_name + "_" + col
         origin_data_current_col = y[col] + 2
         origin_data_current_col = np.array(origin_data_current_col)
-        # 生成测试集,比例为0.1,x为numpy类型，origin_data为dataFrame类型
-        ratio = 0.3
-        length = int(len(origin_data_current_col) * ratio)
-        print("测试集的长度为", length)
+
+        # history = model.fit(dp.generateTrainSetFromFile(embeddings_path, origin_data_current_col, batch_size), steps_per_epoch=3, batch_size=128, epochs=epoch, verbose=2)
+        history = model.fit(dp.generateTrainSetFromFile(embeddings_path, origin_data_current_col, batch_size), steps_per_epoch=math.ceil(length / batch_size), batch_size=batch_size, epochs=epoch)
 
 
 # 训练模型,origin_data中包含多个属性的标签

@@ -15,7 +15,7 @@ from sklearn.metrics import classification_report
 from sklearn.utils import class_weight
 
 import keras
-from keras.layers import Input, Flatten, Dense, Dropout, Activation, GRU, Bidirectional, Conv1D
+from keras.layers import Input, Flatten, Dense, Dropout, Activation, GRU, Bidirectional, Conv1D, LSTM
 from keras.layers import Embedding, merge, Lambda, Reshape, BatchNormalization, MaxPool1D, GlobalAveragePooling1D
 from keras import Model, Sequential
 from keras.utils import to_categorical
@@ -51,17 +51,79 @@ def createBertEmbeddingModel():
 
 
 # CNN模型
-def createTextCNN(maxlen, embedding_dim, debug=False):
+def createCNNModel(maxlen, embedding_dim, debug=False):
     if debug:
         embedding_dim = 8
-    print("开始构建TextCNN模型。。。")
+    print("开始构建CNN模型。。。")
     tensor_input = Input(shape=(maxlen, embedding_dim))
     cnn = Conv1D(64, 4, padding='same', strides=1, activation='relu', name='conv')(tensor_input)
+    cnn = BatchNormalization()(cnn)
+    cnn = MaxPool1D(name='max_pool')(cnn)
 
+    flatten = Flatten()(cnn)
+
+    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    x = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model(inputs=tensor_input, outputs=x)
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+
+    return model
+
+
+# GRU模型
+def createGRUModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    print("开始构建CNN模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+
+    bi_gru1 = Bidirectional(GRU(64, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(tensor_input)
+    bi_gru1 = BatchNormalization()(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(32, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = BatchNormalization()(bi_gru2)
+
+    flatten = Flatten()(bi_gru2)
+
+    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    x = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model(inputs=tensor_input, outputs=x)
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+
+    return model
+
+
+# LSTM
+def createLSTMModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    print("开始构建CNN模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+
+    lstm = Bidirectional(LSTM(64, return_sequences=True, name='lstm1'))(tensor_input)
+    lstm = Bidirectional(LSTM(32, return_sequences=False, name='lstm2'))(lstm)
+
+    x = Dense(64, activation='relu', name='dense_1')(lstm)
+    x = Dropout(0.4, name='dropout')(x)
+    x = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model(inputs=tensor_input, outputs=x)
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+
+    return model
 
 
 # 根据textCNN模型输出词向量
-def createTextCNNModel(maxlen, embedding_dim, debug=False):
+def createSeparableCNNModel(maxlen, embedding_dim, debug=False):
     if debug:
         embedding_dim = 8
     # print(">>>开始构建TextCNN模型。。。")
