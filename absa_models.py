@@ -196,6 +196,26 @@ def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
     return model
 
 
+# MLP
+def createMLPModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    # print(">>>开始构建TextCNNBiGRUModel模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+    flatten = Flatten()(tensor_input)
+    dense = Dense(512, activation='relu')(flatten)
+    dropout = Dropout(0.4)(dense)
+    tensor_output = Dense(4, activation='softmax')(dropout)
+
+    model = Model(inputs=tensor_input, outputs=tensor_output)
+    print(model.summary())
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    # print(">>>TextCNNBiGRUModel模型构建结束。。。")
+    return model
+
+
 # 训练模型，直接从文件中读取词向量
 # 先取前0.3的比例为验证集，使用y来统计长度
 def trainModelFromFile(experiment_name, model, embeddings_path, y, y_cols, epoch=3, batch_size=128, debug=False):
@@ -205,7 +225,7 @@ def trainModelFromFile(experiment_name, model, embeddings_path, y, y_cols, epoch
 
     length = len(y)
     print(">>>y's length = ", length)
-    y_cols = ["service"]
+    # y_cols = ["service"]
 
     F1_scores = 0
     F1_score = 0
