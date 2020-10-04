@@ -49,6 +49,16 @@ def createBertEmbeddingModel():
     return model
 
 
+# CNN模型
+def createTextCNN(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    print("开始构建TextCNN模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+    cnn = Conv1D(64, 4, padding='same', strides=1, activation='relu', name='conv')(tensor_input)
+
+
+
 # 根据textCNN模型输出词向量
 def createTextCNNModel(maxlen, embedding_dim, debug=False):
     if debug:
