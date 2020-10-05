@@ -145,14 +145,14 @@ if __name__ == "__main__":
         model = absa_models.createSeparableCNNModel(512, 771, DEBUG)
     elif model_name == "GRU":
         model = absa_models.createGRUModel(512, 771, DEBUG)
-    elif model_name == "CNNBiGRU":
+    elif model_name == "TextCNNBiGRU":
         model = absa_models.createTextCNNBiGRUModel(512, 771, DEBUG)
     elif model_name == "LSTM":
         model = absa_models.createLSTMModel(512, 771, DEBUG)
     elif model_name == "MLP":
         model = absa_models.createMLPModel(512, 771, DEBUG)
-    '''
-    '''
+    elif model_name == "CNNBiGRU":
+        model = absa_models.createCNNBiGRUModel(512, 771, DEBUG)
 
     # ?.设置循环跑任务
     name = "name"
@@ -160,7 +160,9 @@ if __name__ == "__main__":
     # 9.训练模型
     print("》》》【9】训练模型******************************************************************************************************************************************************************************************")
     embeddings_path = config.final_word_embeddings_validation
-    absa_models.trainModelFromFile(name, model, embeddings_path, y, y_cols, debug=DEBUG)
+    X_validation_path = config.final_word_embeddings_validation
+    y_validation = ""
+    absa_models.trainModelFromFile(name, model, embeddings_path, y, y_cols, X_validation_path, y_validation, debug=DEBUG)
     # absa_models.trainModelFromFile(name, model, final_word_embeddings, embeddings_path, y, y_cols, ratio_style=True, debug=DEBUG)
 
     end_time = time.time()

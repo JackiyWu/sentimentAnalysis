@@ -155,6 +155,38 @@ def createSeparableCNNModel(maxlen, embedding_dim, debug=False):
     return model
 
 
+# 构建单层CNN+BiGRU
+def createCNNBiGRUModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    print("开始构建CNN模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+    cnn = Conv1D(64, 4, padding='same', strides=1, activation='relu', name='conv')(tensor_input)
+    cnn = BatchNormalization()(cnn)
+    cnn = MaxPool1D(name='max_pool')(cnn)
+
+    dropout = Dropout(0.2)(cnn)
+    # flatten = Flatten()(dropout)
+
+    bi_gru1 = Bidirectional(GRU(128, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
+    bi_gru1 = BatchNormalization()(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(256, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = BatchNormalization()(bi_gru2)
+
+    flatten = Flatten()(bi_gru2)
+
+    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    x = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model(inputs=tensor_input, outputs=x)
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+
+    return model
+
+
 # 构建模型CNN+BiGRU
 def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
     if debug:
@@ -218,9 +250,9 @@ def createMLPModel(maxlen, embedding_dim, debug=False):
 
 # 训练模型，直接从文件中读取词向量
 # 先取前0.3的比例为验证集，使用y来统计长度
-def trainModelFromFile(experiment_name, model, embeddings_path, y, y_cols, epoch=3, batch_size=128, debug=False):
+def trainModelFromFile(experiment_name, model, X_path, y, y_cols, X_validation_path, y_validation, epoch=3, batch_size=128, debug=False):
     print("勿扰！训练模型ing。。。in trainModelFromFile。。。")
-    if len(embeddings_path.strip()) > 0:
+    if len(X_path.strip()) > 0:
         print("从文件中直接读取词向量。。。")
 
     length = len(y)
@@ -237,7 +269,7 @@ def trainModelFromFile(experiment_name, model, embeddings_path, y, y_cols, epoch
         origin_data_current_col = np.array(origin_data_current_col)
 
         # history = model.fit(dp.generateTrainSetFromFile(embeddings_path, origin_data_current_col, batch_size), steps_per_epoch=3, batch_size=128, epochs=epoch, verbose=2)
-        history = model.fit(dp.generateTrainSetFromFile(embeddings_path, origin_data_current_col, batch_size), steps_per_epoch=math.ceil(length / batch_size), batch_size=batch_size, epochs=epoch)
+        history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size), steps_per_epoch=math.ceil(length / batch_size), batch_size=batch_size, epochs=epoch)
 
 
 # 训练模型,origin_data中包含多个属性的标签
