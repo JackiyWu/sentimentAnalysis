@@ -65,7 +65,7 @@ dealed_test = []  # 输入语料，测试集
 y_cols = []
 '''
 
-DEBUG = True
+DEBUG = False
 
 if __name__ == "__main__":
     print(">>>begin in main_train.py ...")
@@ -154,8 +154,8 @@ if __name__ == "__main__":
     print("dealed_train's shape = ", dealed_train.shape)
 
     # 根据预训练词向量生成embedding_matrix
-    # embedding_matrix = ff_s.load_word2vec(word_index)
-    embedding_matrix = np.zeros((len(word_index) + 1, 300))
+    embedding_matrix = ff_s.load_word2vec(word_index)
+    # embedding_matrix = np.zeros((len(word_index) + 1, 300))
     print("embedding_matrix's shape = ", embedding_matrix.shape)
 
     dict_length = min(dict_length, len(word_index) + 1)
@@ -165,7 +165,7 @@ if __name__ == "__main__":
 
     # 生成模型-编译
     # 定义cnn的filter
-    epochs = [10]
+    epochs = [1, 3, 5, 10, 20, 50]
     # epochs = [200, 250, 300]
     # epochs = [5, 10, 20, 50, 100, 150, 200, 250, 300]
     batch_sizes = [128]
@@ -198,7 +198,7 @@ if __name__ == "__main__":
                         for dropout in dropouts:
                             for balanced in balanceds:
                                 for full_connected in full_connecteds:
-                                    for i in range(1):
+                                    for i in range(10):
                                         print("i = ", i)
                                         if epoch == 10 and batch_size == 64 and learning_rate == 0.001 and filter == 64 and window_size == 3:
                                             if dropout not in (0.6, 0.7):
