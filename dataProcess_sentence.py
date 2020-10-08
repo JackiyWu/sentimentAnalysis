@@ -88,9 +88,9 @@ def initData2(type):
 
 
 # 接收两个入参，将第二个领域的中性语料放入第一个里面，升采样
-def initData3():
+def initData3(debug=False):
     columns = ['id', 'type', 'review', 'label']
-    data = pd.read_csv("C:\desktop\Research\DataSet\百度点石大赛\data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
 
     # 将data2的中性语料加入到data1中,0-负向，1-中性，2-正向
 
@@ -104,7 +104,8 @@ def initData3():
 
     data = shuffle(data)
 
-    # data = data[:1000]
+    if debug:
+        data = data[:50]
 
     y_cols = data.columns.values.tolist()
 

@@ -1,7 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# 句子级情感分析
+'''
+***************************************************************↓↓↓↓↓↓↓↓句子级情感分析流程↓↓↓↓↓↓↓↓***************************************************************
+    1.读取原始训练数据集origin_data,去掉换行符、空格
+    1.1 统计一下输入语料的长度
+    1.2 对评论语句进行补齐[pad]
+
+    2.加载bert模型bert_model
+    3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
+    3.1 保存字符向量character_embeddings、句子级向量sentence_embeddings至文件 character_embeddings.csv和sentence_embeddings.csv,格式
+    3.2 直接读取两个向量文件
+
+    4.对sentence_embeddings进行聚类，得到三个聚类中心cluster_centers，并输出到文件
+    5.计算每条评论的特征向量（字符级向量）到聚类中心的距离distance_from_feature_to_cluster
+    6.使用cosin距离来定义隶属函数,根据distance_from_feature_to_cluster和隶属函数计算特征向量对三个类别的隶属值review_sentiment_membership_degree([])（三维隶属值，表示负向、中性、正向）
+
+    7.将review_sentiment_membership_degree拼接在wcharacter_embeddings后面生成最终的词向量final_word_embeddings
+
+    8.构建CNN模型
+
+    9.训练模型
+    9.1 数据集按照两种方式来训练：①直接划分比例，训练集、验证集、测试集按照 7:2:1划分；②交叉验证XXXX之后再写
+    9.2 测试集的预测这里可能是有问题的，现在是每训练完一个属性就预测并打印，而不是整个模型训练完了之后才打印
+    ***************************************************************↑↑↑↑↑↑↑↑句子级情感分析流程↑↑↑↑↑↑↑↑***************************************************************
+
+'''
 
 import numpy as np
 
@@ -12,15 +36,14 @@ from sklearn.utils import class_weight
 import KMeansCluster as KMC
 import fuzzySystem as fsys
 import featureFusion_sentence as ff_s
-import fuzzySentiment as fsent
 import test
 import dataProcess_sentence as dp_s
 import fasttext
 
 import time
 from tensorflow.keras import models
-from tensorflow.keras.experimental import export_saved_model
-from tensorflow.keras.experimental import load_from_saved_model
+# from tensorflow.keras.experimental import export_saved_model
+# from tensorflow.keras.experimental import load_from_saved_model
 
 
 # 情感词典相关变量
@@ -42,23 +65,27 @@ dealed_test = []  # 输入语料，测试集
 y_cols = []
 '''
 
+DEBUG = False
 
 if __name__ == "__main__":
     print(">>>begin in main_train.py ...")
     print("start time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
 
     # 获取本体词汇库的情感向量
-    word_feature = KMC.read_excel2()
+    print("》》》获取本体词汇库的情感向量。。。")
+    word_feature = KMC.read_excel_pandas()
+    # word_feature = KMC.read_excel2()
     # word_feature = KMC.read_excel()
     # check数据
     # print("word_feature = ", word_feature)
 
     # 获取聚类中心
-    clusters_centers = KMC.clusters_centers
-    print("clusters_centers = ", clusters_centers)
+    # clusters_centers = KMC.clusters_centers
+    # print("clusters_centers = ", clusters_centers)
 
     # 获取输入语料
-    origin_data, y_cols = dp_s.initData3()
+    print("》》》获取输入语料。。。")
+    origin_data, y_cols = dp_s.initData3(DEBUG)
     # origin_data, y_cols = dp_s.initData2(1)
     # print("origin_data = ", origin_data)
     print("y_cols = ", y_cols)
@@ -70,26 +97,35 @@ if __name__ == "__main__":
     stoplist = dp_s.getStopList()
 
     # 获取输入语料的文本（去标点符号和停用词后）
+    print("》》》获取输入语料的文本（去标点符号和停用词后）。。。")
     input_texts = dp_s.processDataToTexts(origin_data, stoplist)
     # print("input_texts = ", input_texts)
 
     # 获取输入语料的情感向量特征
-    input_word_feature = fsys.calculate_sentiment_words_feature(input_texts, word_feature)
+    # input_word_feature = fsys.calculate_sentiment_words_feature(input_texts, word_feature)
     # print("input_word_feature = ", input_word_feature)
+
+    input_word_score = fsys.calculate_sentiment_score(input_texts, word_feature)
+    # print("input_word_score = ", input_word_score)
 
     # 根据情感向量特征计算得到情感隶属度特征
     # dealed_train_fuzzy, dealed_val_fuzzy, dealed_test_fuzzy = fsys.cal_fuzzy_membership_degree(input_word_feature,
     #                                                                                            clusters_centers,
     #                                                                                            input_texts, ratios)
 
+    # 根据情感得分计算三种极性的隶属度
+    dealed_train_fuzzy, dealed_val_fuzzy, dealed_test_fuzzy = fsys.calculate_membership_degree_by_score(input_word_score, ratios)
+
     # 根据词汇本体库的情感向量特征计算得到三类情感特征值
-    dealed_train_fuzzy, dealed_val_fuzzy, dealed_test_fuzzy = fsys.calculate_fuzzy_feature(input_word_feature, ratios)
-    # print("dealed_train_fuzzy", dealed_train_fuzzy)
-    # print("dealed_val_fuzzy", dealed_val_fuzzy)
-    # print("dealed_test_fuzzy", dealed_test_fuzzy)
+    # dealed_train_fuzzy, dealed_val_fuzzy, dealed_test_fuzzy = fsys.calculate_fuzzy_feature(final_sentiment_feature, ratios)
+    print("dealed_train_fuzzy.shape", dealed_train_fuzzy.shape)
+    print("dealed_val_fuzzy.shape", dealed_val_fuzzy.shape)
+    print("dealed_test_fuzzy.shape", dealed_test_fuzzy.shape)
+    '''
+    '''
 
     # print("dealed_train_fuzzy = ", dealed_train_fuzzy)
-    print("dealed_train_fuzzy's shape = ", dealed_train_fuzzy.shape)
+    # print("dealed_train_fuzzy's shape = ", dealed_train_fuzzy.shape)
 
     fuzzy_maxlen = fsys.calculate_input_dimension(dealed_train_fuzzy)
     print("fuzzy_maxlen = ", fuzzy_maxlen)
@@ -117,8 +153,8 @@ if __name__ == "__main__":
     print("dealed_train's shape = ", dealed_train.shape)
 
     # 根据预训练词向量生成embedding_matrix
-    embedding_matrix = ff_s.load_word2vec(word_index)
-    # embedding_matrix = np.zeros((len(word_index) + 1, 300))
+    # embedding_matrix = ff_s.load_word2vec(word_index)
+    embedding_matrix = np.zeros((len(word_index) + 1, 300))
     print("embedding_matrix's shape = ", embedding_matrix.shape)
 
     dict_length = min(dict_length, len(word_index) + 1)
@@ -180,7 +216,7 @@ if __name__ == "__main__":
                                         # fusion_model = ff_s.fasttext_model(fea_dict, maxlen)
                                         # fusion_model = ff_s.create_lstm_model(maxlen, dict_length)
                                         # fusion_model = ff_s.create_lstm_model(maxlen, dict_length, embedding_matrix, dropout)
-                                        plot_model(fusion_model, 'modelsImage/Multi_input_model3.png')
+                                        # plot_model(fusion_model, 'modelsImage/Multi_input_model3.png')
 
                                         # fusion_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['acc'])
 
@@ -202,16 +238,18 @@ if __name__ == "__main__":
 
                                         # 保存模型
                                         print(">>>保存模型ing")
-                                        model_path = "export_saved_model.h5"
+                                        # model_path = "export_saved_model.h5"
                                         # fusion_model.save("test_new_model.h5")
-                                        export_saved_model(fusion_model, model_path)
+                                        # export_saved_model(fusion_model, model_path)
 
                                         # 读取模型
                                         # model = models.load_model("test_export_saved_model.h5")
-                                        model = load_from_saved_model(model_path)
+                                        # model = load_from_saved_model(model_path)
 
                                         # 读取模型并预测
-                                        ff_s.load_predict(model, dealed_test_fuzzy, dealed_test, test["review"])
+                                        # ff_s.load_predict(model, dealed_test_fuzzy, dealed_test, test["review"])
+    '''
+    '''
 
     print(">>>This is the end of main_train.py...")
 

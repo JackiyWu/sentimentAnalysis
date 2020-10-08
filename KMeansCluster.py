@@ -5,6 +5,8 @@ from sklearn.cluster import KMeans
 import numpy as np
 import xlrd
 import config as config
+import codecs
+import pandas as pd
 
 
 # 词语-序号字典,脏乱:0
@@ -63,9 +65,53 @@ def read_excel():
     return word_feature
 
 
+# 读取本体库，不做修改，使用pandas读excel
+def read_excel_pandas():
+    print("in read_excel2 function in KMeansCLuster.py...")
+    wb = pd.read_excel(config.sentiment_dictionary)
+    # wb = pd.read_csv(config.sentiment_dictionary_csv)
+    wb = wb[["词语", "强度", "极性"]]
+    print(wb.head())
+
+    dat = []
+
+    for index, row in wb.iterrows():
+        # print(row["词语"], row['强度'], row['极性'])
+
+        word = str(row["词语"]).strip()
+        intensity = row['强度']
+        # 需要把情感词汇本体库中的词汇极性转换成跟输入语料的标注一致
+        if row['极性'] == 0:
+            polar = 2.0  # 中性
+        elif row['极性'] == 1:
+            polar = 3.0  # 正向
+        else:
+            polar = 1.0  # 负向
+
+        # res = [intensity, polar]
+        res = [intensity, polar]
+        dat.append(res)
+
+        # 存入字典
+        word_index[word] = index
+        index_word[index] = word
+        if word not in word_feature.keys():
+            word_feature[word] = res
+        # index += 1
+
+    print(">>>end of read_excel_pandas function in KMeansCluster.py...")
+    print("word_feature's length = ", len(word_feature))
+
+    return word_feature
+
+
 # 读取本体库，不做修改
 def read_excel2():
     print("in read_excel2 function in KMeansCLuster.py...")
+
+    # 近义词集
+    # get_synonym(config.synonym_txt)
+
     wb = xlrd.open_workbook(config.sentiment_dictionary)
     sheet = wb.sheet_by_name('Sheet1')
     dat = []
@@ -103,6 +149,25 @@ def read_excel2():
     print(">>>end of read_excel function in KMeansCluster.py...")
 
     return word_feature
+
+
+# 读取同义词集
+def get_synonym(path):
+
+    # df = pd.read_excel(path)
+    # print(df.head())
+    i = 0
+    # f = open(path, 'r', encoding='gbk')
+    synonym_dicts = {}
+    with codecs.open(path, 'r', 'utf8') as reader:
+        for line in reader:
+            print("line = ", line)
+
+
+            if i == 10:
+                break
+            i += 1
+
 
 
 # 接收情感词特征数据，训练模型并返回

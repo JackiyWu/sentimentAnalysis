@@ -103,12 +103,12 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
     y_val_pred = 0
     y_test_pred = 0
     #         epochs=[5,10]   , stratify=train_y
-    # print("train_x_fuzzy.shape:", train_x_fuzzy.shape)
-    # print("train_x_cnn.shape:", train_x_cnn.shape)
+    print("train_x_fuzzy.shape:", train_x_fuzzy.shape)
+    print("train_x_cnn.shape:", train_x_cnn.shape)
 
-    # print("train_y.shape:", train_y.shape)
-    # print("val_x.shape:", val_x.shape)
-    # print("val_y.shape:", val_y.shape)
+    print("train_y.shape:", train_y.shape)
+    print("val_x.shape:", val_x.shape)
+    print("val_y.shape:", val_y.shape)
     # print("train_y = ", train_y)
     # print("val_y = ", val_y)
 
@@ -125,8 +125,8 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
         # print("train_x_cnn's shape = ", train_x_cnn.shape)
         if balanced:
             history = model.fit([train_x_fuzzy, train_x_cnn], y_train_onehot, epochs=epoch, verbose=2,
-                            batch_size=batch_size, validation_data=([val_x_fuzzy, val_x], y_val_onehot),
-                            class_weight=cw)
+                            batch_size=batch_size, validation_data=([val_x_fuzzy, val_x], y_val_onehot))
+                            # class_weight=cw)
         else:
             history = model.fit([train_x_fuzzy, train_x_cnn], y_train_onehot, epochs=epoch, verbose=2,
                                 batch_size=batch_size, validation_data=([val_x_fuzzy, val_x], y_val_onehot))
@@ -158,7 +158,7 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
 
     print(set(train["type"]), 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
 
-    # save_result_to_csv(report, F1_score, experiment_id)
+    save_result_to_csv(report, F1_score, experiment_id)
 
     print("%Y-%m-%d %H:%M:%S", time.localtime())
 
@@ -183,7 +183,7 @@ def save_result_to_csv(report, f1_score, experiment_id):
     weighted_f1 = weighted_avg.get('f1-score')
     data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
 
-    with codecs.open("result/result.csv", "a", "utf-8") as f:
+    with codecs.open("result/result_sentence.csv", "a", "utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(data)
         f.close()

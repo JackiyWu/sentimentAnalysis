@@ -39,6 +39,74 @@ def calculate_sentiment_words_feature(input, word_feature):
     return input_word_feature
 
 
+# 计算语料库中每个input的不同的情感极性分值
+def calculate_sentiment_score(input, word_feature):
+    print(">>>in calculate_sentiment_score function in fuzzySystem.py...")
+
+    # 看一下最大值
+    max_value = 0
+    # 统计一下全0的评论数目
+    all_zero = 0
+    none_zero = 0
+
+    input_word_sentiment_score_init = []
+    for text in input:
+        # s1 s2 s3分别表示负向、中性、正向的情感得分,初始化为0
+        s1 = 0
+        s2 = 0
+        s3 = 0
+        for word in text:
+            if word not in word_feature.keys():
+                continue
+            cur = word_feature.get(word)
+            s = cur[0]
+            p = cur[1]
+            if p == 1:
+                s1 += s
+            elif p == 2:
+                s2 += s
+            elif p == 3:
+                s3 += s
+        # if s1 > 35 or s3 > 60:
+        #     print("s1 =", s1, ", s3 = ", s3)
+        # if s1 == 0 and s2 == 0 and s3 == 0:
+        #     print("WARNING!!!ALL ARE 0!!!")
+        # 统计一下全0的评论数目
+        if s1 == 0 and s3 == 0:
+            all_zero += 1
+        else:
+            none_zero += 1
+
+        max_value = max(s1, s3, max_value)
+        input_word_sentiment_score_init.append([s1, s2, s3])
+    print("max_value =", max_value)
+    print("all_zero = ", all_zero, "none_zero = ", none_zero)
+    input_word_sentiment_score_final = normalization(input_word_sentiment_score_init, max_value)
+
+    return input_word_sentiment_score_final
+
+
+# 将数据标准化至0~10
+def normalization(input_word_sentiment_score_init, max_value):
+    input_word_sentiment_score_final = []
+    # i = 0
+    for current in input_word_sentiment_score_init:
+        s1 = current[0]
+        s2 = current[1]
+        s3 = current[2]
+        # print("s1_before = ", s1, "s3_before = ", s3)
+        s1 = s1 * 10 / max_value
+        s2 = s2 * 10 / max_value
+        s3 = s3 * 10 / max_value
+        # print("s1_after = ", s1, "s3_after = ", s3)
+        input_word_sentiment_score_final.append([s1, s2, s3])
+        # if i == 10:
+        #     break
+        # i += 1
+
+    return input_word_sentiment_score_final
+
+
 # 计算某个数据属于某个类别的隶属度
 def cal_fuzzy_membership_degree(features, clusters_centers, texts, ratios):
     print(">>>calculate membership degree in fuzzySystem.py...")
@@ -251,6 +319,81 @@ def calculate_intensity_membership_degree(intensity):
         result.append(0.4 * intensity - 2)
 
     return result
+
+
+# 根据情感分数，计算三种极性的隶属度
+def calculate_membership_degree_by_score(input_word_score, ratios):
+    final_sentiment_feature = []
+    for score in input_word_score:
+        negative_score = score[0]
+        neutral_score = score[1]  # 忽略
+        positive_score = score[2]
+
+        # test
+        # negative_score = 0
+        # positive_score = 0
+        # print("negative_score = ", negative_score, ", positive_score = ", positive_score)
+
+        # 负向情感的隶属度
+        SMALLnegative = membership_degree_small(negative_score)
+        MEDIUMnegative = membership_degree_medium(negative_score)
+        LARGEnegative = membership_degree_large(negative_score)
+
+        # 正向情感的隶属度
+        SMALLpositive = membership_degree_small(positive_score)
+        MEDIUMpositive = membership_degree_medium(positive_score)
+        LARGEpositive = membership_degree_large(positive_score)
+
+        # 负向情感
+        negative = max([min(MEDIUMnegative, SMALLpositive), min(LARGEnegative, SMALLpositive), min(LARGEnegative, MEDIUMpositive)])
+        # 中性情感
+        neutral = max([min(SMALLnegative, SMALLpositive), min(MEDIUMnegative, MEDIUMpositive), min(LARGEnegative, LARGEpositive)])
+        # 正向情感
+        positive = max([min(SMALLnegative, MEDIUMpositive), min(SMALLnegative, LARGEpositive), min(MEDIUMnegative, LARGEpositive)])
+
+        # print("[negative, neutral, positive] = ", [negative, neutral, positive])
+
+        final_sentiment_feature.append([negative, neutral, positive])
+
+    final_sentiment_feature = np.array(final_sentiment_feature)
+
+    # 数据划分，重新分为训练集，测试集和验证集
+    membership_degrer_fuzzy_length = final_sentiment_feature.shape[0]
+    print("membership_degree_fuzzy_length = ", membership_degrer_fuzzy_length)
+    size_train = int(membership_degrer_fuzzy_length * ratios[0])
+    size_test = int(membership_degrer_fuzzy_length * ratios[1])
+
+    dealed_train = final_sentiment_feature[: size_train]
+    dealed_val = final_sentiment_feature[size_train: (size_train + size_test)]
+    dealed_test = final_sentiment_feature[(size_train + size_test):]
+
+    print("end of fuzzySystem function in fuzzySystem.py...")
+
+    return dealed_train, dealed_val, dealed_test
+
+
+
+# x的范围是1-9
+# Small的隶属函数
+def membership_degree_small(x):
+    if x >= 5:
+        return 0
+    else:
+        return 1 - (1 / 5) * x
+
+# Medium的隶属函数
+def membership_degree_medium(x):
+    if x >= 5:
+        return 2 - (1 / 5) * x
+    else:
+        return (1 / 5) * x
+
+# Large的隶属函数
+def membership_degree_large(x):
+    if x <= 5:
+        return 0
+    else:
+        return (1 / 5) * x - 1
 
 
 # 传入距离矩阵，输出对应的隶属度

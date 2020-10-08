@@ -12,11 +12,14 @@ predict_data_path = data_path + "/predict/0611predictL3_benz.csv"
 result_data_path = data_path + "/result/0611resultL3_benz.csv"
 
 
-sentiment_dictionary = "C:\desktop\Research\情感词典\DLUT-Emotionontology-master\情感词汇\情感词汇本体\情感词汇本体.xlsx"
+sentiment_dictionary = "sentiVocab\DLUT.xlsx"
+sentiment_dictionary_csv = "sentiVocab\DLUT.csv"
 
-pre_word_embedding = "C:\desktop\Coding\preWordEmbedding\sgns.target.word-character.char1-2.dynwin5.thr10.neg5.dim300.iter5"
+pre_word_embedding = "config/preEmbeddings/sgns.target.word-character.char1-2.dynwin5.thr10.neg5.dim300.iter5"
 
 # 百度点石数据集
 baidu_sentiment = "datasets/baidu/data_train.csv"
 baidu_sentiment_test = "datasets/baidu/data_test.csv"
 
+synonym_txt = "sentiVocab/dict_synonym.txt"
+synonym_xlsx = "sentiVocab/dict_synonym.xlsx"

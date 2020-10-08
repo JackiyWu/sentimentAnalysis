@@ -36,6 +36,7 @@ from collections import Counter
 import config
 import KMeansCluster
 import fuzzySystem
+from sklearn import preprocessing
 
 
 def compute_test():
@@ -689,33 +690,19 @@ def yieldTest():
     # print("x's type = ", type(x))
 
 
+def normalizationTest():
+    lists = [[17, 24, 22], [53, 10, 19], [22, 32, 19]]
+    lists = np.array(lists)
+    print("Lists = ", lists)
+    min_max_scaler = preprocessing.MinMaxScaler()
+    x_minmax = min_max_scaler.fit_transform(lists)
+    print(x_minmax)
+
+
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
 
-    # listTest()
-    yieldTest()
-    # h5pyTest()
-    # readH5py()
-    # readFile()
-
-    # name = "learning_rate"
-    # read_csv(name)
-    # names, y_F1, y_P, y_R = read_csv(name)
-    # plot_test(names, y_F1, y_P, y_R)
-
-    # adaption_predict("experiment_28.h5")
-    # variable = "window"
-    # names, y_F1, y_P, y_R = read_csv(variable)
-    # print(names, y_F1, y_P, y_R)
-    # plot_test(names, y_F1, y_P, y_R, )
-
-    # data = dp_s.initData3()
-    # print(data)
-
-    # for i in range(10):
-    #     print("hello world")
-    # columns = ['id', 'review', 'service', 'price', 'self', 'outside', 'safety', 'inside', 'useful', 'times']
-    # print(columns[2: -1])
+    normalizationTest()
 
     print(">>>in the end...")
 
