@@ -18,6 +18,7 @@ __pycache__/
 datasets/meituan/sentiment_analysis_training_set.csv
 datasets/meituan/sentiment_analysis_training_set_new.csv
 result/result.csv
+result/result_sentence.csv
 result/*.bin
 result/cluster_center.csv
 result/cluster_center_validation.csv

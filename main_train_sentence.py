@@ -65,7 +65,7 @@ dealed_test = []  # 输入语料，测试集
 y_cols = []
 '''
 
-DEBUG = False
+DEBUG = True
 
 if __name__ == "__main__":
     print(">>>begin in main_train.py ...")
@@ -73,6 +73,7 @@ if __name__ == "__main__":
 
     # 获取本体词汇库的情感向量
     print("》》》获取本体词汇库的情感向量。。。")
+    # KMC.read_csv_open()
     word_feature = KMC.read_excel_pandas()
     # word_feature = KMC.read_excel2()
     # word_feature = KMC.read_excel()

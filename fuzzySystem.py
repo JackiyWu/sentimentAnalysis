@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-import xlrd
+# import xlrd
 from collections import Counter
 
 import config
 import KMeansCluster
-import dataProcess
+# import dataProcess
 
 
 # 计算语料库中每个input包含情感词的个数

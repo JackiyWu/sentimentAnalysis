@@ -3,10 +3,11 @@
 
 from sklearn.cluster import KMeans
 import numpy as np
-import xlrd
+# import xlrd
 import config as config
 import codecs
 import pandas as pd
+import csv
 
 
 # 词语-序号字典,脏乱:0
@@ -20,7 +21,7 @@ sentiment_category = {'PA': 1, 'PE': 2, 'PD': 3, 'PH': 4, 'PG': 5, 'PB': 6, 'PK'
 # 聚类中心 2-中性，3-正向，1-负向
 clusters_centers = [[0.99347826, 0.98695652, 2.], [0.38799172, 1.06376812, 3.], [1.67957958, 1.10690691, 1.01501502]]
 
-
+'''
 #读取excel文件
 def read_excel():
     print(">>>in read_excel function in KMeansCluster.py...")
@@ -63,6 +64,44 @@ def read_excel():
     print(">>>end of read_excel function in KMeansCluster.py...")
 
     return word_feature
+'''
+
+
+# 读取本题库，不做修改，使用open来读csv
+def read_csv_open():
+    print("in read_csv_open function in KMeansCLuster.py...")
+    dat = []
+    index = 0
+    with open(config.sentiment_dictionary_csv, 'r', encoding='utf-8') as myFile:
+        i = 0
+        lines = csv.reader(myFile)
+        for line in lines:
+            # 跳过首行
+            if index == 0:
+                index += 1
+                continue
+            index += 1
+            print("line = ", line)
+            word = str(line[0]).strip()
+            intensity = line[5]
+            # 需要把情感词汇本体库中的词汇极性转换成跟输入语料的标注一致
+            if line[6] == 0:
+                polar = 2.0  # 中性
+            elif line[6] == 1:
+                polar = 3.0  # 正向
+            else:
+                polar = 1.0  # 负向
+
+            # res = [intensity, polar]
+            res = [intensity, polar]
+            dat.append(res)
+
+            # 存入字典
+            word_index[word] = index
+            index_word[index] = word
+            if word not in word_feature.keys():
+                word_feature[word] = res
+            index += 1
 
 
 # 读取本体库，不做修改，使用pandas读excel
@@ -104,7 +143,7 @@ def read_excel_pandas():
 
     return word_feature
 
-
+'''
 # 读取本体库，不做修改
 def read_excel2():
     print("in read_excel2 function in KMeansCLuster.py...")
@@ -149,6 +188,7 @@ def read_excel2():
     print(">>>end of read_excel function in KMeansCluster.py...")
 
     return word_feature
+'''
 
 
 # 读取同义词集
