@@ -165,7 +165,7 @@ if __name__ == "__main__":
 
     # 生成模型-编译
     # 定义cnn的filter
-    epochs = [1, 3, 5, 10, 20, 50]
+    epochs = [10]
     # epochs = [200, 250, 300]
     # epochs = [5, 10, 20, 50, 100, 150, 200, 250, 300]
     batch_sizes = [128]
@@ -209,10 +209,10 @@ if __name__ == "__main__":
                                                "_balanced_" + str(balanced) + "_full_connected_" + str(full_connected)
                                         print("name = ", name)
 
-                                        fusion_model = ff_s.create_fusion_model(fuzzy_maxlen, maxlen, dict_length,
-                                                                                filter, embedding_matrix, window_size,
-                                                                                dropout, full_connected)
-                                        # fusion_model = ff_s.create_cnn_model(maxlen, dict_length, filter, embedding_matrix, window_size, dropout)
+                                        # fusion_model = ff_s.create_fusion_model(fuzzy_maxlen, maxlen, dict_length,
+                                        #                                         filter, embedding_matrix, window_size,
+                                        #                                         dropout, full_connected)
+                                        fusion_model = ff_s.create_cnn_model(maxlen, dict_length, filter, embedding_matrix, window_size, dropout)
                                         # fusion_model = ff_s.create_cnn_model(maxlen, dict_length, filters)
                                         # fusion_model = ff_s.fasttext_model(fea_dict, maxlen)
                                         # fusion_model = ff_s.create_lstm_model(maxlen, dict_length)
@@ -228,13 +228,13 @@ if __name__ == "__main__":
                                         # experiment_id = "macro_test"
 
                                         # 训练模型
-                                        ff_s.train_model(fusion_model, train, val, dealed_train_fuzzy, dealed_train, dealed_test_fuzzy, dealed_test,
-                                                       dealed_val_fuzzy, dealed_val, y_cols, epoch, name, batch_size, learning_rate, balanced)
+                                        # ff_s.train_model(fusion_model, train, val, dealed_train_fuzzy, dealed_train, dealed_test_fuzzy, dealed_test,
+                                        #                dealed_val_fuzzy, dealed_val, y_cols, epoch, name, batch_size, learning_rate, balanced)
                                                        # dealed_val_fuzzy, dealed_val, y_cols, class_weights)
 
                                         # 训练模型-cnn
-                                        # ff_s.train_cnn_model(fusion_model, train, val, dealed_train, dealed_test, dealed_val, epoch,
-                                        #                      name, batch_size, learning_rate)
+                                        ff_s.train_cnn_model(fusion_model, train, val, dealed_train, dealed_test, dealed_val, epoch,
+                                                             name, batch_size, learning_rate)
                                         # ff_s.train_fasttext_model(fusion_model, train, val, dealed_train, dealed_test, dealed_val, epoch)
 
                                         # 保存模型
