@@ -83,6 +83,8 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
                 experiment_id, batch_size, learning_rate, balanced, debug=False, folds=1):
     print(">>>in train_model function...")
 
+    experiment_id = "fusion_model_" + experiment_id
+
     # print(mlp_model.summary())
     # print("检查输入数据：")
     # print("train_x_fuzzy.shape = ", train_x_fuzzy.shape)
@@ -216,6 +218,8 @@ def create_cnn_model(cnn_maxlen, dict_length, filter, embedding_matrix, window_s
 def train_cnn_model(model, train, val, train_x, test_x, val_x, epoch,
                     experiment_id, batch_size, learning_rate, debug=False, folds=1):
     print(">>>in train_cnn_model function。。。")
+
+    experiment_id = "cnn_model_" + experiment_id
 
     # print("train = ", train)
     # print("val = ", val)
