@@ -4,7 +4,7 @@
 from sklearn.cluster import KMeans
 import numpy as np
 # import xlrd
-import config as config
+import config_sentence
 import codecs
 import pandas as pd
 import csv
@@ -72,7 +72,7 @@ def read_csv_open():
     print("in read_csv_open function in KMeansCLuster.py...")
     dat = []
     index = 0
-    with open(config.sentiment_dictionary_csv, 'r', encoding='utf-8') as myFile:
+    with open(config_sentence.sentiment_dictionary_csv, 'r', encoding='utf-8') as myFile:
         i = 0
         lines = csv.reader(myFile)
         for line in lines:
@@ -107,7 +107,8 @@ def read_csv_open():
 # 读取本体库，不做修改，使用pandas读excel
 def read_excel_pandas():
     print("in read_excel2 function in KMeansCLuster.py...")
-    wb = pd.read_excel(config.sentiment_dictionary)
+    # print("path = ", config_sentence.sentiment_dictionary)
+    wb = pd.read_excel(config_sentence.sentiment_dictionary)
     # wb = pd.read_csv(config.sentiment_dictionary_csv)
     wb = wb[["词语", "强度", "极性"]]
     print(wb.head())

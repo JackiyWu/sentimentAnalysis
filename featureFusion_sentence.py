@@ -26,7 +26,7 @@ import codecs
 import csv
 
 # import dataProcess as dp
-import config
+import config_sentence
 
 
 '''
@@ -286,7 +286,7 @@ def train_cnn_model(model, train, val, train_x, test_x, val_x, epoch,
 def load_word2vec(word_index):
     print(">>>in load_word2vec function of featureFusion.py...")
     print("word_index's lengh = ", len(word_index))
-    f = open(config.pre_word_embedding, "r", encoding="utf-8")
+    f = open(config_sentence.pre_word_embedding, "r", encoding="utf-8")
     length, dimension = f.readline().split()  # 预训练词向量的单词数和词向量维度
     dimension = int(dimension)
     print("length = ", length, ", dimension = ", dimension)
