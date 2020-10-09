@@ -14,6 +14,7 @@ dict_path = 'config/keras_bert/chinese_L-12_H-768_A-12/vocab.txt'
 
 os.environ['TF_KERAS'] = '1'
 
+'''
 token_dict = {}
 with codecs.open(dict_path, 'r', 'utf8') as reader:
     for line in reader:
@@ -34,17 +35,23 @@ predicts = model.predict([np.array([indices]), np.array([segments])])[0]
 for i, token in enumerate(tokens):
     print(token, predicts[i].tolist()[:5])
 
+'''
 model_path = "config/keras_bert/chinese_L-12_H-768_A-12"
-
 print("*" * 100)
 
 texts = ["我是中国人", "我是日本人"]
 
 embeddings = extract_embeddings(model_path, texts)
+print("")
 
-print("embeddings_0 = ", embeddings[0])
-print("embeddings_1 = ", embeddings[1])
+# print("embeddings = ", embeddings)
+print("embeddings' length = ", len(embeddings))
 
-print("embeddings_0' length = ", len(embeddings[0]))
-print("embeddings_1' length = ", len(embeddings[1]))
+print("embeddings_0 = ", embeddings[0][0])
+print("embeddings_1 = ", embeddings[1][0])
+
+print("embeddings_0' length = ", len(embeddings[0][0]))
+print("embeddings_1' length = ", len(embeddings[1][0]))
+
+print(">>>end of bert_w2v...")
 

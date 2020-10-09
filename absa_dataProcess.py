@@ -6,6 +6,7 @@ from collections import Counter
 import pandas as pd
 import sys
 import math
+import xlrd
 
 import numpy as np
 import codecs
@@ -298,6 +299,70 @@ def getClusterCenters(sentence_embeddings, cluster_centers_path):
     print(" End of getClusterCenters in absa_dataProcess.py...")
 
     return clusters_centers
+
+
+# 从bert_model读取情感词向量，然后计算得到聚类中心
+def getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_model):
+    # 从情感词典中读取情感词，分三类
+    negative_words, neutral_words, positive_words = getSentimentWords(sentiment_words_path)
+    print("negative_words = ", negative_words)
+    print("neutral_words = ", neutral_words)
+    print("positive_words = ", positive_words)
+
+    # 从bert_model中读取词向量
+    negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings = getSentimentWordsEmbeddings(negative_words, neutral_words, positive_words, bert_model)
+
+    # 计算词向量的聚类中心，保存至文件
+    cluster_centers = calculateClusterCenters1(negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings, cluster_centers_path)
+
+    return cluster_centers
+
+
+# 读取情感词
+def getSentimentWords(path):
+    negative_words, neutral_words, positive_words = [], [], []
+
+    wb = xlrd.open_workbook(path)
+    sheet = wb.sheet_by_name('Sheet1')
+    for a in range(sheet.nrows):
+        print("a = ", a)
+        if a <= 0:
+            continue
+        line = sheet.row_values(a)
+        word = str(line[0]).strip()
+        polar = line[6]
+
+        if polar == 0:
+            neutral_words.append(word)
+        elif polar == 1:
+            positive_words.append(word)
+        else:
+            negative_words.append(word)
+        if a == 10:
+            break
+
+    return negative_words, neutral_words, positive_words
+
+
+# 从bert_model中读取词向量
+def getSentimentWordsEmbeddings(negative_words, neutral_words, positive_words, bert_model):
+    negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings = []
+
+    return negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings
+
+
+# 计算词向量的聚类中心1，各自聚类一个中心，然后输出三个中心
+def calculateClusterCenters1(negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings, cluster_centers_path):
+    cluster_centers = []
+
+    return cluster_centers
+
+
+# 计算词向量的聚类中心2，所有词向量一起聚类得到3个聚类中心
+def calculateClusterCenters2(negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings, cluster_centers_path):
+    cluster_centers = []
+
+    return cluster_centers
 
 
 # 从文件中读取聚类中心向量

@@ -11,6 +11,35 @@
     整体上跟之前句子级情感分析代码流程一样，只是词向量使用bert的
     ***********************↑↑注意↑↑*************************
 
+    *************************************************************↓↓↓↓↓↓↓↓方面级情感分析流程v2.0↓↓↓↓↓↓↓↓*************************************************************
+    1.读取原始训练数据集origin_data,去掉换行符、空格
+    1.1 统计一下输入语料的长度
+    1.2 对评论语句进行补齐[pad]
+
+    2.加载bert模型bert_model
+    3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
+    3.1 保存字符向量character_embeddings、句子级向量sentence_embeddings至文件 character_embeddings.csv和sentence_embeddings.csv,格式
+    3.2 直接读取两个向量文件
+
+    4.从bert_model获取情感词典的词向量表示，并得到聚类中心，输出到文件
+    4.0 从DLUT.csv中读取情感词
+    4.1 获取词向量表示，并保存到文件
+    4.2 读取情感词典词向量，计算得到聚类中心，聚类中心的获取使用两种方式，并验证哪种效果更好
+    4.2.1 三种情感极性词向量分别聚类，各自得到一个中心向量
+    4.2.2 三种情感极性词向量放在一起聚类，得到三个聚类中心
+
+    5.计算每条评论的特征向量（字符级向量）到聚类中心的距离distance_from_feature_to_cluster
+    6.使用cosin距离来定义隶属函数,根据distance_from_feature_to_cluster和隶属函数计算特征向量对三个类别的隶属值review_sentiment_membership_degree([])（三维隶属值，表示负向、中性、正向）
+
+    7.将review_sentiment_membership_degree拼接在wcharacter_embeddings后面生成最终的词向量final_word_embeddings
+
+    8.构建CNN模型
+
+    9.训练模型
+    9.1 数据集按照两种方式来训练：①直接划分比例，训练集、验证集、测试集按照 7:2:1划分；②交叉验证XXXX之后再写
+    9.2 测试集的预测这里可能是有问题的，现在是每训练完一个属性就预测并打印，而不是整个模型训练完了之后才打印
+    *************************************************************↑↑↑↑↑↑↑↑方面级情感分析流程v2.0↑↑↑↑↑↑↑↑*************************************************************
+
     ***************************************************************↓↓↓↓↓↓↓↓方面级情感分析流程↓↓↓↓↓↓↓↓***************************************************************
     1.读取原始训练数据集origin_data,去掉换行符、空格
     1.1 统计一下输入语料的长度
@@ -99,7 +128,7 @@ if __name__ == "__main__":
 
     # 2.加载bert模型bert_model
     print("》》》【2】加载bert模型**************************************************************************************************************************************************************************************")
-    # bert_model, tokenizer, token_dict = dp.createBertEmbeddingModel()
+    bert_model, tokenizer, token_dict = dp.createBertEmbeddingModel()
 
     # 3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
     print("》》》【3】正在从bert模型获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings(此处比较耗时间注意哦~）****************************************************************************")
@@ -110,9 +139,14 @@ if __name__ == "__main__":
 
     # 4.对sentence_embeddings进行聚类，得到三个聚类中心cluster_centers，并输出到文件
     print("》》》【4】获取三个聚类中心**********************************************************************************************************************************************************************************")
-    # cluster_centers_path = config.cluster_center_train
+    cluster_centers_path = config.cluster_center_validation_1
     # cluster_centers = dp.getClusterCenters(sentence_embeddings, cluster_centers_path)
     # print("cluster_centers' length = ", len(cluster_centers))
+
+    # 4.从bert_model获取情感词向量sentiment_word_embeddings
+    sentiment_words_path = config.sentiment_dictionary_dut
+    cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_model)
+    print("cluster_centers' length = ", len(cluster_centers))
     # 4.1 直接从文件中读取聚类中心向量
     # cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
 
@@ -159,10 +193,10 @@ if __name__ == "__main__":
 
     # 9.训练模型
     print("》》》【9】训练模型******************************************************************************************************************************************************************************************")
-    embeddings_path = config.final_word_embeddings_validation
-    X_validation_path = config.final_word_embeddings_validation
-    y_validation = ""
-    absa_models.trainModelFromFile(name, model, embeddings_path, y, y_cols, X_validation_path, y_validation, debug=DEBUG)
+    # embeddings_path = config.final_word_embeddings_validation
+    # X_validation_path = config.final_word_embeddings_validation
+    # y_validation = ""
+    # absa_models.trainModelFromFile(name, model, embeddings_path, y, y_cols, X_validation_path, y_validation, debug=DEBUG)
     # absa_models.trainModelFromFile(name, model, final_word_embeddings, embeddings_path, y, y_cols, ratio_style=True, debug=DEBUG)
 
     end_time = time.time()
