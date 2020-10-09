@@ -39,7 +39,7 @@ for i, token in enumerate(tokens):
 model_path = "config/keras_bert/chinese_L-12_H-768_A-12"
 print("*" * 100)
 
-texts = ["我是中国人", "我是日本人"]
+texts = ["清秀", "脏乱", "适得其反", "藏污纳垢"]
 
 embeddings = extract_embeddings(model_path, texts)
 print("")

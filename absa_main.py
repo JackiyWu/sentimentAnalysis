@@ -112,9 +112,9 @@ if __name__ == "__main__":
 
     # 1.读取原始训练数据集origin_data
     print("》》》【1】读取原始训练数据集,去掉换行符、空格（测试）*******************************************************************************************************************************************************")
-    # origin_data, y_cols, y = dp.initData(DEBUG, CLEAN_ENTER, CLEAN_SPACE)
+    origin_data, y_cols, y = dp.initData(DEBUG, CLEAN_ENTER, CLEAN_SPACE)
     # 1.1 读取原始训练数据集的labels
-    y_cols, y = dp.initDataLabels(DEBUG)
+    # y_cols, y = dp.initDataLabels(DEBUG)
 
     # 把细粒度属性标签转为粗粒度属性标签
     # dp.processDataToTarget(origin_data)
@@ -130,34 +130,48 @@ if __name__ == "__main__":
     print("》》》【2】加载bert模型**************************************************************************************************************************************************************************************")
     bert_model, tokenizer, token_dict = dp.createBertEmbeddingModel()
 
+    if DEBUG:
+        cluster_centers_path = config.cluster_center_validation_1
+        character_embeddings_path = config.character_embeddings_validation
+        sentence_embeddings_path = config.sentence_embeddings_validation
+        membership_degree_path = config.membership_degree_validation
+        final_word_embeddings_path = config.final_word_embeddings_validation
+        X_train_path = config.final_word_embeddings_validation
+    else:
+        cluster_centers_path = config.cluster_center_train_1
+        character_embeddings_path = config.character_embeddings_train
+        membership_degree_path = config.membership_degree_train
+        final_word_embeddings_path = config.final_word_embeddings_train
+        X_train_path = config.final_word_embeddings_train
+
     # 3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
     print("》》》【3】正在从bert模型获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings(此处比较耗时间注意哦~）****************************************************************************")
     # character_embeddings, sentence_embeddings = dp.getBertEmbeddings(bert_model, tokenizer, origin_data, MAXLEN, DEBUG)
     # 3.1 从文件中读取character_embeddings, sentence_embeddings
-    # character_embeddings = dp.getCharacterEmbeddings(config.character_embeddings_validation)
-    # sentence_embeddings = dp.getSentenceEmbeddings(config.sentence_embeddings_train)
+    # character_embeddings = dp.getCharacterEmbeddings(character_embeddings_path)
+    # sentence_embeddings = dp.getSentenceEmbeddings(sentence_embeddings_path)
 
     # 4.对sentence_embeddings进行聚类，得到三个聚类中心cluster_centers，并输出到文件
     print("》》》【4】获取三个聚类中心**********************************************************************************************************************************************************************************")
-    cluster_centers_path = config.cluster_center_validation_1
     # cluster_centers = dp.getClusterCenters(sentence_embeddings, cluster_centers_path)
     # print("cluster_centers' length = ", len(cluster_centers))
 
     # 4.从bert_model获取情感词向量sentiment_word_embeddings
     sentiment_words_path = config.sentiment_dictionary_dut
-    cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_model)
-    print("cluster_centers' length = ", len(cluster_centers))
+    bert_path = config.bert_path
+    # cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, DEBUG)
     # 4.1 直接从文件中读取聚类中心向量
-    # cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
+    cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
+    print("cluster_centers' length = ", len(cluster_centers))
 
     # 5.计算每条评论的特征向量（字符级向量）到不同聚类中心的隶属值 distance_from_feature_to_cluster
     print("》》》【5、6】计算评论对聚类中心的隶属值*********************************************************************************************************************************************************************")
     # 6.使用cosin余弦距离来定义隶属函数,根据distance_from_feature_to_cluster和隶属函数计算特征向量对三个类别的隶属值review_sentiment_membership_degree([])（三维隶属值，表示负向、中性、正向）
     # review_sentiment_membership_degree = dp.calculateMembershipDegree(cluster_centers, character_embeddings)
     # 计算并保存评论文本的隶属度
-    # review_sentiment_membership_degree = dp.calculateAndSaveMembershipDegree(cluster_centers, config.character_embeddings_train, config.membership_degree_train)
+    # review_sentiment_membership_degree = dp.calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_path, membership_degree_path, DEBUG)
     # 直接读取评论文本的隶属度
-    # review_sentiment_membership_degree = dp.getMembershipDegrees(config.membership_degree_train)
+    # review_sentiment_membership_degree = dp.getMembershipDegrees(membership_degree_path)
 
     # 7.将review_sentiment_membership_degree拼接在character_embeddings后面生成最终的词向量final_word_embeddings
     print("》》》【7】将隶属值拼接在原词向量上生成最终的词向量**********************************************************************************************************************************************************")
@@ -165,9 +179,9 @@ if __name__ == "__main__":
     # final_word_embeddings = dp.concatenateVector(character_embeddings, review_sentiment_membership_degree, final_word_embeddings_path)
     # 将final_word_embeddings存入文件
     # dp.saveFinalEmbeddings(final_word_embeddings, final_word_embeddings_path)
-    # final_word_embeddings = dp.getFinalEmbeddings(final_word_embeddings_path)
     # 训练集的数据太大，只能一边读取 一边拼接 一边存入文件
-    # dp.saveFinalEmbeddingLittleByLittle(review_sentiment_membership_degree, config.character_embeddings_train, config.final_word_embeddings_train)
+    # dp.saveFinalEmbeddingLittleByLittle(review_sentiment_membership_degree, character_embeddings_path, final_word_embeddings_path, DEBUG)
+    # final_word_embeddings = dp.getFinalEmbeddings(final_word_embeddings_path, DEBUG)
 
     # 8.构建CNN模型
     print("》》》【8】构建深度学习模型**********************************************************************************************************************************************************************************")
@@ -189,14 +203,14 @@ if __name__ == "__main__":
         model = absa_models.createCNNBiGRUModel(512, 771, DEBUG)
 
     # ?.设置循环跑任务
-    name = "name"
+    name = model_name
 
     # 9.训练模型
     print("》》》【9】训练模型******************************************************************************************************************************************************************************************")
-    # embeddings_path = config.final_word_embeddings_validation
-    # X_validation_path = config.final_word_embeddings_validation
-    # y_validation = ""
-    # absa_models.trainModelFromFile(name, model, embeddings_path, y, y_cols, X_validation_path, y_validation, debug=DEBUG)
+    y_validation = ""
+    X_validation_path = config.final_word_embeddings_validation
+    X_train_path = config.final_word_embeddings_train
+    absa_models.trainModelFromFile(name, model, X_train_path, y, y_cols, X_validation_path, y_validation, debug=DEBUG)
     # absa_models.trainModelFromFile(name, model, final_word_embeddings, embeddings_path, y, y_cols, ratio_style=True, debug=DEBUG)
 
     end_time = time.time()

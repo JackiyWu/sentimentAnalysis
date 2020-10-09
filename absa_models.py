@@ -258,6 +258,9 @@ def trainModelFromFile(experiment_name, model, X_path, y, y_cols, X_validation_p
     length = len(y)
     print(">>>y's length = ", length)
     # y_cols = ["service"]
+    length_validation = length
+    # length_validation = len(y_validation)
+    batch_size_validation = batch_size
 
     F1_scores = 0
     F1_score = 0
@@ -268,8 +271,11 @@ def trainModelFromFile(experiment_name, model, X_path, y, y_cols, X_validation_p
         origin_data_current_col = y[col] + 2
         origin_data_current_col = np.array(origin_data_current_col)
 
-        # history = model.fit(dp.generateTrainSetFromFile(embeddings_path, origin_data_current_col, batch_size), steps_per_epoch=3, batch_size=128, epochs=epoch, verbose=2)
-        history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size), steps_per_epoch=math.ceil(length / batch_size), batch_size=batch_size, epochs=epoch)
+        # history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug), steps_per_epoch=math.ceil(length / batch_size), batch_size=batch_size, epochs=epoch)
+        # history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug), steps_per_epoch=math.ceil(length / batch_size), batch_size=batch_size, epochs=epoch, verbose=2)
+        history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug), steps_per_epoch=math.ceil(length / batch_size),
+                            validation_data=dp.generateTrainSetFromFile(X_validation_path, origin_data_current_col, batch_size, debug), validation_steps=math.ceil(length_validation / batch_size_validation),
+                            batch_size=batch_size, epochs=epoch, verbose=2)
 
 
 # 训练模型,origin_data中包含多个属性的标签

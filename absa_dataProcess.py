@@ -13,7 +13,7 @@ import codecs
 
 from sklearn.cluster import KMeans
 
-from keras_bert import Tokenizer as bert_Tokenizer, load_trained_model_from_checkpoint
+from keras_bert import Tokenizer as bert_Tokenizer, load_trained_model_from_checkpoint, extract_embeddings
 from keras.utils import to_categorical
 
 import absa_config as config
@@ -244,15 +244,17 @@ def saveCharacterEmbeddings(character_embeddings, save_path):
     # print("character_embeddings' shape = ", character_embeddings.shape)
     # print("character_embeddings' dim = ", character_embeddings.ndim)
 
-    with open(save_path, 'ab') as file_object:
+    with open(save_path, 'w') as file_object:
         np.savetxt(file_object, character_embeddings, fmt='%f', delimiter=',')
 
 
 # 读取字符级向量
-def getCharacterEmbeddings(path):
+def getCharacterEmbeddings(path, debug):
     result = np.loadtxt(path, delimiter=',')
-    # result = np.reshape(result, (-1, 512, 768))
-    result = np.reshape(result, (-1, 512, 5))  # 测试
+    if debug:
+        result = np.reshape(result, (-1, 512, 5))  # 测试
+    else:
+        result = np.reshape(result, (-1, 512, 768))
 
     print("character_embeddings' shape = ", result.shape)
     print("character_embeddings' dim = ", result.ndim)
@@ -267,7 +269,7 @@ def saveSentenceEmbeddings(sentence_embeddings, save_path):
     # print("sentence_embeddings' shape = ", sentence_embeddings.shape)
     # print("sentence_embeddings' dim = ", sentence_embeddings.ndim)
 
-    with open(save_path, 'ab') as file_object:
+    with open(save_path, 'w') as file_object:
         np.savetxt(file_object, sentence_embeddings, fmt='%f', delimiter=',')
 
 
@@ -284,7 +286,7 @@ def getSentenceEmbeddings(path):
 # 对输入的评论文本向量（一个向量表示一个句子）进行聚类，得到三个聚类中心，并写入文件
 def getClusterCenters(sentence_embeddings, cluster_centers_path):
     print(">>>In getClusterCenters of absa_dataProcess.py...")
-    kMeans_model = trainKMeansModel(sentence_embeddings)
+    kMeans_model = trainKMeansModel(sentence_embeddings, 3)
 
     # 查看预测样本的中心点
     clusters_centers = kMeans_model.cluster_centers_
@@ -302,30 +304,33 @@ def getClusterCenters(sentence_embeddings, cluster_centers_path):
 
 
 # 从bert_model读取情感词向量，然后计算得到聚类中心
-def getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_model):
+def getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, debug):
     # 从情感词典中读取情感词，分三类
-    negative_words, neutral_words, positive_words = getSentimentWords(sentiment_words_path)
+    negative_words, neutral_words, positive_words = getSentimentWords(sentiment_words_path, debug)
     print("negative_words = ", negative_words)
     print("neutral_words = ", neutral_words)
     print("positive_words = ", positive_words)
 
     # 从bert_model中读取词向量
-    negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings = getSentimentWordsEmbeddings(negative_words, neutral_words, positive_words, bert_model)
+    negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings = getSentimentWordsEmbeddings(negative_words, neutral_words, positive_words, bert_path, debug)
+    print("negative_words_embeddings' length = ", len(negative_words_embeddings))
+    print("neutral_words_embeddings[0]'s length = ", len(neutral_words_embeddings[0]))
+    # print("neutral_words_embeddings = ", neutral_words_embeddings)
 
     # 计算词向量的聚类中心，保存至文件
     cluster_centers = calculateClusterCenters1(negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings, cluster_centers_path)
+    # cluster_centers = calculateClusterCenters2(negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings, cluster_centers_path)
 
     return cluster_centers
 
 
 # 读取情感词
-def getSentimentWords(path):
+def getSentimentWords(path, debug=False):
     negative_words, neutral_words, positive_words = [], [], []
 
     wb = xlrd.open_workbook(path)
     sheet = wb.sheet_by_name('Sheet1')
     for a in range(sheet.nrows):
-        print("a = ", a)
         if a <= 0:
             continue
         line = sheet.row_values(a)
@@ -338,31 +343,87 @@ def getSentimentWords(path):
             positive_words.append(word)
         else:
             negative_words.append(word)
-        if a == 10:
+        if a == 50 and debug:
             break
 
     return negative_words, neutral_words, positive_words
 
 
 # 从bert_model中读取词向量
-def getSentimentWordsEmbeddings(negative_words, neutral_words, positive_words, bert_model):
-    negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings = []
+def getSentimentWordsEmbeddings(negative_words, neutral_words, positive_words, bert_path, debug):
+    negative_words_embeddings = getSentimentWordsEmbeddingsByList(negative_words, bert_path, debug)
+    neutral_words_embeddings = getSentimentWordsEmbeddingsByList(neutral_words, bert_path, debug)
+    positive_words_embeddings = getSentimentWordsEmbeddingsByList(positive_words, bert_path, debug)
 
     return negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings
 
 
+def getSentimentWordsEmbeddingsByList(texts, bert_path, debug=False):
+    final_embeddings = []
+    embeddings = extract_embeddings(bert_path, texts)
+    for embedding in embeddings:
+        # 使用词语中第一个字符向量CLS来表示当前词向量
+        # test
+        if debug:
+            CLS = embedding[0][:5]
+        else:
+            CLS = embedding[0]
+        final_embeddings.append(CLS)
+
+    return final_embeddings
+
+
 # 计算词向量的聚类中心1，各自聚类一个中心，然后输出三个中心
 def calculateClusterCenters1(negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings, cluster_centers_path):
-    cluster_centers = []
 
-    return cluster_centers
+    kMeans_model_negative = trainKMeansModel(negative_words_embeddings, 1)
+    # 查看预测样本的中心点
+    clusters_centers_negative = kMeans_model_negative.cluster_centers_
+    # print("clusters_centers_negative's centers:", clusters_centers_negative)
+
+    kMeans_model_neutral = trainKMeansModel(neutral_words_embeddings, 1)
+    # 查看预测样本的中心点
+    clusters_centers_neutral = kMeans_model_neutral.cluster_centers_
+    # print("clusters_centers_negative's centers:", clusters_centers_neutral)
+
+    kMeans_model_positive = trainKMeansModel(positive_words_embeddings, 1)
+    # 查看预测样本的中心点
+    clusters_centers_positive = kMeans_model_positive.cluster_centers_
+    # print("clusters_centers_negative's centers:", clusters_centers_positive)
+
+    clusters_centers = [clusters_centers_negative, clusters_centers_neutral, clusters_centers_positive]
+    print("clusters_centers = ", clusters_centers)
+
+    # 将聚类中心点写入文件
+    with codecs.open(cluster_centers_path, "w", "utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerows(clusters_centers)
+        f.close()
+
+    print(" End of calculateClusterCenters1 in absa_dataProcess.py...")
+
+    return clusters_centers
 
 
 # 计算词向量的聚类中心2，所有词向量一起聚类得到3个聚类中心
 def calculateClusterCenters2(negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings, cluster_centers_path):
-    cluster_centers = []
+    negative_words_embeddings.extend(neutral_words_embeddings)
+    negative_words_embeddings.extend(positive_words_embeddings)
 
-    return cluster_centers
+    kMeans_model = trainKMeansModel(negative_words_embeddings, 3)
+    # 查看预测样本的中心点
+    clusters_centers = kMeans_model.cluster_centers_
+    print("clusters_centers = ", clusters_centers)
+
+    # 将聚类中心点写入文件
+    with codecs.open(cluster_centers_path, "w", "utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerows(clusters_centers)
+        f.close()
+
+    print(" End of calculateClusterCenters2 in absa_dataProcess.py...")
+
+    return clusters_centers
 
 
 # 从文件中读取聚类中心向量
@@ -374,9 +435,9 @@ def getClusterCenterFromFile(path):
 
 
 # 接收sentence_embeddings，训练模型并返回
-def trainKMeansModel(sentence_embeddings):
+def trainKMeansModel(sentence_embeddings, n_clusters):
     # 创建KMeans 对象
-    cluster = KMeans(n_clusters=3, random_state=0, n_jobs=-1)
+    cluster = KMeans(n_clusters=n_clusters, random_state=0, n_jobs=-1)
     # print("sentence_embeddings = ", sentence_embeddings)
     result = cluster.fit(sentence_embeddings)
 
@@ -405,14 +466,14 @@ def calculateMembershipDegree(cluster_centers, character_embeddings):
 # character_embeddings太大，所以需要一边读 一边计算隶属度 然后保存
 # cluster_centers_path直接读进内存
 # 每500条评论就写入一次文件
-def calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_train_path, membership_degree_train_path):
+def calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_train_path, membership_degree_train_path, debug=False):
     i = 1
 
     f = open(character_embeddings_train_path)
     cache = []
 
     for line in f:
-        line = parseLine2(line)  # 一个line表示一条评论
+        line = parseLine2(line, debug)  # 一个line表示一条评论
 
         sentence_membership_degree = calculateMembershipDegreeForSingleSentence(cluster_centers, line)
         # print("sentence_membership_degree = ", sentence_membership_degree)
@@ -480,7 +541,7 @@ def getMembershipDegrees(path):
 
 
 # 将assisted_vector拼接在main_vector后面
-def concatenateVector(main_vector, assisted_vector, save_path):
+def concatenateVector(main_vector, assisted_vector, save_path, debug=False):
     print(">>>main_vector's length = ", len(main_vector))
     # print("assisted_vector = ", assisted_vector)
     print(">>>assisted_vector's length = ", len(assisted_vector))
@@ -505,22 +566,24 @@ def concatenateVector(main_vector, assisted_vector, save_path):
         # print("current_final_word_embeddings = ", current_final_word_embeddings)
 
         # 直接追加写入文件
-        saveFinalEmbeddings(current_final_word_embeddings, save_path)
+        saveFinalEmbeddings(current_final_word_embeddings, save_path, debug)
 
 
 # 将最终的包含隶属度向量的embedding存入文件
-def saveFinalEmbeddings(final_word_embeddings, save_path):
+def saveFinalEmbeddings(final_word_embeddings, save_path, debug=False):
     # print(">>>正在保存final_word_embeddings向量至文件...")
     final_word_embeddings = np.array(final_word_embeddings)
-    # final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 8))
-    final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 771))
+    if debug:
+        final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 8))
+    else:
+        final_word_embeddings = np.reshape(final_word_embeddings, (-1, 512 * 771))
 
     with open(save_path, 'ab') as file_object:
         np.savetxt(file_object, final_word_embeddings, fmt='%f', delimiter=',')
 
 
 # 将最终的包含隶属度的向量存入文件
-def saveFinalEmbeddingLittleByLittle(membership_degrees, embeddings_path, save_path):
+def saveFinalEmbeddingLittleByLittle(membership_degrees, embeddings_path, save_path, debug):
     i = 0
 
     f = open(embeddings_path)
@@ -528,13 +591,13 @@ def saveFinalEmbeddingLittleByLittle(membership_degrees, embeddings_path, save_p
     membership_degree_cache = []
 
     for line in f:
-        line = parseLine2(line)
+        line = parseLine2(line, debug)
         cache.append(line)
         membership_degree_cache.append(membership_degrees[i])
 
         if i % 300 == 0:
             # 写入文件
-            concatenateVector(cache, membership_degree_cache, save_path)
+            concatenateVector(cache, membership_degree_cache, save_path, debug)
             cache = []
             membership_degree_cache = []
             print("final_embeddings写入文件中。。。i = ", i)
@@ -542,16 +605,18 @@ def saveFinalEmbeddingLittleByLittle(membership_degrees, embeddings_path, save_p
         i += 1
 
     if len(cache) > 0:
-        concatenateVector(cache, membership_degree_cache, save_path)
+        concatenateVector(cache, membership_degree_cache, save_path, debug)
 
 
-def getFinalEmbeddings(path):
+def getFinalEmbeddings(path, debug=False):
     print("正在获取final_word_embeddings。。。")
 
     result = np.loadtxt(path, delimiter=',')
 
-    # result = np.reshape(result, (-1, 512, 771))
-    result = np.reshape(result, (-1, 512, 8))  # 测试
+    if debug:
+        result = np.reshape(result, (-1, 512, 8))  # 测试
+    else:
+        result = np.reshape(result, (-1, 512, 771))
 
     print("正在获取final_word_embeddings' shape = ", result.shape)
     print("正在获取final_word_embeddings' dim = ", result.ndim)
@@ -570,7 +635,7 @@ def generateTrainSet(X_train, Y_train, batch_size):
 
 
 # 使用generator yield批量训练数据，从文件中读取X
-def generateTrainSetFromFile(X_path, Y_train, batch_size):
+def generateTrainSetFromFile(X_path, Y_train, batch_size, debug):
     # print("从", X_path, "中读取X_train数据")
     length = len(Y_train)
     # print("Y_train's length = ", length)
@@ -582,7 +647,7 @@ def generateTrainSetFromFile(X_path, Y_train, batch_size):
         i = 0  # 记录Y_train的遍历
         cnt_Y = 0
         for line in f:
-            X.append(parseLine(line))
+            X.append(parseLine(line, debug))
             i += 1
             cnt += 1
             if cnt == batch_size or i == length:
@@ -598,24 +663,28 @@ def generateTrainSetFromFile(X_path, Y_train, batch_size):
                 Y = []
 
 
-def parseLine(line):
+def parseLine(line, debug=False):
     # print("line = ", line)
     line = [float(x) for x in line.split(',')]
     # print("line = ", line)
     # print("line's length = ", len(line))
     # reshape
-    line = np.reshape(list(line), (-1, 8))  # 测试
-    # line = np.reshape(line, (-1, 771))
+    if debug:
+        line = np.reshape(list(line), (-1, 8))  # 测试
+    else:
+        line = np.reshape(line, (-1, 771))
     return line
 
 
-def parseLine2(line):
+def parseLine2(line, debug=False):
     # print("line = ", line)
     line = [float(x) for x in line.split(',')]
     # print("line = ", line)
     # print("line's length = ", len(line))
     # reshape
-    # line = np.reshape(list(line), (-1, 5))  # 测试
-    line = np.reshape(line, (-1, 768))
+    if debug:
+        line = np.reshape(list(line), (-1, 5))  # 测试
+    else:
+        line = np.reshape(line, (-1, 768))
     return line
 

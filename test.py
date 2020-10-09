@@ -699,10 +699,22 @@ def normalizationTest():
     print(x_minmax)
 
 
+def listExtend():
+    l1 = [1, 2, 3, 4]
+    l2 = [2, 3, 1, 5]
+    l3 = [5, 4, 1, 1]
+
+    l1.extend(l2)
+    print("l1 = ", l1)
+
+    l1.extend(l3)
+    print("l1 = ", l1)
+
+
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
 
-    normalizationTest()
+    listExtend()
 
     print(">>>in the end...")
 
