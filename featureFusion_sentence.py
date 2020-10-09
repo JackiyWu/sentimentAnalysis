@@ -185,7 +185,7 @@ def save_result_to_csv(report, f1_score, experiment_id):
     weighted_f1 = weighted_avg.get('f1-score')
     data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
 
-    with codecs.open("result/result_sentence.csv", "a", "utf-8") as f:
+    with codecs.open("result/result_sentence_cnn.csv", "a", "utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(data)
         f.close()
@@ -262,7 +262,7 @@ def train_cnn_model(model, train, val, train_x, test_x, val_x, epoch,
 
     # 准确率：在所有预测为正的样本中，确实为正的比例
     # 召回率：本身为正的样本中，被预测为正的比例
-    print("y_val_pred = ", list(y_val_pred))
+    # print("y_val_pred = ", list(y_val_pred))
     precision, recall, fscore, support = score(val_y, y_val_pred)
     print("precision = ", precision)
     print("recall = ", recall)

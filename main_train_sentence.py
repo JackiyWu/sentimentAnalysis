@@ -165,20 +165,20 @@ if __name__ == "__main__":
 
     # 生成模型-编译
     # 定义cnn的filter
-    epochs = [10]
+    epochs = [5, 10, 20, 50]
     # epochs = [200, 250, 300]
     # epochs = [5, 10, 20, 50, 100, 150, 200, 250, 300]
-    batch_sizes = [128]
+    batch_sizes = [128, 64]
     # batch_sizes = [8, 16, 32, 128, 256]
     learning_rates = [0.001]
     # learning_rates = [0.5, 0.1, 0.05, 0.01, 0.005, 0.0005, 0.0001]
-    filters = [64, 128]
+    filters = [64, 128, 32]
     # filters = [64, 8, 32, 256, 512]
-    window_sizes = [6]
+    window_sizes = [6, 5, 7]
     # window_sizes = [1, 2, 4, 5, 6, 7, 8]
     # dropouts = [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.8]
     dropouts = [0.6]
-    full_connecteds = [128, 256]
+    full_connecteds = [128]
     balanceds = [True]
 
     # baseline
@@ -200,9 +200,9 @@ if __name__ == "__main__":
                                 for full_connected in full_connecteds:
                                     for i in range(10):
                                         print("i = ", i)
-                                        if epoch == 10 and batch_size == 64 and learning_rate == 0.001 and filter == 64 and window_size == 3:
-                                            if dropout not in (0.6, 0.7):
-                                                continue
+                                        # if epoch == 10 and batch_size == 64 and learning_rate == 0.001 and filter == 64 and window_size == 3:
+                                        #     if dropout not in (0.6, 0.7):
+                                        #         continue
                                         name = "new_epoch_" + str(epoch) + "_batch_size_" + str(batch_size) + \
                                                "_learningRate_" + str(learning_rate) + "_filter_" + str(filter) + \
                                                "_window_size_" + str(window_size) + "_dropout_" + str(dropout) + \
