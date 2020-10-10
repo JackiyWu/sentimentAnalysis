@@ -185,7 +185,7 @@ def save_result_to_csv(report, f1_score, experiment_id):
     weighted_f1 = weighted_avg.get('f1-score')
     data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
 
-    with codecs.open("result/result_sentence.csv", "a", "utf-8") as f:
+    with codecs.open("result/result_sentence_cnn.csv", "a", "utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(data)
         f.close()
