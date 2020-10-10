@@ -112,9 +112,9 @@ if __name__ == "__main__":
 
     # 1.读取原始训练数据集origin_data
     print("》》》【1】读取原始训练数据集,去掉换行符、空格（测试）*******************************************************************************************************************************************************")
-    origin_data, y_cols, y = dp.initData(DEBUG, CLEAN_ENTER, CLEAN_SPACE)
+    # origin_data, y_cols, y = dp.initData(DEBUG, CLEAN_ENTER, CLEAN_SPACE)
     # 1.1 读取原始训练数据集的labels
-    # y_cols, y = dp.initDataLabels(DEBUG)
+    y_cols_name, y_train, y_validation = dp.initDataLabels(DEBUG)
 
     # 把细粒度属性标签转为粗粒度属性标签
     # dp.processDataToTarget(origin_data)
@@ -157,8 +157,8 @@ if __name__ == "__main__":
     # print("cluster_centers' length = ", len(cluster_centers))
 
     # 4.从bert_model获取情感词向量sentiment_word_embeddings
-    sentiment_words_path = config.sentiment_dictionary_dut
-    bert_path = config.bert_path
+    # sentiment_words_path = config.sentiment_dictionary_dut
+    # bert_path = config.bert_path
     # cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, DEBUG)
     # 4.1 直接从文件中读取聚类中心向量
     cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
@@ -207,11 +207,9 @@ if __name__ == "__main__":
 
     # 9.训练模型
     print("》》》【9】训练模型******************************************************************************************************************************************************************************************")
-    y_validation = ""
-    X_validation_path = config.final_word_embeddings_validation
     X_train_path = config.final_word_embeddings_train
-    absa_models.trainModelFromFile(name, model, X_train_path, y, y_cols, X_validation_path, y_validation, debug=DEBUG)
-    # absa_models.trainModelFromFile(name, model, final_word_embeddings, embeddings_path, y, y_cols, ratio_style=True, debug=DEBUG)
+    X_validation_path = config.final_word_embeddings_validation
+    absa_models.trainModelFromFile(name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, debug=DEBUG)
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))

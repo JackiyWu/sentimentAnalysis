@@ -52,21 +52,27 @@ def initData(debug=False, clean_enter=False, clean_space=False):
 
 def initDataLabels(debug=False):
     # print("In initDataLabels function of dataProcess.py...")
-    data = pd.read_csv(config.meituan_validation_new)
+    data_train = pd.read_csv(config.meituan_train_new)
+    data_validation = pd.read_csv(config.meituan_validation_new)
     # data = pd.read_csv(config.meituan_train)
     if debug:
-        data = data[:300]
+        data_train = data_train[:300]
+        data_validation = data_validation[:200]
 
-    y = data[['location', 'service', 'price', 'environment', 'dish']]
+    y_train = data_train[['location', 'service', 'price', 'environment', 'dish']]
+    y_validation = data_validation[['location', 'service', 'price', 'environment', 'dish']]
 
     # y_cols_name = data.columns.values.tolist()[2:22]
-    y_cols_name = data.columns.values.tolist()[2:7]
-    print(">>>data = ", data.head())
-    print(">>>data'type = ", type(data))
-    print(">>>data's shape = ", data.shape)
+    y_cols_name = data_train.columns.values.tolist()[2:7]
+    print(">>>data_train = ", data_train.head())
+    print(">>>data_train'type = ", type(data_train))
+    print(">>>data_train's shape = ", data_train.shape)
+    print(">>>data_validation = ", data_validation.head())
+    print(">>>data_validation'type = ", type(data_validation))
+    print(">>>data_validation's shape = ", data_validation.shape)
     print(">>>y_cols_name = ", y_cols_name)
 
-    return y_cols_name, y
+    return y_cols_name, y_train, y_validation
 
 
 # 对原评论文本进行清洗,去回车符
@@ -661,6 +667,25 @@ def generateTrainSetFromFile(X_path, Y_train, batch_size, debug):
                 yield (np.array(X), to_categorical(Y))
                 X = []
                 Y = []
+
+
+# 使用generator yield生成批量数据，从文件中读取X，只生成X
+def generateXFromFile(X_path, y_length, batch_size, debug):
+    while True:
+        # print("in generateXFromFile...")
+        f = open(X_path)
+        cnt = 0
+        X = []
+        i = 0
+        for line in f:
+            X.append(parseLine(line, debug))
+            i += 1
+            cnt += 1
+            if cnt == batch_size or i == y_length:
+                cnt = 0
+                # print("X = ", X)
+                yield (np.array(X))
+                X = []
 
 
 def parseLine(line, debug=False):

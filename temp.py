@@ -1,241 +1,409 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''
-***************************************************************↓↓↓↓↓↓↓↓句子级情感分析流程↓↓↓↓↓↓↓↓***************************************************************
-    1.读取原始训练数据集origin_data,去掉换行符、空格
-    1.1 统计一下输入语料的长度
-    1.2 对评论语句进行补齐[pad]
-
-    2.加载bert模型bert_model
-    3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
-    3.1 保存字符向量character_embeddings、句子级向量sentence_embeddings至文件 character_embeddings.csv和sentence_embeddings.csv,格式
-    3.2 直接读取两个向量文件
-
-    4.对sentence_embeddings进行聚类，得到三个聚类中心cluster_centers，并输出到文件
-    5.计算每条评论的特征向量（字符级向量）到聚类中心的距离distance_from_feature_to_cluster
-    6.使用cosin距离来定义隶属函数,根据distance_from_feature_to_cluster和隶属函数计算特征向量对三个类别的隶属值review_sentiment_membership_degree([])（三维隶属值，表示负向、中性、正向）
-
-    7.将review_sentiment_membership_degree拼接在wcharacter_embeddings后面生成最终的词向量final_word_embeddings
-
-    8.构建CNN模型
-
-    9.训练模型
-    9.1 数据集按照两种方式来训练：①直接划分比例，训练集、验证集、测试集按照 7:2:1划分；②交叉验证XXXX之后再写
-    9.2 测试集的预测这里可能是有问题的，现在是每训练完一个属性就预测并打印，而不是整个模型训练完了之后才打印
-    ***************************************************************↑↑↑↑↑↑↑↑句子级情感分析流程↑↑↑↑↑↑↑↑***************************************************************
-
-'''
-
 import numpy as np
+import os
+import time
+import codecs
+import csv
+import math
 
-from keras.utils.np_utils import to_categorical
-from tensorflow.keras.utils import plot_model
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, confusion_matrix
+from sklearn.metrics import precision_recall_fscore_support as score
+from sklearn.metrics import classification_report
 from sklearn.utils import class_weight
 
-import KMeansCluster as KMC
-import fuzzySystem as fsys
-import featureFusion_sentence as ff_s
-import fuzzySentiment as fsent
-import test
-import dataProcess_sentence as dp_s
-import fasttext
+import keras
+from keras.layers import Input, Flatten, Dense, Dropout, Activation, GRU, Bidirectional, Conv1D, LSTM
+from keras.layers import Embedding, merge, Lambda, Reshape, BatchNormalization, MaxPool1D, GlobalAveragePooling1D
+from keras import Model, Sequential
+from keras.utils import to_categorical
+from keras import regularizers
+from keras.layers.merge import concatenate
 
-import time
-from tensorflow.keras import models
-from tensorflow.keras.experimental import export_saved_model
-from tensorflow.keras.experimental import load_from_saved_model
+from tensorflow.keras.layers import SeparableConvolution1D
 
+from keras_bert import Tokenizer, load_trained_model_from_checkpoint
 
-# 情感词典相关变量
-# word_index = {}  # 词语-序号字典,脏乱:0
-# index_word = {}  # 序号-词语字典，0:脏乱
-word_feature = {}  # 词语的特征,脏乱:[category, intensity, polar]
+import absa_config as config
+import absa_dataProcess as dp
 
-# 聚类中心，统一使用KMeansCluster中的值
-# clusters_centers = [[0.99347826, 0.98695652, 2.], [0.38799172, 1.06376812, 3.], [1.67957958, 1.10690691, 1.01501502]]
-
-# 一些超参数的设置
-dict_length = 150000  # 词典的长度，后期可以测试？？
-embedding_dim = 128  # 词嵌入的维度，后期可以测试？？
-embeddings = []  # 词嵌入，后期可以使用预训练词向量??
-'''
-dealed_train = []  # 输入语料，训练集
-dealed_val = []  # 输入语料，验证集
-dealed_test = []  # 输入语料，测试集
-y_cols = []
-'''
+# 一些超参数
+TOKEN_DICT = {}
 
 
-if __name__ == "__main__":
-    print(">>>begin in main_train.py ...")
-    print("start time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())))
+# 创建bert+fc模型
+def createBertFcModel():
+    pass
 
-    # 获取本体词汇库的情感向量
-    word_feature = KMC.read_excel2()
-    # word_feature = KMC.read_excel()
-    # check数据
-    # print("word_feature = ", word_feature)
 
-    # 获取聚类中心
-    clusters_centers = KMC.clusters_centers
-    print("clusters_centers = ", clusters_centers)
+# 创建bert模型
+def createBertEmbeddingModel():
+    with codecs.open(config.bert_dict_path, 'r', 'utf8') as reader:
+        for line in reader:
+            token = line.strip()
+            TOKEN_DICT[token] = len(TOKEN_DICT)
 
-    # 获取输入语料
-    origin_data, y_cols = dp_s.initData3()
-    # origin_data, y_cols = dp_s.initData2(1)
-    # print("origin_data = ", origin_data)
-    print("y_cols = ", y_cols)
+    model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path)
 
-    # 训练集 验证集 测试集 分割比例，包括两个数：训练集比例、验证集比例
-    ratios = [0.7, 0.25]
+    return model
 
-    # 获取停用词
-    stoplist = dp_s.getStopList()
 
-    # 获取输入语料的文本（去标点符号和停用词后）
-    input_texts = dp_s.processDataToTexts(origin_data, stoplist)
-    # print("input_texts = ", input_texts)
+# CNN模型
+def createCNNModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    print("开始构建CNN模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+    cnn = Conv1D(64, 4, padding='same', strides=1, activation='relu', name='conv')(tensor_input)
+    cnn = BatchNormalization()(cnn)
+    cnn = MaxPool1D(name='max_pool')(cnn)
 
-    # 获取输入语料的情感向量特征
-    input_word_feature = fsys.calculate_sentiment_words_feature(input_texts, word_feature)
-    # print("input_word_feature = ", input_word_feature)
+    flatten = Flatten()(cnn)
 
-    # 根据情感向量特征计算得到情感隶属度特征
-    # dealed_train_fuzzy, dealed_val_fuzzy, dealed_test_fuzzy = fsys.cal_fuzzy_membership_degree(input_word_feature,
-    #                                                                                            clusters_centers,
-    #                                                                                            input_texts, ratios)
+    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    x = Dense(4, activation='softmax', name='softmax')(x)
 
-    # 根据词汇本体库的情感向量特征计算得到三类情感特征值
-    dealed_train_fuzzy, dealed_val_fuzzy, dealed_test_fuzzy = fsys.calculate_fuzzy_feature(input_word_feature, ratios)
-    # print("dealed_train_fuzzy", dealed_train_fuzzy)
-    # print("dealed_val_fuzzy", dealed_val_fuzzy)
-    # print("dealed_test_fuzzy", dealed_test_fuzzy)
+    model = Model(inputs=tensor_input, outputs=x)
 
-    # print("dealed_train_fuzzy = ", dealed_train_fuzzy)
-    print("dealed_train_fuzzy's shape = ", dealed_train_fuzzy.shape)
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
 
-    fuzzy_maxlen = fsys.calculate_input_dimension(dealed_train_fuzzy)
-    print("fuzzy_maxlen = ", fuzzy_maxlen)
+    return model
 
-    # 获取增广特征
-    # input_texts_add, fea_dict = fasttext.get_add_feature(input_texts)
 
-    # 确定单个输入语料的长度
-    # 输入语料的长度，后期可以测试不同长度对结果的影响，参考hotelDataEmbedding.py的处理？？
-    maxlen = dp_s.calculate_maxlen(input_texts)
-    # maxlen = 52
-    print("maxlen = ", maxlen)
-    # maxlen = dp_s.calculate_maxlen(input_texts_add)
+# GRU模型
+def createGRUModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    print("开始构建CNN模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
 
-    # 处理输入语料，生成训练集、验证集、测试集
-    dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index = dp_s.processData(origin_data, stoplist,
-                                                                                                  dict_length, maxlen, ratios)
+    bi_gru1 = Bidirectional(GRU(64, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(tensor_input)
+    bi_gru1 = BatchNormalization()(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(32, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = BatchNormalization()(bi_gru2)
 
-    # fasttext
-    # dealed_train, dealed_val, dealed_test, train, val, test = fasttext.processData(input_texts_add, origin_data,
-    #                                                                                maxlen, ratios)
-    # print("dealed_train = ", dealed_train)
-    # print("train = ", train)
-    # print("dealed_train = ", dealed_train)
-    print("dealed_train's shape = ", dealed_train.shape)
+    flatten = Flatten()(bi_gru2)
 
-    # 根据预训练词向量生成embedding_matrix
-    embedding_matrix = ff_s.load_word2vec(word_index)
-    # embedding_matrix = np.zeros((len(word_index) + 1, 300))
-    print("embedding_matrix's shape = ", embedding_matrix.shape)
+    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    x = Dense(4, activation='softmax', name='softmax')(x)
 
-    dict_length = min(dict_length, len(word_index) + 1)
-    print("dict_length = ", dict_length)
+    model = Model(inputs=tensor_input, outputs=x)
 
-    # dict_length = max(dict_length, len(fea_dict) + 1)
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
 
-    # 生成模型-编译
-    # 定义cnn的filter
-    epochs = [10]
-    # epochs = [200, 250, 300]
-    # epochs = [5, 10, 20, 50, 100, 150, 200, 250, 300]
-    batch_sizes = [128]
-    # batch_sizes = [8, 16, 32, 128, 256]
-    learning_rates = [0.001]
-    # learning_rates = [0.5, 0.1, 0.05, 0.01, 0.005, 0.0005, 0.0001]
-    filters = [128]
-    # filters = [64, 8, 32, 256, 512]
-    window_sizes = [6]
-    # window_sizes = [1, 2, 4, 5, 6, 7, 8]
-    # dropouts = [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.8]
-    dropouts = [0.6]
-    full_connecteds = [256]
-    balanceds = [True]
+    return model
 
-    # baseline
-    # filter = 64
-    # learning_rate = 0.001
-    # window_size = 3
-    # epoch = 10
-    # dropout = 0.5
-    # batch_size = 64
 
-    # 自动跑模型
-    for epoch in epochs:
-        for batch_size in batch_sizes:
-            for learning_rate in learning_rates:
-                for filter in filters:
-                    for window_size in window_sizes:
-                        for dropout in dropouts:
-                            for balanced in balanceds:
-                                for full_connected in full_connecteds:
-                                    for i in range(1):
-                                        print("i = ", i)
-                                        if epoch == 10 and batch_size == 64 and learning_rate == 0.001 and filter == 64 and window_size == 3:
-                                            if dropout not in (0.6, 0.7):
-                                                continue
-                                        name = "new_epoch_" + str(epoch) + "_batch_size_" + str(batch_size) + \
-                                               "_learningRate_" + str(learning_rate) + "_filter_" + str(filter) + \
-                                               "_window_size_" + str(window_size) + "_dropout_" + str(dropout) + \
-                                               "_balanced_" + str(balanced) + "_full_connected_" + str(full_connected)
-                                        print("name = ", name)
+# LSTM
+def createLSTMModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    print("开始构建CNN模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
 
-                                        fusion_model = ff_s.create_fusion_model(fuzzy_maxlen, maxlen, dict_length,
-                                                                                filter, embedding_matrix, window_size,
-                                                                                dropout, full_connected)
-                                        # fusion_model = ff_s.create_cnn_model(maxlen, dict_length, filter, embedding_matrix, window_size, dropout)
-                                        # fusion_model = ff_s.create_cnn_model(maxlen, dict_length, filters)
-                                        # fusion_model = ff_s.fasttext_model(fea_dict, maxlen)
-                                        # fusion_model = ff_s.create_lstm_model(maxlen, dict_length)
-                                        # fusion_model = ff_s.create_lstm_model(maxlen, dict_length, embedding_matrix, dropout)
-                                        plot_model(fusion_model, 'modelsImage/Multi_input_model3.png')
+    lstm = Bidirectional(LSTM(64, return_sequences=True, name='lstm1'))(tensor_input)
+    lstm = Bidirectional(LSTM(32, return_sequences=False, name='lstm2'))(lstm)
 
-                                        # fusion_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['acc'])
+    x = Dense(64, activation='relu', name='dense_1')(lstm)
+    x = Dropout(0.4, name='dropout')(x)
+    x = Dense(4, activation='softmax', name='softmax')(x)
 
-                                        # epoch
-                                        # epoch = 10
+    model = Model(inputs=tensor_input, outputs=x)
 
-                                        # 实验id
-                                        # experiment_id = "macro_test"
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
 
-                                        # 训练模型
-                                        ff_s.train_model(fusion_model, train, val, dealed_train_fuzzy, dealed_train, dealed_test_fuzzy, dealed_test,
-                                                         dealed_val_fuzzy, dealed_val, y_cols, epoch, name, batch_size, learning_rate, balanced)
-                                        # dealed_val_fuzzy, dealed_val, y_cols, class_weights)
+    return model
 
-                                        # 训练模型-cnn
-                                        # ff_s.train_cnn_model(fusion_model, train, val, dealed_train, dealed_test, dealed_val, epoch,
-                                        #                      name, batch_size, learning_rate)
-                                        # ff_s.train_fasttext_model(fusion_model, train, val, dealed_train, dealed_test, dealed_val, epoch)
 
-                                        # 保存模型
-                                        print(">>>保存模型ing")
-                                        model_path = "export_saved_model.h5"
-                                        # fusion_model.save("test_new_model.h5")
-                                        export_saved_model(fusion_model, model_path)
+# 根据textCNN模型输出词向量
+def createSeparableCNNModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    # print(">>>开始构建TextCNN模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+    cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(tensor_input)
+    cnn1 = BatchNormalization()(cnn1)
+    cnn1 = MaxPool1D(pool_size=100)(cnn1)
+    cnn2 = SeparableConvolution1D(200, 4, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(tensor_input)
+    cnn2 = BatchNormalization()(cnn2)
+    cnn2 = MaxPool1D(pool_size=100)(cnn2)
+    cnn3 = SeparableConvolution1D(200, 5, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_3")(tensor_input)
+    cnn3 = BatchNormalization()(cnn3)
+    cnn3 = MaxPool1D(pool_size=100)(cnn3)
+    cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
 
-                                        # 读取模型
-                                        # model = models.load_model("test_export_saved_model.h5")
-                                        model = load_from_saved_model(model_path)
+    dropout = Dropout(0.2)(cnn)
+    flatten = Flatten()(dropout)
+    dense = Dense(512, activation='relu')(flatten)
+    dense = BatchNormalization()(dense)
+    dropout = Dropout(0.2)(dense)
+    tensor_output = Dense(4, activation='softmax')(dropout)
 
-                                        # 读取模型并预测
-                                        ff_s.load_predict(model, dealed_test_fuzzy, dealed_test, test["review"])
+    model = Model(inputs=tensor_input, outputs = tensor_output)
+    # print(model.summary())
 
-    print(">>>This is the end of main_train.py...")
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    # print(">>>TextCNN模型构建结束。。。")
+    return model
+
+
+# 构建单层CNN+BiGRU
+def createCNNBiGRUModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    print("开始构建CNN模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+    cnn = Conv1D(64, 4, padding='same', strides=1, activation='relu', name='conv')(tensor_input)
+    cnn = BatchNormalization()(cnn)
+    cnn = MaxPool1D(name='max_pool')(cnn)
+
+    dropout = Dropout(0.2)(cnn)
+    # flatten = Flatten()(dropout)
+
+    bi_gru1 = Bidirectional(GRU(128, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
+    bi_gru1 = BatchNormalization()(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(256, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = BatchNormalization()(bi_gru2)
+
+    flatten = Flatten()(bi_gru2)
+
+    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    x = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model(inputs=tensor_input, outputs=x)
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+
+    return model
+
+
+# 构建模型CNN+BiGRU
+def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    # print(">>>开始构建TextCNNBiGRUModel模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+    cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_0")(tensor_input)
+    cnn1 = BatchNormalization()(cnn1)
+    cnn1 = MaxPool1D(pool_size=100)(cnn1)
+    cnn2 = SeparableConvolution1D(200, 4, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(tensor_input)
+    cnn2 = BatchNormalization()(cnn2)
+    cnn2 = MaxPool1D(pool_size=100)(cnn2)
+    cnn3 = SeparableConvolution1D(200, 5, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(tensor_input)
+    cnn3 = BatchNormalization()(cnn3)
+    cnn3 = MaxPool1D(pool_size=100)(cnn3)
+    cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
+
+    dropout = Dropout(0.2)(cnn)
+    # flatten = Flatten()(dropout)
+
+    bi_gru1 = Bidirectional(GRU(128, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
+    bi_gru1 = BatchNormalization()(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(256, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = BatchNormalization()(bi_gru2)
+
+    flatten = Flatten()(bi_gru2)
+
+    dense = Dense(512, activation='relu')(flatten)
+    dense = BatchNormalization()(dense)
+    dropout = Dropout(0.2)(dense)
+    tensor_output = Dense(4, activation='softmax')(dropout)
+
+    model = Model(inputs=tensor_input, outputs=tensor_output)
+    print(model.summary())
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    # print(">>>TextCNNBiGRUModel模型构建结束。。。")
+    return model
+
+
+# MLP
+def createMLPModel(maxlen, embedding_dim, debug=False):
+    if debug:
+        embedding_dim = 8
+    # print(">>>开始构建TextCNNBiGRUModel模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+    flatten = Flatten()(tensor_input)
+    dense = Dense(512, activation='relu')(flatten)
+    dropout = Dropout(0.4)(dense)
+    tensor_output = Dense(4, activation='softmax')(dropout)
+
+    model = Model(inputs=tensor_input, outputs=tensor_output)
+    print(model.summary())
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    # print(">>>TextCNNBiGRUModel模型构建结束。。。")
+    return model
+
+
+# 训练模型，直接从文件中读取词向量
+# 先取前0.3的比例为验证集，使用y来统计长度
+def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_path, y_val, epoch=3, batch_size=128, debug=False):
+    print("勿扰！训练模型ing。。。in trainModelFromFile。。。")
+    if len(X_path.strip()) > 0:
+        print("从文件中直接读取词向量。。。")
+
+    length = len(y)
+    length_validation = len(y_val)
+    print(">>>y's length = ", length)
+    if debug:
+        y_cols_name = ["service"]
+        length_validation = length
+    # length_validation = len(y_validation)
+    batch_size_validation = batch_size
+
+    F1_scores = 0
+    F1_score = 0
+    result = {}
+
+    for index, col in enumerate(y_cols_name):
+        origin_data_current_col = y[col] + 2
+        # y_val = list(origin_data_current_col)
+        origin_data_current_col = np.array(origin_data_current_col)
+
+        origin_data_current_col_val = y_val[col] + 2
+        origin_data_current_col_val = np.array(origin_data_current_col_val)
+        # print(y_val)
+
+        # history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug), steps_per_epoch=math.ceil(length / batch_size), batch_size=batch_size, epochs=epoch)
+        # history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug), steps_per_epoch=math.ceil(length / batch_size), batch_size=batch_size, epochs=epoch, verbose=2)
+        history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug), steps_per_epoch=math.ceil(length / batch_size),
+                            validation_data=dp.generateTrainSetFromFile(X_val_path, origin_data_current_col_val, batch_size, debug), validation_steps=math.ceil(length_validation / batch_size_validation),
+                            batch_size=batch_size, epochs=epoch, verbose=2)
+
+        # 预测验证集
+        y_val_pred = model.predict_generator(dp.generateXFromFile(X_val_path, length_validation, batch_size, debug), math.ceil(length_validation / batch_size_validation))
+        # print("y_validation_pred = ", y_validation_pred)
+        print("y_val_pred's length = ", len(y_val_pred))
+        print("y_validation's length = ", length_validation)
+
+        y_val_pred = np.argmax(y_val_pred, axis=1)
+
+        # 准确率：在所有预测为正的样本中，确实为正的比例
+        # 召回率：本身为正的样本中，被预测为正的比例
+        print("y_val = ", list(y_val))
+        print("y_val_pred = ", list(y_val_pred))
+        precision, recall, fscore, support = score(y_val, y_val_pred)
+        print("precision = ", precision)
+        print("recall = ", recall)
+        print("fscore = ", fscore)
+        print("support = ", support)
+
+        report = classification_report(y_val, y_val_pred, digits=4, output_dict=True)
+
+        print(report)
+
+        F1_score = f1_score(y_val_pred, y_val, average='macro')
+        # F1_score = f1_score(y_val_pred, val_y, average='weighted')
+
+        print('f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, y_val))
+
+        save_result_to_csv(report, F1_score, experiment_name)
+
+    print(">>>end of train_cnn_model function in featureFusion.py。。。")
+
+    return result
+
+
+# 训练模型,origin_data中包含多个属性的标签
+def trainModel(experiment_name, model, x, embeddings_path, y, y_cols, ratio_style, epoch=5, batch_size=64, debug=False):
+    print(">>>勿扰！训练模型ing...")
+    print(">>>x's type = ", type(x))
+    print(">>>y's type = ", type(y))
+
+    F1_scores = 0
+    F1_score = 0
+    result = {}
+    # if debug:
+    #     y_cols = ['location']
+    for index, col in enumerate(y_cols):
+        experiment_name_aspect = experiment_name + "_" + col
+        origin_data_current_col = y[col] + 2
+        origin_data_current_col = np.array(origin_data_current_col)
+        # 生成测试集,比例为0.1,x为numpy类型，origin_data为dataFrame类型
+        ratio = 0.3
+        length = int(len(origin_data_current_col) * ratio)
+        print("测试集的长度为", length)
+        x_validation = x[:length]
+        x_train = x[length:]
+
+        y_validation = origin_data_current_col[:length]
+        y_train = origin_data_current_col[length:]
+        print("y_train = ", y_train)
+
+        print("origin_data_current.shape = ", origin_data_current_col.shape)
+        print("origin_data_current_col = ", origin_data_current_col)
+
+        print(">>>x_train.shape = ", x_train.shape)
+        print(">>>x_validation.shape = ", x_validation.shape)
+
+        # y_train_onehot = to_categorical(y_train)
+        y_validation_onehot = to_categorical(y_validation)
+
+        print(">>>y_train.shape = ", y_train.shape)
+        print(">>>y_validation.shape = ", y_validation.shape)
+
+        history = model.fit(dp.generateTrainSet(x_train, y_train, batch_size), validation_data=(x_validation, y_validation_onehot), epochs=epoch, verbose=2)
+
+        # 预测验证集
+        y_validation_pred = model.predict(x_validation)
+        y_validation_pred = np.argmax(y_validation_pred, axis=1)
+
+        # 准确率：在所有预测为正的样本中，确实为正的比例
+        # 召回率：本身为正的样本中，被预测为正的比例
+        print("y_val_pred = ", list(y_validation_pred))
+        precision, recall, fscore, support = score(y_validation, y_validation_pred)
+        print("precision = ", precision)
+        print("recall = ", recall)
+        print("fscore = ", fscore)
+        print("support = ", support)
+
+        report = classification_report(y_validation, y_validation_pred, digits=4, output_dict=True)
+        print(report)
+
+        F1_score = f1_score(y_validation_pred, y_validation, average='macro')
+        F1_scores += F1_score
+        print('第', index, '个细粒度', col, 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_validation_pred, y_validation))
+        print("%Y-%m%d %H:%M:%S", time.localtime())
+
+        # 保存当前属性的结果,整体的结果根据所有属性的结果来计算
+        save_result_to_csv(report, F1_score, experiment_name_aspect)
+
+    print('all F1_score:', F1_scores/len(y_cols))
+
+    print(">>>end of trainModel function...in absa_models...")
+
+
+# 把结果保存到csv
+# report是classification_report生成的字典结果
+def save_result_to_csv(report, f1_score, experiment_id):
+    accuracy = report.get("accuracy")
+
+    macro_avg = report.get("macro avg")
+    macro_precision = macro_avg.get("precision")
+    macro_recall = macro_avg.get("recall")
+    macro_f1 = macro_avg.get('f1-score')
+
+    weighted_avg = report.get("weighted avg")
+    weighted_precision = weighted_avg.get("precision")
+    weighted_recall = weighted_avg.get("recall")
+    weighted_f1 = weighted_avg.get('f1-score')
+    data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
+
+    with codecs.open("result/result_absa.csv", "a", "utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(data)
+        f.close()
 

@@ -249,33 +249,66 @@ def createMLPModel(maxlen, embedding_dim, debug=False):
 
 
 # 训练模型，直接从文件中读取词向量
-# 先取前0.3的比例为验证集，使用y来统计长度
-def trainModelFromFile(experiment_name, model, X_path, y, y_cols, X_validation_path, y_validation, epoch=3, batch_size=128, debug=False):
+def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_path, y_val, epoch=3, batch_size=128, debug=False):
     print("勿扰！训练模型ing。。。in trainModelFromFile。。。")
     if len(X_path.strip()) > 0:
         print("从文件中直接读取词向量。。。")
 
     length = len(y)
+    length_validation = len(y_val)
     print(">>>y's length = ", length)
-    # y_cols = ["service"]
-    length_validation = length
-    # length_validation = len(y_validation)
+    # if debug:
+    #     y_cols_name = ["service"]
     batch_size_validation = batch_size
 
     F1_scores = 0
     F1_score = 0
-    result = {}
 
-    for index, col in enumerate(y_cols):
-        experiment_name_aspect = experiment_name + "_" + col
+    for index, col in enumerate(y_cols_name):
+        # print("y = ", y)
         origin_data_current_col = y[col] + 2
         origin_data_current_col = np.array(origin_data_current_col)
 
-        # history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug), steps_per_epoch=math.ceil(length / batch_size), batch_size=batch_size, epochs=epoch)
-        # history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug), steps_per_epoch=math.ceil(length / batch_size), batch_size=batch_size, epochs=epoch, verbose=2)
+        # print("y_val = ", y_val)
+        origin_data_current_col_val = y_val[col] + 2
+        origin_data_current_col_val = np.array(origin_data_current_col_val)
+        # print(y_val)
+
         history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug), steps_per_epoch=math.ceil(length / batch_size),
-                            validation_data=dp.generateTrainSetFromFile(X_validation_path, origin_data_current_col, batch_size, debug), validation_steps=math.ceil(length_validation / batch_size_validation),
+                            validation_data=dp.generateTrainSetFromFile(X_val_path, origin_data_current_col_val, batch_size, debug), validation_steps=math.ceil(length_validation / batch_size_validation),
                             batch_size=batch_size, epochs=epoch, verbose=2)
+
+        # 预测验证集
+        y_val_pred = model.predict(dp.generateXFromFile(X_val_path, length_validation, batch_size, debug), steps=math.ceil(length_validation / batch_size_validation))
+        print("y_val_pred's length = ", len(y_val_pred))
+        print("y_validation's length = ", length_validation)
+
+        y_val_pred = np.argmax(y_val_pred, axis=1)
+
+        # 准确率：在所有预测为正的样本中，确实为正的比例
+        # 召回率：本身为正的样本中，被预测为正的比例
+        print("y_val = ", list(origin_data_current_col_val))
+        print("y_val_pred = ", list(y_val_pred))
+        precision, recall, fscore, support = score(origin_data_current_col_val, y_val_pred)
+        print("precision = ", precision)
+        print("recall = ", recall)
+        print("fscore = ", fscore)
+        print("support = ", support)
+
+        report = classification_report(origin_data_current_col_val, y_val_pred, digits=4, output_dict=True)
+        print(report)
+
+        F1_score = f1_score(y_val_pred, origin_data_current_col_val, average='macro')
+        F1_scores += F1_score
+        print('第', index, '个细粒度', col, 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, origin_data_current_col_val))
+        print("%Y-%m%d %H:%M:%S", time.localtime())
+
+        # 保存当前属性的结果,整体的结果根据所有属性的结果来计算
+        save_result_to_csv(report, F1_score, experiment_name)
+
+    print('all F1_score:', F1_scores / len(y_cols_name))
+
+    print(">>>end of train_cnn_model function in featureFusion.py。。。")
 
 
 # 训练模型,origin_data中包含多个属性的标签
@@ -302,15 +335,10 @@ def trainModel(experiment_name, model, x, embeddings_path, y, y_cols, ratio_styl
 
         y_validation = origin_data_current_col[:length]
         y_train = origin_data_current_col[length:]
-        # print("y_train = ", y_train)
+        print("y_train = ", y_train)
 
-        # print("x = ", x)
-        # print("origin_data_current.shape = ", origin_data_current_col.shape)
-        # print("origin_data_current_col = ", origin_data_current_col)
-        # print("origin_data = ", origin_data[col])
-        # print("origin_data[content] = ", origin_data["content"])
-        # if ratio_style:
-        #     x_train, x_validation, y_train, y_validation = train_test_split(x_current, origin_data_current_col, test_size=0.3)
+        print("origin_data_current.shape = ", origin_data_current_col.shape)
+        print("origin_data_current_col = ", origin_data_current_col)
 
         print(">>>x_train.shape = ", x_train.shape)
         print(">>>x_validation.shape = ", x_validation.shape)
@@ -327,13 +355,6 @@ def trainModel(experiment_name, model, x, embeddings_path, y, y_cols, ratio_styl
         y_validation_pred = model.predict(x_validation)
         y_validation_pred = np.argmax(y_validation_pred, axis=1)
 
-        # 预测并打印测试集
-        # y_test_pred = model.predict(x_test)
-        # y_test_pred = np.argmax(y_test_pred, axis=1)
-        # length_test = len(y_test)
-        # for i in range(length_test):
-        #     print(origin_data_content[i]+" : realLabel-", y_test[i], ",predictedLabel-", y_test_pred[i])
-
         # 准确率：在所有预测为正的样本中，确实为正的比例
         # 召回率：本身为正的样本中，被预测为正的比例
         print("y_val_pred = ", list(y_validation_pred))
@@ -348,17 +369,15 @@ def trainModel(experiment_name, model, x, embeddings_path, y, y_cols, ratio_styl
 
         F1_score = f1_score(y_validation_pred, y_validation, average='macro')
         F1_scores += F1_score
+        print('第', index, '个细粒度', col, 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_validation_pred, y_validation))
+        print("%Y-%m%d %H:%M:%S", time.localtime())
 
         # 保存当前属性的结果,整体的结果根据所有属性的结果来计算
         save_result_to_csv(report, F1_score, experiment_name_aspect)
 
-        print('第', index, '个细粒度', col, 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_validation_pred, y_validation))
-        print("%Y-%m%d %H:%M:%S", time.localtime())
+    print('all F1_score:', F1_scores / len(y_cols))
 
-    print('all F1_score:', F1_scores/len(y_cols))
-    print("result:", result)
-
-    return result
+    print(">>>end of trainModel function...in absa_models...")
 
 
 # 把结果保存到csv
@@ -377,7 +396,7 @@ def save_result_to_csv(report, f1_score, experiment_id):
     weighted_f1 = weighted_avg.get('f1-score')
     data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
 
-    with codecs.open("result/result.csv", "a", "utf-8") as f:
+    with codecs.open("result/result_absa.csv", "a", "utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(data)
         f.close()
