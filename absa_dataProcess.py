@@ -313,9 +313,9 @@ def getClusterCenters(sentence_embeddings, cluster_centers_path):
 def getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, debug):
     # 从情感词典中读取情感词，分三类
     negative_words, neutral_words, positive_words = getSentimentWords(sentiment_words_path, debug)
-    print("negative_words = ", negative_words)
-    print("neutral_words = ", neutral_words)
-    print("positive_words = ", positive_words)
+    # print("negative_words = ", negative_words)
+    # print("neutral_words = ", neutral_words)
+    # print("positive_words = ", positive_words)
 
     # 从bert_model中读取词向量
     negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings = getSentimentWordsEmbeddings(negative_words, neutral_words, positive_words, bert_path, debug)
@@ -398,7 +398,7 @@ def calculateClusterCenters1(negative_words_embeddings, neutral_words_embeddings
     # print("clusters_centers_negative's centers:", clusters_centers_positive)
 
     clusters_centers = [clusters_centers_negative, clusters_centers_neutral, clusters_centers_positive]
-    print("clusters_centers = ", clusters_centers)
+    # print("clusters_centers = ", clusters_centers)
 
     # 将聚类中心点写入文件
     with codecs.open(cluster_centers_path, "w", "utf-8") as f:

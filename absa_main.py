@@ -95,7 +95,7 @@ import absa_config as config
 import absa_models as absa_models
 
 # 如果DEBUG为True，则只测试少部分数据
-DEBUG = True
+DEBUG = False
 
 # 句子的最大长度
 MAXLEN = 512
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     print("》》》【1】读取原始训练数据集,去掉换行符、空格（测试）*******************************************************************************************************************************************************")
     # origin_data, y_cols, y = dp.initData(DEBUG, CLEAN_ENTER, CLEAN_SPACE)
     # 1.1 读取原始训练数据集的labels
-    y_cols_name, y_train, y_validation = dp.initDataLabels(DEBUG)
+    # y_cols_name, y_train, y_validation = dp.initDataLabels(DEBUG)
 
     # 把细粒度属性标签转为粗粒度属性标签
     # dp.processDataToTarget(origin_data)
@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
     # 2.加载bert模型bert_model
     print("》》》【2】加载bert模型**************************************************************************************************************************************************************************************")
-    bert_model, tokenizer, token_dict = dp.createBertEmbeddingModel()
+    # bert_model, tokenizer, token_dict = dp.createBertEmbeddingModel()
 
     if DEBUG:
         cluster_centers_path = config.cluster_center_validation_1
@@ -157,11 +157,11 @@ if __name__ == "__main__":
     # print("cluster_centers' length = ", len(cluster_centers))
 
     # 4.从bert_model获取情感词向量sentiment_word_embeddings
-    # sentiment_words_path = config.sentiment_dictionary_dut
-    # bert_path = config.bert_path
-    # cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, DEBUG)
+    sentiment_words_path = config.sentiment_dictionary_dut
+    bert_path = config.bert_path
+    cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, DEBUG)
     # 4.1 直接从文件中读取聚类中心向量
-    cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
+    # cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
     print("cluster_centers' length = ", len(cluster_centers))
 
     # 5.计算每条评论的特征向量（字符级向量）到不同聚类中心的隶属值 distance_from_feature_to_cluster
@@ -209,7 +209,7 @@ if __name__ == "__main__":
     print("》》》【9】训练模型******************************************************************************************************************************************************************************************")
     X_train_path = config.final_word_embeddings_train
     X_validation_path = config.final_word_embeddings_validation
-    absa_models.trainModelFromFile(name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, debug=DEBUG)
+    # absa_models.trainModelFromFile(name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, debug=DEBUG)
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))
