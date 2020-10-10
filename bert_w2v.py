@@ -47,11 +47,14 @@ print("")
 # print("embeddings = ", embeddings)
 print("embeddings' length = ", len(embeddings))
 
-print("embeddings_0 = ", embeddings[0][0])
-print("embeddings_1 = ", embeddings[1][0])
-
 print("embeddings_0' length = ", len(embeddings[0][0]))
 print("embeddings_1' length = ", len(embeddings[1][0]))
+
+print("embeddings_0' type = ", type(embeddings[0][0]))
+print("embeddings_0.shape = ", embeddings[0][0].shape)
+
+print("embeddings_0 = ", list(embeddings[0][0]))
+print("embeddings_1 = ", embeddings[1][0])
 
 print(">>>end of bert_w2v...")
 

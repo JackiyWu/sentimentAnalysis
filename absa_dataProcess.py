@@ -311,6 +311,7 @@ def getClusterCenters(sentence_embeddings, cluster_centers_path):
 
 # 从bert_model读取情感词向量，然后计算得到聚类中心
 def getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, debug):
+    print(">>>从bert_model读取情感词向量，然后计算得到聚类中心...")
     # 从情感词典中读取情感词，分三类
     negative_words, neutral_words, positive_words = getSentimentWords(sentiment_words_path, debug)
     # print("negative_words = ", negative_words)
@@ -332,6 +333,7 @@ def getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, d
 
 # 读取情感词
 def getSentimentWords(path, debug=False):
+    print(">>>获取情感词ing...")
     negative_words, neutral_words, positive_words = [], [], []
 
     wb = xlrd.open_workbook(path)
@@ -357,6 +359,7 @@ def getSentimentWords(path, debug=False):
 
 # 从bert_model中读取词向量
 def getSentimentWordsEmbeddings(negative_words, neutral_words, positive_words, bert_path, debug):
+    print(">>>从bert_model中读取词向量...")
     negative_words_embeddings = getSentimentWordsEmbeddingsByList(negative_words, bert_path, debug)
     neutral_words_embeddings = getSentimentWordsEmbeddingsByList(neutral_words, bert_path, debug)
     positive_words_embeddings = getSentimentWordsEmbeddingsByList(positive_words, bert_path, debug)
@@ -372,6 +375,7 @@ def getSentimentWordsEmbeddingsByList(texts, bert_path, debug=False):
         # test
         if debug:
             CLS = embedding[0][:5]
+            print("CLS = ", CLS)
         else:
             CLS = embedding[0]
         final_embeddings.append(CLS)
@@ -385,7 +389,8 @@ def calculateClusterCenters1(negative_words_embeddings, neutral_words_embeddings
     kMeans_model_negative = trainKMeansModel(negative_words_embeddings, 1)
     # 查看预测样本的中心点
     clusters_centers_negative = kMeans_model_negative.cluster_centers_
-    # print("clusters_centers_negative's centers:", clusters_centers_negative)
+    # print("clusters_centers_negative's centers:", list(clusters_centers_negative[0]))
+    # print("clusters_centers_negative's type:", type(clusters_centers_negative[0]))
 
     kMeans_model_neutral = trainKMeansModel(neutral_words_embeddings, 1)
     # 查看预测样本的中心点
@@ -397,7 +402,7 @@ def calculateClusterCenters1(negative_words_embeddings, neutral_words_embeddings
     clusters_centers_positive = kMeans_model_positive.cluster_centers_
     # print("clusters_centers_negative's centers:", clusters_centers_positive)
 
-    clusters_centers = [clusters_centers_negative, clusters_centers_neutral, clusters_centers_positive]
+    clusters_centers = np.array([list(clusters_centers_negative[0]), list(clusters_centers_neutral[0]), list(clusters_centers_positive[0])])
     # print("clusters_centers = ", clusters_centers)
 
     # 将聚类中心点写入文件
