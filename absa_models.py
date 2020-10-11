@@ -33,11 +33,6 @@ import absa_dataProcess as dp
 TOKEN_DICT = {}
 
 
-# 创建bert+fc模型
-def createBertFcModel():
-    pass
-
-
 # 创建bert模型
 def createBertEmbeddingModel():
     with codecs.open(config.bert_dict_path, 'r', 'utf8') as reader:
@@ -75,15 +70,15 @@ def createCNNModel(maxlen, embedding_dim, debug=False):
 
 
 # GRU模型
-def createGRUModel(maxlen, embedding_dim, debug=False):
+def createGRUModel(maxlen, embedding_dim, dim_1, dim_2, debug=False):
     if debug:
         embedding_dim = 8
-    print("开始构建CNN模型。。。")
+    print("开始构建GRU模型。。。")
     tensor_input = Input(shape=(maxlen, embedding_dim))
 
-    bi_gru1 = Bidirectional(GRU(64, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(tensor_input)
+    bi_gru1 = Bidirectional(GRU(dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(tensor_input)
     bi_gru1 = BatchNormalization()(bi_gru1)
-    bi_gru2 = Bidirectional(GRU(32, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
     bi_gru2 = BatchNormalization()(bi_gru2)
 
     flatten = Flatten()(bi_gru2)
@@ -101,14 +96,14 @@ def createGRUModel(maxlen, embedding_dim, debug=False):
 
 
 # LSTM
-def createLSTMModel(maxlen, embedding_dim, debug=False):
+def createLSTMModel(maxlen, embedding_dim, dim1, dim2, debug=False):
     if debug:
         embedding_dim = 8
-    print("开始构建CNN模型。。。")
+    print("开始构建LSTM模型。。。")
     tensor_input = Input(shape=(maxlen, embedding_dim))
 
-    lstm = Bidirectional(LSTM(64, return_sequences=True, name='lstm1'))(tensor_input)
-    lstm = Bidirectional(LSTM(32, return_sequences=False, name='lstm2'))(lstm)
+    lstm = Bidirectional(LSTM(dim1, return_sequences=True, name='lstm1'))(tensor_input)
+    lstm = Bidirectional(LSTM(dim2, return_sequences=False, name='lstm2'))(lstm)
 
     x = Dense(64, activation='relu', name='dense_1')(lstm)
     x = Dropout(0.4, name='dropout')(x)
@@ -126,7 +121,7 @@ def createLSTMModel(maxlen, embedding_dim, debug=False):
 def createSeparableCNNModel(maxlen, embedding_dim, debug=False):
     if debug:
         embedding_dim = 8
-    # print(">>>开始构建TextCNN模型。。。")
+    print(">>>开始构建SeparableCNN模型。。。")
     tensor_input = Input(shape=(maxlen, embedding_dim))
     cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(tensor_input)
     cnn1 = BatchNormalization()(cnn1)
@@ -156,21 +151,21 @@ def createSeparableCNNModel(maxlen, embedding_dim, debug=False):
 
 
 # 构建单层CNN+BiGRU
-def createCNNBiGRUModel(maxlen, embedding_dim, debug=False):
+def createCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size, gru_output_dim_1, gru_output_dim_2, debug=False):
     if debug:
         embedding_dim = 8
-    print("开始构建CNN模型。。。")
+    print("开始构建CNNBiGRU模型。。。")
     tensor_input = Input(shape=(maxlen, embedding_dim))
-    cnn = Conv1D(64, 4, padding='same', strides=1, activation='relu', name='conv')(tensor_input)
+    cnn = Conv1D(cnn_filter, cnn_window_size, padding='same', strides=1, activation='relu', name='conv')(tensor_input)
     cnn = BatchNormalization()(cnn)
     cnn = MaxPool1D(name='max_pool')(cnn)
 
     dropout = Dropout(0.2)(cnn)
     # flatten = Flatten()(dropout)
 
-    bi_gru1 = Bidirectional(GRU(128, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
+    bi_gru1 = Bidirectional(GRU(gru_output_dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
     bi_gru1 = BatchNormalization()(bi_gru1)
-    bi_gru2 = Bidirectional(GRU(256, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(gru_output_dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
     bi_gru2 = BatchNormalization()(bi_gru2)
 
     flatten = Flatten()(bi_gru2)
@@ -188,10 +183,10 @@ def createCNNBiGRUModel(maxlen, embedding_dim, debug=False):
 
 
 # 构建模型CNN+BiGRU
-def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
+def createSeparableCNNBiGRUModel(maxlen, embedding_dim, debug=False):
     if debug:
         embedding_dim = 8
-    # print(">>>开始构建TextCNNBiGRUModel模型。。。")
+    print(">>>开始构建SeparableCNNBiGRU模型。。。")
     tensor_input = Input(shape=(maxlen, embedding_dim))
     cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_0")(tensor_input)
     cnn1 = BatchNormalization()(cnn1)
@@ -229,13 +224,13 @@ def createTextCNNBiGRUModel(maxlen, embedding_dim, debug=False):
 
 
 # MLP
-def createMLPModel(maxlen, embedding_dim, debug=False):
+def createMLPModel(maxlen, embedding_dim, dense_dim, debug=False):
     if debug:
         embedding_dim = 8
-    # print(">>>开始构建TextCNNBiGRUModel模型。。。")
+    print(">>>开始构建MLP模型。。。")
     tensor_input = Input(shape=(maxlen, embedding_dim))
     flatten = Flatten()(tensor_input)
-    dense = Dense(512, activation='relu')(flatten)
+    dense = Dense(dense_dim, activation='relu')(flatten)
     dropout = Dropout(0.4)(dense)
     tensor_output = Dense(4, activation='softmax')(dropout)
 

@@ -104,6 +104,11 @@ MAXLEN = 512
 CLEAN_ENTER = True
 CLEAN_SPACE = False
 
+# 向量维度
+EMBEDDING_DIM_CHARACTER = 768
+EMBEDDING_DIM_MEMBERSHIP = 3
+EMBEDDING_DIM_FINAL = 771
+
 
 if __name__ == "__main__":
     start_time = time.time()
@@ -187,29 +192,56 @@ if __name__ == "__main__":
     print("》》》【8】构建深度学习模型**********************************************************************************************************************************************************************************")
     # bert词向量的维度是768，增加不同类别的隶属度三个维度，一共771维
     model_name = "MLP"
-    if model_name == "CNN":
-        model = absa_models.createCNNModel(512, 771, DEBUG)
-    elif model_name == "SeparableCNN":
-        model = absa_models.createSeparableCNNModel(512, 771, DEBUG)
-    elif model_name == "GRU":
-        model = absa_models.createGRUModel(512, 771, DEBUG)
-    elif model_name == "TextCNNBiGRU":
-        model = absa_models.createTextCNNBiGRUModel(512, 771, DEBUG)
-    elif model_name == "LSTM":
-        model = absa_models.createLSTMModel(512, 771, DEBUG)
-    elif model_name == "MLP":
-        model = absa_models.createMLPModel(512, 771, DEBUG)
-    elif model_name == "CNNBiGRU":
-        model = absa_models.createCNNBiGRUModel(512, 771, DEBUG)
+    epochs = []
+    batch_sizes = []
+
+    for epoch in epochs:
+        for batch_size in batch_sizes:
+            experiment_name = "epoch_" + epoch + "_batch_size_" + batch_size
+            if model_name == "CNN":
+                model = absa_models.createCNNModel(MAXLEN, EMBEDDING_DIM_FINAL, DEBUG)
+            elif model_name == "SeparableCNN":
+                model = absa_models.createSeparableCNNModel(MAXLEN, EMBEDDING_DIM_FINAL, DEBUG)
+            elif model_name == "GRU":
+                gru_output_dim_1 = [64]
+                gru_output_dim_2 = [32]
+                for dim_1 in gru_output_dim_1:
+                    for dim_2 in gru_output_dim_2:
+                        experiment_name += "_gru_dim1_" + dim_1 + "_gru_dim2_" + dim_2
+                model = absa_models.createGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, dim_1, dim_2, DEBUG)
+            elif model_name == "SeparableCNNBiGRU":
+                model = absa_models.createSeparableCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, DEBUG)
+            elif model_name == "LSTM":
+                dims_1 = [64]
+                dims_2 = [32]
+                for dim_1 in dims_1:
+                    for dim_2 in dims_2:
+                        experiment_name += "_dim1_" + dim_1 + "_dim2_" + dim_2
+                        model = absa_models.createLSTMModel(MAXLEN, EMBEDDING_DIM_FINAL, dim_1, dim_2, DEBUG)
+            elif model_name == "MLP":
+                dense_dims = [512, 256]
+                for dim in dense_dims:
+                    experiment_name += "_dim_" + dim
+                    model = absa_models.createMLPModel(MAXLEN, EMBEDDING_DIM_FINAL, dim, DEBUG)
+            elif model_name == "CNNBiGRU":
+                filters = []
+                window_sizes = []
+                gru_output_dim_1 = [512, 256]
+                gru_output_dim_2 = [256]
+                for cnn_filter in filters:
+                    for window_size in window_sizes:
+                        for dim_1 in gru_output_dim_1:
+                            for dim_2 in gru_output_dim_2:
+                                experiment_name += "_filter_" + cnn_filter + "_window_size_" + window_size + "_gru_dim1_" + dim_1 + "_gru_dim2_" + dim_2
+                                model = absa_models.createCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size, dim_1, dim_2, DEBUG)
 
     # ?.设置循环跑任务
-    experiment_name = model_name
 
     # 9.训练模型
     print("》》》【9】训练模型******************************************************************************************************************************************************************************************")
     X_train_path = config.final_word_embeddings_train
     X_validation_path = config.final_word_embeddings_validation
-    absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, debug=DEBUG)
+    # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, debug=DEBUG)
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))
