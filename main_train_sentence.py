@@ -209,7 +209,7 @@ if __name__ == "__main__":
                                                "_balanced_" + str(balanced) + "_full_connected_" + str(full_connected)
                                         print("name = ", name)
 
-                                        model_name = "fusion_financial"
+                                        model_name = "fusion_medical"
                                         if model_name.startswith("fusion"):
                                             fusion_model = ff_s.create_fusion_model(fuzzy_maxlen, maxlen, dict_length,
                                                                                     filter, embedding_matrix, window_size,

@@ -96,9 +96,9 @@ def initData3(debug=False):
 
     # data1 = data.loc[data['type'] == str("物流快递")]
     # data1 = data.loc[data['type'] == str("食品餐饮")]
-    data1 = data.loc[data['type'] == str("金融服务")]
+    # data1 = data.loc[data['type'] == str("金融服务")]
     # data1 = data.loc[data['type'] == str("旅游住宿")]
-    # data1 = data.loc[data['type'] == str("医疗服务")]
+    data1 = data.loc[data['type'] == str("医疗服务")]
     # data2 = data.loc[data['type'] != str("物流快递")]
     # data2 = data2.loc[data['label'] == 1]
     # print("data1 = ", data1)
