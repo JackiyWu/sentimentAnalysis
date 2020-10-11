@@ -80,7 +80,7 @@ def create_fusion_model(fuzzy_maxlen, cnn_maxlen, dict_length, filter, embedding
 # 训练模型
 # def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, test_x, val_x_fuzzy, val_x, y_cols, class_weights, epoch, debug=False, folds=1):
 def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, test_x, val_x_fuzzy, val_x, y_cols, epoch,
-                experiment_id, batch_size, learning_rate, balanced, debug=False, folds=1):
+                experiment_id, batch_size, learning_rate, balanced, model_name, debug=False, folds=1):
     print(">>>in train_model function...")
 
     experiment_id = "fusion_model_" + experiment_id
@@ -160,7 +160,7 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
 
     print(set(train["type"]), 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
 
-    save_result_to_csv(report, F1_score, experiment_id)
+    save_result_to_csv(report, F1_score, experiment_id, model_name)
 
     print("%Y-%m-%d %H:%M:%S", time.localtime())
 
@@ -171,7 +171,7 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
 
 # 把结果保存到csv
 # report是classification_report生成的字典结果
-def save_result_to_csv(report, f1_score, experiment_id):
+def save_result_to_csv(report, f1_score, experiment_id, model_name):
     accuracy = report.get("accuracy")
 
     macro_avg = report.get("macro avg")
@@ -185,7 +185,8 @@ def save_result_to_csv(report, f1_score, experiment_id):
     weighted_f1 = weighted_avg.get('f1-score')
     data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
 
-    with codecs.open("result/result_sentence_cnn.csv", "a", "utf-8") as f:
+    path = "result/result_sentence_" + model_name + ".csv"
+    with codecs.open(path, "a", "utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(data)
         f.close()
@@ -216,7 +217,7 @@ def create_cnn_model(cnn_maxlen, dict_length, filter, embedding_matrix, window_s
 
 # train cnn
 def train_cnn_model(model, train, val, train_x, test_x, val_x, epoch,
-                    experiment_id, batch_size, learning_rate, debug=False, folds=1):
+                    experiment_id, batch_size, learning_rate, model_name, debug=False, folds=1):
     print(">>>in train_cnn_model function。。。")
 
     experiment_id = "cnn_model_" + experiment_id
@@ -279,7 +280,7 @@ def train_cnn_model(model, train, val, train_x, test_x, val_x, epoch,
     print('f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
     y_test_pred = np.argmax(y_test_pred, axis=1)
 
-    save_result_to_csv(report, F1_score, experiment_id)
+    save_result_to_csv(report, F1_score, experiment_id, model_name)
 
     print(">>>end of train_cnn_model function in featureFusion.py。。。")
 
