@@ -95,8 +95,8 @@ def initData3(debug=False):
     # 将data2的中性语料加入到data1中,0-负向，1-中性，2-正向
 
     # data1 = data.loc[data['type'] == str("物流快递")]
-    data1 = data.loc[data['type'] == str("食品餐饮")]
-    # data1 = data.loc[data['type'] == str("金融服务")]
+    # data1 = data.loc[data['type'] == str("食品餐饮")]
+    data1 = data.loc[data['type'] == str("金融服务")]
     # data1 = data.loc[data['type'] == str("旅游住宿")]
     # data1 = data.loc[data['type'] == str("医疗服务")]
     # data2 = data.loc[data['type'] != str("物流快递")]
