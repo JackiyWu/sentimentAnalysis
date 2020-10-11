@@ -99,12 +99,12 @@ def initData3(debug=False):
     # data1 = data.loc[data['type'] == str("金融服务")]
     # data1 = data.loc[data['type'] == str("旅游住宿")]
     data1 = data.loc[data['type'] == str("医疗服务")]
-    data2 = data.loc[data['type'] == str("食品餐饮")]
+    # data2 = data.loc[data['type'] == str("食品餐饮")]
     # data2 = data2.loc[data['label'] == 1]
     # print("data1 = ", data1)
     # print("data2 = ", data2)
     # data = pd.concat([data1, data2])
-    # data = data1
+    data = data1
     # print("data = ", data)
 
     data = shuffle(data)
