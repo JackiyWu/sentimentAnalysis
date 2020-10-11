@@ -164,9 +164,9 @@ if __name__ == "__main__":
     # 4.从bert_model获取情感词向量sentiment_word_embeddings
     sentiment_words_path = config.sentiment_dictionary_dut
     bert_path = config.bert_path
-    cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, DEBUG)
+    # cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, DEBUG)
     # 4.1 直接从文件中读取聚类中心向量
-    # cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
+    cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
     print("cluster_centers' length = ", len(cluster_centers))
 
     # 5.计算每条评论的特征向量（字符级向量）到不同聚类中心的隶属值 distance_from_feature_to_cluster
@@ -174,7 +174,7 @@ if __name__ == "__main__":
     # 6.使用cosin余弦距离来定义隶属函数,根据distance_from_feature_to_cluster和隶属函数计算特征向量对三个类别的隶属值review_sentiment_membership_degree([])（三维隶属值，表示负向、中性、正向）
     # review_sentiment_membership_degree = dp.calculateMembershipDegree(cluster_centers, character_embeddings)
     # 计算并保存评论文本的隶属度
-    # review_sentiment_membership_degree = dp.calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_path, membership_degree_path, DEBUG)
+    review_sentiment_membership_degree = dp.calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_path, membership_degree_path, DEBUG)
     # 直接读取评论文本的隶属度
     # review_sentiment_membership_degree = dp.getMembershipDegrees(membership_degree_path)
 
@@ -191,7 +191,7 @@ if __name__ == "__main__":
     # 8.构建CNN模型
     print("》》》【8】构建深度学习模型**********************************************************************************************************************************************************************************")
     # bert词向量的维度是768，增加不同类别的隶属度三个维度，一共771维
-    model_name = "MLP"
+    model_name = ""
     epochs = []
     batch_sizes = []
 

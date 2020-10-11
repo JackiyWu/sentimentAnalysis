@@ -476,7 +476,7 @@ def calculateMembershipDegree(cluster_centers, character_embeddings):
 # 计算评论中的字向量与聚类中心的隶属度（余弦距离），并存入文件
 # character_embeddings太大，所以需要一边读 一边计算隶属度 然后保存
 # cluster_centers_path直接读进内存
-# 每500条评论就写入一次文件
+# 每3500条评论就写入一次文件
 def calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_train_path, membership_degree_train_path, debug=False):
     i = 1
 
@@ -491,7 +491,7 @@ def calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_train
         cache.append(sentence_membership_degree)
 
         # if i % 5000 == 0:
-        if i % 500 == 0:  # 测试
+        if i % 3500 == 0:  # 测试
             # 写入文件
             writeToFile(cache, membership_degree_train_path)
             cache = []
@@ -606,7 +606,7 @@ def saveFinalEmbeddingLittleByLittle(membership_degrees, embeddings_path, save_p
         cache.append(line)
         membership_degree_cache.append(membership_degrees[i])
 
-        if i % 300 == 0:
+        if i % 1000 == 0:
             # 写入文件
             concatenateVector(cache, membership_degree_cache, save_path, debug)
             cache = []
