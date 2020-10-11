@@ -203,13 +203,13 @@ if __name__ == "__main__":
         model = absa_models.createCNNBiGRUModel(512, 771, DEBUG)
 
     # ?.设置循环跑任务
-    name = model_name
+    experiment_name = model_name
 
     # 9.训练模型
     print("》》》【9】训练模型******************************************************************************************************************************************************************************************")
     X_train_path = config.final_word_embeddings_train
     X_validation_path = config.final_word_embeddings_validation
-    # absa_models.trainModelFromFile(name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, debug=DEBUG)
+    absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, debug=DEBUG)
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))

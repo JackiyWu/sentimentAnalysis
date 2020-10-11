@@ -249,7 +249,7 @@ def createMLPModel(maxlen, embedding_dim, debug=False):
 
 
 # 训练模型，直接从文件中读取词向量
-def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_path, y_val, epoch=3, batch_size=128, debug=False):
+def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_path, y_val, model_name, epoch=3, batch_size=128, debug=False):
     print("勿扰！训练模型ing。。。in trainModelFromFile。。。")
     if len(X_path.strip()) > 0:
         print("从文件中直接读取词向量。。。")
@@ -304,7 +304,7 @@ def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_pat
         print("%Y-%m%d %H:%M:%S", time.localtime())
 
         # 保存当前属性的结果,整体的结果根据所有属性的结果来计算
-        save_result_to_csv(report, F1_score, experiment_name)
+        save_result_to_csv(report, F1_score, experiment_name, model_name)
 
     print('all F1_score:', F1_scores / len(y_cols_name))
 
@@ -312,7 +312,7 @@ def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_pat
 
 
 # 训练模型,origin_data中包含多个属性的标签
-def trainModel(experiment_name, model, x, embeddings_path, y, y_cols, ratio_style, epoch=5, batch_size=64, debug=False):
+def trainModel(experiment_name, model, x, embeddings_path, y, y_cols, ratio_style, model_name, epoch=5, batch_size=64, debug=False):
     print(">>>勿扰！训练模型ing...")
     print(">>>x's type = ", type(x))
     print(">>>y's type = ", type(y))
@@ -373,7 +373,7 @@ def trainModel(experiment_name, model, x, embeddings_path, y, y_cols, ratio_styl
         print("%Y-%m%d %H:%M:%S", time.localtime())
 
         # 保存当前属性的结果,整体的结果根据所有属性的结果来计算
-        save_result_to_csv(report, F1_score, experiment_name_aspect)
+        save_result_to_csv(report, F1_score, experiment_name_aspect, model_name)
 
     print('all F1_score:', F1_scores / len(y_cols))
 
@@ -382,7 +382,7 @@ def trainModel(experiment_name, model, x, embeddings_path, y, y_cols, ratio_styl
 
 # 把结果保存到csv
 # report是classification_report生成的字典结果
-def save_result_to_csv(report, f1_score, experiment_id):
+def save_result_to_csv(report, f1_score, experiment_id, model_name):
     accuracy = report.get("accuracy")
 
     macro_avg = report.get("macro avg")
@@ -396,7 +396,8 @@ def save_result_to_csv(report, f1_score, experiment_id):
     weighted_f1 = weighted_avg.get('f1-score')
     data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
 
-    with codecs.open("result/result_absa.csv", "a", "utf-8") as f:
+    path = "result/result_absa_" + model_name + ".csv"
+    with codecs.open(path, "a", "utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(data)
         f.close()
