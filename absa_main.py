@@ -140,7 +140,6 @@ if __name__ == "__main__":
         character_embeddings_path = config.character_embeddings_validation
         sentence_embeddings_path = config.sentence_embeddings_validation
         membership_degree_path = config.membership_degree_validation
-        final_word_embeddings_path = config.final_word_embeddings_validation
         X_train_path = config.final_word_embeddings_validation
     else:
         cluster_centers_path = config.cluster_center_train_1
@@ -149,6 +148,8 @@ if __name__ == "__main__":
         final_word_embeddings_path = config.final_word_embeddings_train
         X_train_path = config.final_word_embeddings_train
 
+    character_embeddings_path = config.character_embeddings_validation
+    final_word_embeddings_path = config.final_word_embeddings_validation
     # 3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
     print("》》》【3】正在从bert模型获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings(此处比较耗时间注意哦~）****************************************************************************")
     # character_embeddings, sentence_embeddings = dp.getBertEmbeddings(bert_model, tokenizer, origin_data, MAXLEN, DEBUG)
@@ -174,9 +175,9 @@ if __name__ == "__main__":
     # 6.使用cosin余弦距离来定义隶属函数,根据distance_from_feature_to_cluster和隶属函数计算特征向量对三个类别的隶属值review_sentiment_membership_degree([])（三维隶属值，表示负向、中性、正向）
     # review_sentiment_membership_degree = dp.calculateMembershipDegree(cluster_centers, character_embeddings)
     # 计算并保存评论文本的隶属度
-    review_sentiment_membership_degree = dp.calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_path, membership_degree_path, DEBUG)
+    # review_sentiment_membership_degree = dp.calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_path, membership_degree_path, DEBUG)
     # 直接读取评论文本的隶属度
-    # review_sentiment_membership_degree = dp.getMembershipDegrees(membership_degree_path)
+    review_sentiment_membership_degree = dp.getMembershipDegrees(membership_degree_path)
 
     # 7.将review_sentiment_membership_degree拼接在character_embeddings后面生成最终的词向量final_word_embeddings
     print("》》》【7】将隶属值拼接在原词向量上生成最终的词向量**********************************************************************************************************************************************************")
@@ -185,7 +186,7 @@ if __name__ == "__main__":
     # 将final_word_embeddings存入文件
     # dp.saveFinalEmbeddings(final_word_embeddings, final_word_embeddings_path)
     # 训练集的数据太大，只能一边读取 一边拼接 一边存入文件
-    # dp.saveFinalEmbeddingLittleByLittle(review_sentiment_membership_degree, character_embeddings_path, final_word_embeddings_path, DEBUG)
+    dp.saveFinalEmbeddingLittleByLittle(review_sentiment_membership_degree, character_embeddings_path, final_word_embeddings_path, DEBUG)
     # final_word_embeddings = dp.getFinalEmbeddings(final_word_embeddings_path, DEBUG)
 
     # 8.构建CNN模型
