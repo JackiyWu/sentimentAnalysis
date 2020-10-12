@@ -168,7 +168,7 @@ if __name__ == "__main__":
     epochs = [10]
     # epochs = [200, 250, 300]
     # epochs = [5, 10, 20, 50, 100, 150, 200, 250, 300]
-    batch_sizes = [128]
+    batch_sizes = [256]
     # batch_sizes = [8, 16, 32, 128, 256]
     learning_rates = [0.001]
     # learning_rates = [0.5, 0.1, 0.05, 0.01, 0.005, 0.0005, 0.0001]
@@ -176,8 +176,8 @@ if __name__ == "__main__":
     # filters = [64, 8, 32, 256, 512]
     window_sizes = [6]
     # window_sizes = [1, 2, 4, 5, 6, 7, 8]
-    dropouts = [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.8]
-    # dropouts = [0.6]
+    # dropouts = [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.8]
+    dropouts = [0.6]
     full_connecteds = [256]
     balanceds = [True]
 
@@ -198,7 +198,7 @@ if __name__ == "__main__":
                         for dropout in dropouts:
                             for balanced in balanceds:
                                 for full_connected in full_connecteds:
-                                    for i in range(10):
+                                    for i in range(20):
                                         print("i = ", i)
                                         # if epoch == 10 and batch_size == 64 and learning_rate == 0.001 and filter == 64 and window_size == 3:
                                         #     if dropout not in (0.6, 0.7):
@@ -209,7 +209,7 @@ if __name__ == "__main__":
                                                "_balanced_" + str(balanced) + "_full_connected_" + str(full_connected)
                                         print("name = ", name)
 
-                                        model_name = "fusion_medical_dropout"
+                                        model_name = "cnn_new_logistics_restaurant_"
                                         if model_name.startswith("fusion"):
                                             fusion_model = ff_s.create_fusion_model(fuzzy_maxlen, maxlen, dict_length,
                                                                                     filter, embedding_matrix, window_size,
