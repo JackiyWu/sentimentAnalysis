@@ -165,7 +165,7 @@ if __name__ == "__main__":
 
     # 生成模型-编译
     # 定义cnn的filter
-    epochs = [1, 3, 10, 20, 50, 100]
+    epochs = [10]
     # epochs = [200, 250, 300]
     # epochs = [5, 10, 20, 50, 100, 150, 200, 250, 300]
     batch_sizes = [128]
@@ -176,8 +176,8 @@ if __name__ == "__main__":
     # filters = [64, 8, 32, 256, 512]
     window_sizes = [6]
     # window_sizes = [1, 2, 4, 5, 6, 7, 8]
-    # dropouts = [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.8]
-    dropouts = [0.6]
+    dropouts = [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.8]
+    # dropouts = [0.6]
     full_connecteds = [256]
     balanceds = [True]
 
@@ -209,7 +209,7 @@ if __name__ == "__main__":
                                                "_balanced_" + str(balanced) + "_full_connected_" + str(full_connected)
                                         print("name = ", name)
 
-                                        model_name = "fusion_medical_epoch"
+                                        model_name = "fusion_medical_dropout"
                                         if model_name.startswith("fusion"):
                                             fusion_model = ff_s.create_fusion_model(fuzzy_maxlen, maxlen, dict_length,
                                                                                     filter, embedding_matrix, window_size,
