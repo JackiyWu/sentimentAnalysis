@@ -119,7 +119,7 @@ if __name__ == "__main__":
     print("》》》【1】读取原始训练数据集,去掉换行符、空格（测试）*******************************************************************************************************************************************************")
     # origin_data, y_cols, y = dp.initData(DEBUG, CLEAN_ENTER, CLEAN_SPACE)
     # 1.1 读取原始训练数据集的labels
-    # y_cols_name, y_train, y_validation = dp.initDataLabels(DEBUG)
+    y_cols_name, y_train, y_validation = dp.initDataLabels(DEBUG)
 
     # 把细粒度属性标签转为粗粒度属性标签
     # dp.processDataToTarget(origin_data)
@@ -141,6 +141,7 @@ if __name__ == "__main__":
         sentence_embeddings_path = config.sentence_embeddings_validation
         membership_degree_path = config.membership_degree_validation
         X_train_path = config.final_word_embeddings_validation
+        final_word_embeddings_path = config.final_word_embeddings_validation
     else:
         cluster_centers_path = config.cluster_center_train_1
         character_embeddings_path = config.character_embeddings_train
@@ -148,8 +149,6 @@ if __name__ == "__main__":
         final_word_embeddings_path = config.final_word_embeddings_train
         X_train_path = config.final_word_embeddings_train
 
-    character_embeddings_path = config.character_embeddings_validation
-    final_word_embeddings_path = config.final_word_embeddings_validation
     # 3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
     print("》》》【3】正在从bert模型获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings(此处比较耗时间注意哦~）****************************************************************************")
     # character_embeddings, sentence_embeddings = dp.getBertEmbeddings(bert_model, tokenizer, origin_data, MAXLEN, DEBUG)
@@ -163,8 +162,8 @@ if __name__ == "__main__":
     # print("cluster_centers' length = ", len(cluster_centers))
 
     # 4.从bert_model获取情感词向量sentiment_word_embeddings
-    sentiment_words_path = config.sentiment_dictionary_dut
-    bert_path = config.bert_path
+    # sentiment_words_path = config.sentiment_dictionary_dut
+    # bert_path = config.bert_path
     # cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, DEBUG)
     # 4.1 直接从文件中读取聚类中心向量
     # cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
@@ -177,7 +176,7 @@ if __name__ == "__main__":
     # 计算并保存评论文本的隶属度
     # review_sentiment_membership_degree = dp.calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_path, membership_degree_path, DEBUG)
     # 直接读取评论文本的隶属度
-    review_sentiment_membership_degree = dp.getMembershipDegrees(membership_degree_path)
+    # review_sentiment_membership_degree = dp.getMembershipDegrees(membership_degree_path)
 
     # 7.将review_sentiment_membership_degree拼接在character_embeddings后面生成最终的词向量final_word_embeddings
     print("》》》【7】将隶属值拼接在原词向量上生成最终的词向量**********************************************************************************************************************************************************")
@@ -186,89 +185,131 @@ if __name__ == "__main__":
     # 将final_word_embeddings存入文件
     # dp.saveFinalEmbeddings(final_word_embeddings, final_word_embeddings_path)
     # 训练集的数据太大，只能一边读取 一边拼接 一边存入文件
-    dp.saveFinalEmbeddingLittleByLittle(review_sentiment_membership_degree, character_embeddings_path, final_word_embeddings_path, DEBUG)
+    # dp.saveFinalEmbeddingLittleByLittle(review_sentiment_membership_degree, character_embeddings_path, final_word_embeddings_path, DEBUG)
     # final_word_embeddings = dp.getFinalEmbeddings(final_word_embeddings_path, DEBUG)
 
     # 8.构建CNN模型
     print("》》》【8】构建深度学习模型**********************************************************************************************************************************************************************************")
     # bert词向量的维度是768，增加不同类别的隶属度三个维度，一共771维
-    model_name = ""
-    epochs = []
-    batch_sizes = []
 
-    for epoch in epochs:
-        for batch_size in batch_sizes:
-            experiment_name = "epoch_" + epoch + "_batch_size_" + batch_size
-            if model_name == "CNN":
-                model = absa_models.createCNNModel(MAXLEN, EMBEDDING_DIM_FINAL, DEBUG)
-            elif model_name == "SeparableCNN":
-                model = absa_models.createSeparableCNNModel(MAXLEN, EMBEDDING_DIM_FINAL, DEBUG)
-            elif model_name == "GRU":
-                gru_output_dim_1 = [64]
-                gru_output_dim_2 = [32]
-                for dim_1 in gru_output_dim_1:
-                    for dim_2 in gru_output_dim_2:
-                        experiment_name += "_gru_dim1_" + dim_1 + "_gru_dim2_" + dim_2
-                model = absa_models.createGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, dim_1, dim_2, DEBUG)
-            elif model_name == "SeparableCNNBiGRU":
-                filters = []
-                window_sizes_1 = [3, 4, 5]
-                window_sizes_2 = [4, 5, 6]
-                window_sizes_3 = [5, 6, 7]
-                gru_output_dim_1 = [64, 128, 256]
-                gru_output_dim_2 = [64]
-                for cnn_filter in filters:
-                    for window_size_1 in window_sizes_1:
-                        for window_size_2 in window_sizes_2:
-                            for window_size_3 in window_sizes_3:
-                                for dim_1 in gru_output_dim_1:
-                                    for dim_2 in gru_output_dim_2:
-                                        experiment_name += "_filter_" + cnn_filter + "_window_size1_" + window_size_1 + "_window_size2_" + window_size_2 + "_window_size3_" + window_size_3 + "_gru_dim1_" + dim_1 + "_gru_dim2_" + dim_2
-                                        model = absa_models.createSeparableCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size_1, window_size_2, window_size_3, DEBUG)
-            elif model_name == "multiCNNBiGRU":
-                filters = []
-                window_sizes_1 = [3, 4, 5]
-                window_sizes_2 = [4, 5, 6]
-                gru_output_dim_1 = [64, 128, 256]
-                gru_output_dim_2 = [64]
-                for cnn_filter in filters:
-                    for window_size_1 in window_sizes_1:
-                        for window_size_2 in window_sizes_2:
-                            for dim_1 in gru_output_dim_1:
-                                for dim_2 in gru_output_dim_2:
-                                    experiment_name += "_filter_" + cnn_filter + "_window_size1_" + window_size_1 + "_window_size2_" + window_size_2 + "_gru_dim1_" + dim_1 + "_gru_dim2_" + dim_2
-                                    model = absa_models.createMultiCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size_1, window_size_2, dim_1, dim_2, DEBUG)
-            elif model_name == "LSTM":
-                dims_1 = [64]
-                dims_2 = [32]
-                for dim_1 in dims_1:
-                    for dim_2 in dims_2:
-                        experiment_name += "_dim1_" + dim_1 + "_dim2_" + dim_2
-                        model = absa_models.createLSTMModel(MAXLEN, EMBEDDING_DIM_FINAL, dim_1, dim_2, DEBUG)
-            elif model_name == "MLP":
-                dense_dims = [512, 256]
-                for dim in dense_dims:
-                    experiment_name += "_dim_" + dim
-                    model = absa_models.createMLPModel(MAXLEN, EMBEDDING_DIM_FINAL, dim, DEBUG)
-            elif model_name == "CNNBiGRU":
-                filters = []
-                window_sizes = []
-                gru_output_dim_1 = [64, 128, 256]
-                gru_output_dim_2 = [64]
-                for cnn_filter in filters:
-                    for window_size in window_sizes:
-                        for dim_1 in gru_output_dim_1:
-                            for dim_2 in gru_output_dim_2:
-                                experiment_name += "_filter_" + cnn_filter + "_window_size_" + window_size + "_gru_dim1_" + dim_1 + "_gru_dim2_" + dim_2
-                                model = absa_models.createCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size, dim_1, dim_2, DEBUG)
-
-    # ?.设置循环跑任务
+    experiment_name = ""
 
     # 9.训练模型
     print("》》》【9】训练模型******************************************************************************************************************************************************************************************")
     X_train_path = config.final_word_embeddings_train
     X_validation_path = config.final_word_embeddings_validation
-    # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, debug=DEBUG)
+    epochs = [3]
+    batch_sizes = [1024]
+    times = 10
+    model_name = "MLP"
+    if model_name == "CNN":
+        filters = [200]
+        window_sizes = [4, 5, 6, 7]
+        for cnn_filter in filter:
+            for window_size in window_sizes:
+                for batch_size in batch_sizes:
+                    for epoch in epochs:
+                        for i in range(times):
+                            model = absa_models.createCNNModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size, DEBUG)
+                            experiment_name += model_name + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size) + "_filter_" + str(cnn_filter) + "_windowSize_" + str(window_size)
+                            print("experiment_name = ", experiment_name)
+                            absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG)
+    elif model_name.startswith("SeparableCNN"):
+        for batch_size in batch_sizes:
+            for epoch in epochs:
+                for i in range(times):
+                    model = absa_models.createSeparableCNNModel(MAXLEN, EMBEDDING_DIM_FINAL, DEBUG)
+                    experiment_name += "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                    print("experiment_name = ", experiment_name)
+                    absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG)
+    elif model_name.startswith("GRU"):
+        gru_output_dim_1 = [64]
+        gru_output_dim_2 = [32]
+        for dim_1 in gru_output_dim_1:
+            for dim_2 in gru_output_dim_2:
+                for batch_size in batch_sizes:
+                    for epoch in epochs:
+                        for i in range(times):
+                            model = absa_models.createGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, dim_1, dim_2, DEBUG)
+                            experiment_name += model_name + "_gru_dim1_" + dim_1 + "_gru_dim2_" + dim_2 + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                            print("experiment_name = ", experiment_name)
+                            absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG)
+    elif model_name.startswith("SeparableCNNBiGRU"):
+        filters = [200]
+        window_sizes_1 = [3, 4, 5]
+        window_sizes_2 = [4, 5, 6]
+        window_sizes_3 = [5, 6, 7]
+        gru_output_dim_1 = [64, 128, 256]
+        gru_output_dim_2 = [64]
+        for cnn_filter in filters:
+            for window_size_1 in window_sizes_1:
+                for window_size_2 in window_sizes_2:
+                    for window_size_3 in window_sizes_3:
+                        for dim_1 in gru_output_dim_1:
+                            for dim_2 in gru_output_dim_2:
+                                for batch_size in batch_sizes:
+                                    for epoch in epochs:
+                                        for i in range(times):
+                                            model = absa_models.createSeparableCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size_1, window_size_2, window_size_3, DEBUG)
+                                            experiment_name += model_name + "_filter_" + cnn_filter + "_window_size1_" + window_size_1 + "_window_size2_" + window_size_2 + "_window_size3_" + window_size_3 + "_gru_dim1_" + dim_1 + "_gru_dim2_" + dim_2 + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                                            print("experiment_name = ", experiment_name)
+                                            absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG)
+    elif model_name.startswith("multiCNNBiGRU"):
+        filters = [200]
+        window_sizes_1 = [3, 4, 5]
+        window_sizes_2 = [4, 5, 6]
+        gru_output_dim_1 = [64, 128, 256]
+        gru_output_dim_2 = [64]
+        for cnn_filter in filters:
+            for window_size_1 in window_sizes_1:
+                for window_size_2 in window_sizes_2:
+                    for dim_1 in gru_output_dim_1:
+                        for dim_2 in gru_output_dim_2:
+                            for batch_size in batch_sizes:
+                                for epoch in epochs:
+                                    for i in range(times):
+                                        model = absa_models.createMultiCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size_1, window_size_2, dim_1, dim_2, DEBUG)
+                                        experiment_name += model_name + "_filter_" + cnn_filter + "_window_size1_" + window_size_1 + "_window_size2_" + window_size_2 + "_gru_dim1_" + dim_1 + "_gru_dim2_" + dim_2 + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                                        print("experiment_name = ", experiment_name)
+                                        absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG)
+    elif model_name.startswith("LSTM"):
+        dims_1 = [64]
+        dims_2 = [32]
+        for dim_1 in dims_1:
+            for dim_2 in dims_2:
+                for batch_size in batch_sizes:
+                    for epoch in epochs:
+                        for i in range(times):
+                            model = absa_models.createLSTMModel(MAXLEN, EMBEDDING_DIM_FINAL, dim_1, dim_2, DEBUG)
+                            experiment_name += model_name + "_dim1_" + dim_1 + "_dim2_" + dim_2 + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                            print("experiment_name = ", experiment_name)
+                            absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG)
+    elif model_name.startswith("MLP"):
+        dense_dims = [512, 256]
+        for dim in dense_dims:
+            for batch_size in batch_sizes:
+                for epoch in epochs:
+                    for i in range(times):
+                        model = absa_models.createMLPModel(MAXLEN, EMBEDDING_DIM_FINAL, dim, DEBUG)
+                        experiment_name += model_name + "_dim_" + str(dim) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                        print("experiment_name = ", experiment_name)
+                        absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG)
+    elif model_name.startswith("CNNBiGRU"):
+        filters = [200]
+        window_sizes = [4, 5, 6, 7]
+        gru_output_dim_1 = [64, 128, 256]
+        gru_output_dim_2 = [64]
+        for cnn_filter in filters:
+            for window_size in window_sizes:
+                for dim_1 in gru_output_dim_1:
+                    for dim_2 in gru_output_dim_2:
+                        for batch_size in batch_sizes:
+                            for epoch in epochs:
+                                for i in range(times):
+                                    model = absa_models.createCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size, dim_1, dim_2, DEBUG)
+                                    experiment_name += model_name + "_filter_" + str(cnn_filter) + "_window_size_" + str(window_size) + "_gru_dim1_" + str(dim_1) + "_gru_dim2_" + str(dim_2) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                                    print("experiment_name = ", experiment_name)
+                                    absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG)
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))

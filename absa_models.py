@@ -46,12 +46,12 @@ def createBertEmbeddingModel():
 
 
 # CNN模型
-def createCNNModel(maxlen, embedding_dim, debug=False):
+def createCNNModel(maxlen, embedding_dim, filter, window_size, debug=False):
     if debug:
         embedding_dim = 8
     print("开始构建CNN模型。。。")
     tensor_input = Input(shape=(maxlen, embedding_dim))
-    cnn = Conv1D(64, 4, padding='same', strides=1, activation='relu', name='conv')(tensor_input)
+    cnn = Conv1D(filter, window_size, padding='same', strides=1, activation='relu', name='conv')(tensor_input)
     cnn = BatchNormalization()(cnn)
     cnn = MaxPool1D(name='max_pool')(cnn)
 
@@ -310,7 +310,7 @@ def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_pat
 
         history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug), steps_per_epoch=math.ceil(length / batch_size),
                             validation_data=dp.generateTrainSetFromFile(X_val_path, origin_data_current_col_val, batch_size, debug), validation_steps=math.ceil(length_validation / batch_size_validation),
-                            batch_size=batch_size, epochs=epoch, verbose=2)
+                            batch_size=batch_size, epochs=epoch, verbose=1)
 
         # 预测验证集
         y_val_pred = model.predict(dp.generateXFromFile(X_val_path, length_validation, batch_size, debug), steps=math.ceil(length_validation / batch_size_validation))
