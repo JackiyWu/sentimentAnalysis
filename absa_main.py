@@ -167,8 +167,8 @@ if __name__ == "__main__":
     bert_path = config.bert_path
     # cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, DEBUG)
     # 4.1 直接从文件中读取聚类中心向量
-    cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
-    print("cluster_centers' length = ", len(cluster_centers))
+    # cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
+    # print("cluster_centers' length = ", len(cluster_centers))
 
     # 5.计算每条评论的特征向量（字符级向量）到不同聚类中心的隶属值 distance_from_feature_to_cluster
     print("》》》【5、6】计算评论对聚类中心的隶属值*********************************************************************************************************************************************************************")

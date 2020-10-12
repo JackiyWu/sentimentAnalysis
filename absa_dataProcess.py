@@ -606,7 +606,7 @@ def saveFinalEmbeddingLittleByLittle(membership_degrees, embeddings_path, save_p
         cache.append(line)
         membership_degree_cache.append(membership_degrees[i])
 
-        if i % 2000 == 0:
+        if i % 4000 == 0:
             # 写入文件
             concatenateVector(cache, membership_degree_cache, save_path, debug)
             cache = []
