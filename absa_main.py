@@ -211,7 +211,33 @@ if __name__ == "__main__":
                         experiment_name += "_gru_dim1_" + dim_1 + "_gru_dim2_" + dim_2
                 model = absa_models.createGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, dim_1, dim_2, DEBUG)
             elif model_name == "SeparableCNNBiGRU":
-                model = absa_models.createSeparableCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, DEBUG)
+                filters = []
+                window_sizes_1 = [3, 4, 5]
+                window_sizes_2 = [4, 5, 6]
+                window_sizes_3 = [5, 6, 7]
+                gru_output_dim_1 = [64, 128, 256]
+                gru_output_dim_2 = [64]
+                for cnn_filter in filters:
+                    for window_size_1 in window_sizes_1:
+                        for window_size_2 in window_sizes_2:
+                            for window_size_3 in window_sizes_3:
+                                for dim_1 in gru_output_dim_1:
+                                    for dim_2 in gru_output_dim_2:
+                                        experiment_name += "_filter_" + cnn_filter + "_window_size1_" + window_size_1 + "_window_size2_" + window_size_2 + "_window_size3_" + window_size_3 + "_gru_dim1_" + dim_1 + "_gru_dim2_" + dim_2
+                                        model = absa_models.createSeparableCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size_1, window_size_2, window_size_3, DEBUG)
+            elif model_name == "multiCNNBiGRU":
+                filters = []
+                window_sizes_1 = [3, 4, 5]
+                window_sizes_2 = [4, 5, 6]
+                gru_output_dim_1 = [64, 128, 256]
+                gru_output_dim_2 = [64]
+                for cnn_filter in filters:
+                    for window_size_1 in window_sizes_1:
+                        for window_size_2 in window_sizes_2:
+                            for dim_1 in gru_output_dim_1:
+                                for dim_2 in gru_output_dim_2:
+                                    experiment_name += "_filter_" + cnn_filter + "_window_size1_" + window_size_1 + "_window_size2_" + window_size_2 + "_gru_dim1_" + dim_1 + "_gru_dim2_" + dim_2
+                                    model = absa_models.createMultiCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size_1, window_size_2, dim_1, dim_2, DEBUG)
             elif model_name == "LSTM":
                 dims_1 = [64]
                 dims_2 = [32]

@@ -222,18 +222,18 @@ def createMultiCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size_
 
 
 # 构建模型CNN+BiGRU
-def createSeparableCNNBiGRUModel(maxlen, embedding_dim, debug=False):
+def createSeparableCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, window_size_1, window_size_2, window_size_3, debug=False):
     if debug:
         embedding_dim = 8
     print(">>>开始构建SeparableCNNBiGRU模型。。。")
     tensor_input = Input(shape=(maxlen, embedding_dim))
-    cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_0")(tensor_input)
+    cnn1 = SeparableConvolution1D(cnn_filter, window_size_1, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_0")(tensor_input)
     cnn1 = BatchNormalization()(cnn1)
     cnn1 = MaxPool1D(pool_size=100)(cnn1)
-    cnn2 = SeparableConvolution1D(200, 4, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(tensor_input)
+    cnn2 = SeparableConvolution1D(cnn_filter, window_size_2, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(tensor_input)
     cnn2 = BatchNormalization()(cnn2)
     cnn2 = MaxPool1D(pool_size=100)(cnn2)
-    cnn3 = SeparableConvolution1D(200, 5, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(tensor_input)
+    cnn3 = SeparableConvolution1D(cnn_filter, window_size_3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(tensor_input)
     cnn3 = BatchNormalization()(cnn3)
     cnn3 = MaxPool1D(pool_size=100)(cnn3)
     cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
