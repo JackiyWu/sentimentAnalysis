@@ -168,7 +168,7 @@ if __name__ == "__main__":
     epochs = [10]
     # epochs = [200, 250, 300]
     # epochs = [5, 10, 20, 50, 100, 150, 200, 250, 300]
-    batch_sizes = [256]
+    batch_sizes = [128]
     # batch_sizes = [8, 16, 32, 128, 256]
     learning_rates = [0.001]
     # learning_rates = [0.5, 0.1, 0.05, 0.01, 0.005, 0.0005, 0.0001]
@@ -209,7 +209,7 @@ if __name__ == "__main__":
                                                "_balanced_" + str(balanced) + "_full_connected_" + str(full_connected)
                                         print("name = ", name)
 
-                                        model_name = "cnn_new_logistics_restaurant_"
+                                        model_name = "fusion_new_travel_"
                                         if model_name.startswith("fusion"):
                                             fusion_model = ff_s.create_fusion_model(fuzzy_maxlen, maxlen, dict_length,
                                                                                     filter, embedding_matrix, window_size,
