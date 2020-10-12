@@ -182,6 +182,45 @@ def createCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size, gru_
     return model
 
 
+# 构建单层2CNN+BiGRU
+def createMultiCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size_1, cnn_window_size_2, gru_output_dim_1, gru_output_dim_2, debug=False):
+    if debug:
+        embedding_dim = 8
+    print("开始构建CNNBiGRU模型。。。")
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+    cnn1 = Conv1D(cnn_filter, cnn_window_size_1, padding='same', strides=1, activation='relu', name='conv')(tensor_input)
+    cnn1 = BatchNormalization()(cnn1)
+    cnn1 = MaxPool1D(name='max_pool')(cnn1)
+
+    tensor_input = Input(shape=(maxlen, embedding_dim))
+    cnn2 = Conv1D(cnn_filter, cnn_window_size_2, padding='same', strides=1, activation='relu', name='conv')(tensor_input)
+    cnn2 = BatchNormalization()(cnn2)
+    cnn2 = MaxPool1D(name='max_pool')(cnn2)
+
+    cnn = concatenate([cnn1, cnn2], axis=-1)
+
+    dropout = Dropout(0.2)(cnn)
+    # flatten = Flatten()(dropout)
+
+    bi_gru1 = Bidirectional(GRU(gru_output_dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
+    bi_gru1 = BatchNormalization()(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(gru_output_dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = BatchNormalization()(bi_gru2)
+
+    flatten = Flatten()(bi_gru2)
+
+    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    x = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model(inputs=tensor_input, outputs=x)
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+
+    return model
+
+
 # 构建模型CNN+BiGRU
 def createSeparableCNNBiGRUModel(maxlen, embedding_dim, debug=False):
     if debug:

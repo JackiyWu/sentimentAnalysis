@@ -227,8 +227,8 @@ if __name__ == "__main__":
             elif model_name == "CNNBiGRU":
                 filters = []
                 window_sizes = []
-                gru_output_dim_1 = [512, 256]
-                gru_output_dim_2 = [256]
+                gru_output_dim_1 = [64, 128, 256]
+                gru_output_dim_2 = [64]
                 for cnn_filter in filters:
                     for window_size in window_sizes:
                         for dim_1 in gru_output_dim_1:
