@@ -88,6 +88,8 @@
     ***************************************************************↑↑↑暂时没用，后续可考虑词典增强的情感分析↑↑↑***************************************************************
 """
 
+# @title Main function
+
 import time
 
 import absa_dataProcess as dp
@@ -96,6 +98,7 @@ import absa_models as absa_models
 
 # 如果DEBUG为True，则只测试少部分数据
 DEBUG = False
+DEBUG_ONLINE = True
 
 # 句子的最大长度
 MAXLEN = 512
@@ -133,7 +136,7 @@ if __name__ == "__main__":
 
     # 2.加载bert模型bert_model
     print("》》》【2】加载bert模型**************************************************************************************************************************************************************************************")
-    # bert_model, tokenizer, token_dict = dp.createBertEmbeddingModel()
+    bert_model, tokenizer, token_dict = dp.createBertEmbeddingModel()
 
     if DEBUG:
         cluster_centers_path = config.cluster_center_validation_1
@@ -151,7 +154,7 @@ if __name__ == "__main__":
 
     # 3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
     print("》》》【3】正在从bert模型获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings(此处比较耗时间注意哦~）****************************************************************************")
-    # character_embeddings, sentence_embeddings = dp.getBertEmbeddings(bert_model, tokenizer, origin_data, MAXLEN, DEBUG)
+    character_embeddings, sentence_embeddings = dp.getBertEmbeddings(bert_model, tokenizer, origin_data, MAXLEN, DEBUG)
     # 3.1 从文件中读取character_embeddings, sentence_embeddings
     # character_embeddings = dp.getCharacterEmbeddings(character_embeddings_path)
     # sentence_embeddings = dp.getSentenceEmbeddings(sentence_embeddings_path)
@@ -198,14 +201,18 @@ if __name__ == "__main__":
     print("》》》【9】训练模型******************************************************************************************************************************************************************************************")
     X_train_path = config.final_word_embeddings_train
     X_validation_path = config.final_word_embeddings_validation
+    if DEBUG_ONLINE:
+        X_train_path = X_validation_path
+        y_train = y_validation
     epochs = [3]
     batch_sizes = [1024]
-    times = 10
+    times = 1
     model_name = "MLP"
     if model_name == "CNN":
-        filters = [200]
-        window_sizes = [4, 5, 6, 7]
-        for cnn_filter in filter:
+        filters = [64]
+        window_sizes = [5]
+        # window_sizes = [4, 5, 6, 7]
+        for cnn_filter in filters:
             for window_size in window_sizes:
                 for batch_size in batch_sizes:
                     for epoch in epochs:
@@ -285,7 +292,7 @@ if __name__ == "__main__":
                             print("experiment_name = ", experiment_name)
                             absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG)
     elif model_name.startswith("MLP"):
-        dense_dims = [512, 256]
+        dense_dims = [64]
         for dim in dense_dims:
             for batch_size in batch_sizes:
                 for epoch in epochs:
