@@ -166,8 +166,8 @@ if __name__ == "__main__":
 
     # 4.从bert_model获取情感词向量sentiment_word_embeddings
     # sentiment_words_path = config.sentiment_dictionary_dut
-    # bert_path = config.bert_path
-    # cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, DEBUG)
+    bert_path = config.bert_path
+    cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, DEBUG)
     # 4.1 直接从文件中读取聚类中心向量
     # cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
     # print("cluster_centers' length = ", len(cluster_centers))

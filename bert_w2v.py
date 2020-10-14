@@ -14,7 +14,6 @@ dict_path = 'config/keras_bert/chinese_L-12_H-768_A-12/vocab.txt'
 
 os.environ['TF_KERAS'] = '1'
 
-'''
 token_dict = {}
 with codecs.open(dict_path, 'r', 'utf8') as reader:
     for line in reader:
@@ -55,6 +54,7 @@ print("embeddings_0.shape = ", embeddings[0][0].shape)
 
 print("embeddings_0 = ", list(embeddings[0][0]))
 print("embeddings_1 = ", embeddings[1][0])
+'''
 
 print(">>>end of bert_w2v...")
 
