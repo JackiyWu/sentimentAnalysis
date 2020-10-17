@@ -21,6 +21,7 @@ from keras import Model, Sequential
 from keras.utils import to_categorical
 from keras import regularizers
 from keras.layers.merge import concatenate
+from keras.optimizers import Adam
 
 from tensorflow.keras.layers import SeparableConvolution1D
 
@@ -280,6 +281,105 @@ def createMLPModel(maxlen, embedding_dim, dense_dim, debug=False):
 
     # print(">>>TextCNNBiGRUModel模型构建结束。。。")
     return model
+
+
+# bert模型
+def createBert():
+    print(">>>开始加载Bert模型。。。")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+    x = bert_model([x1_in, x2_in])
+    x = Lambda(lambda x: x[:, :], name='last_layer_0')(x)  # 取出[CLS]对应的向量用来做分类
+    x = Lambda(lambda x: x[:, 0], name='last_layer_1')(x)  # 取出[CLS]对应的向量用来做分类
+    p = Dense(4, activation='softmax')(x)
+
+    model = Model([x1_in, x2_in], p)
+
+    model.compile(
+        loss='categorical_crossentropy',
+        optimizer=Adam(1e-5),  # 用足够小的学习率
+        metrics=['accuracy']
+    )
+    print(">>>Bert模型加载结束。。。")
+    model.summary()
+
+    return model
+
+
+# 训练bert模型
+def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, debug=False):
+    print("勿扰！训练模型ing。。。in trainBert。。。")
+
+    length = len(Y)
+    length_validation = len(Y_validation)
+    print(">>>y's length = ", length)
+
+    F1_scores = 0
+    F1_score = 0
+
+    for index, col in enumerate(y_cols_name):
+        print("Current col is: ", col)
+        origin_data_current_col = Y[col] + 2
+        origin_data_current_col = list(origin_data_current_col)
+        # origin_data_current_col = np.array(origin_data_current_col)
+
+        # print("y_val = ", y_val)
+        origin_data_current_col_val = Y_validation[col] + 2
+        origin_data_current_col_val = list(origin_data_current_col_val)
+        # origin_data_current_col_val = np.array(origin_data_current_col_val)
+        # print(y_val)
+
+        history = model.fit(dp.generateSetForBert(X, origin_data_current_col, batch_size, tokenizer, debug), steps_per_epoch=math.ceil(length / batch_size),
+                            epochs=epoch, batch_size=batch_size, verbose=1, validation_steps=math.ceil(length_validation / batch_size_validation),
+                            validation_data=dp.generateSetForBert(X_validation, origin_data_current_col_val, batch_size_validation, tokenizer, debug))
+
+        # 预测验证集
+        y_val_pred = model.predict(dp.generateXSetForBert(X_validation, length_validation, batch_size_validation, tokenizer), steps=math.ceil(length_validation / batch_size_validation))
+
+        print("y_val_pred's length = ", len(y_val_pred))
+        print("y_validation's length = ", length_validation)
+
+        y_val_pred = np.argmax(y_val_pred, axis=1)
+
+        # 准确率：在所有预测为正的样本中，确实为正的比例
+        # 召回率：本身为正的样本中，被预测为正的比例
+        print("y_val[200] = ", list(origin_data_current_col_val)[200])
+        print("y_val_pred[200] = ", list(y_val_pred)[200])
+        precision, recall, fscore, support = score(origin_data_current_col_val, y_val_pred)
+        print("precision = ", precision)
+        print("recall = ", recall)
+        print("fscore = ", fscore)
+        print("support = ", support)
+
+        report = classification_report(origin_data_current_col_val, y_val_pred, digits=4, output_dict=True)
+        print(report)
+
+        F1_score = f1_score(y_val_pred, origin_data_current_col_val, average='macro')
+        F1_scores += F1_score
+        print('第', index, '个细粒度', col, 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, origin_data_current_col_val))
+        print("%Y-%m%d %H:%M:%S", time.localtime())
+
+        # 保存当前属性的结果,整体的结果根据所有属性的结果来计算
+        save_result_to_csv(report, F1_score, experiment_name, model_name)
+
+    print('all F1_score:', F1_scores / len(y_cols_name))
+
+    print(">>>end of train_cnn_model function in featureFusion.py。。。")
+
+
+# 加载tokenizer
+def get_tokenizer():
+    token_dict = {}
+    with codecs.open(config.bert_dict_path, 'r', 'utf8') as reader:
+        for line in reader:
+            token = line.strip()
+            token_dict[token] = len(token_dict)
+
+    tokenizer = Tokenizer(token_dict)
+
+    return tokenizer
 
 
 # 训练模型，直接从文件中读取词向量

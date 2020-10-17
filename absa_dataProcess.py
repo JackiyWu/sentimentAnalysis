@@ -50,6 +50,47 @@ def initData(debug=False, clean_enter=False, clean_space=False):
     return data, y_cols_name, y
 
 
+# 读取数据
+def initDataForBert(path, debug=False, clean_enter=False, clean_space=False):
+    # print("In initData function of dataProcess.py...")
+    data = pd.read_csv(path)
+    # data = pd.read_csv(config.meituan_train)
+    if debug:
+        data = data[:30000]
+
+    # data = data[:1000]
+    y = data[['location', 'service', 'price', 'environment', 'dish']]
+    print("y = ", y.head())
+
+    # 对原评论文本进行清洗，去回车符 去空格
+    # print("data['content']_0 = ", data['content'])
+    if clean_enter:
+        data = dataCleanEnter(data)
+    if clean_space:
+        data = dataCleanSpace(data)
+    # print("data['content']_1 = ", data['content'])
+
+    # y_cols_name = data.columns.values.tolist()[2:22]
+    y_cols_name = data.columns.values.tolist()[2:7]
+    print(">>>data = ", data.head())
+    print(">>>data'type = ", type(data))
+    print(">>>data's shape = ", data.shape)
+    print(">>>y_cols_name = ", y_cols_name)
+
+    # print("end of initData function in dataProcess.py...")
+
+    data_content = data['content']
+    # print("data_content's head = ", data_content.head())
+
+    '''
+    print("data_content's type = ", type(data_content))
+    for content in data_content:
+        print("content = ", content)
+    '''
+
+    return data_content, y_cols_name, y
+
+
 def initDataLabels(debug=False):
     # print("In initDataLabels function of dataProcess.py...")
     data_train = pd.read_csv(config.meituan_train_new)
@@ -645,6 +686,58 @@ def generateTrainSet(X_train, Y_train, batch_size):
         yield np.array(x), to_categorical(y)
 
 
+# 批量产生训练数据
+def generateSetForBert(X_value, Y_value, batch_size, tokenizer, debug):
+    length = len(Y_value)
+
+    while True:
+        cnt = 0  # 记录当前是否够一个batch
+        X1 = []
+        X2 = []
+        Y = []
+        i = 0  # 记录Y的遍历
+        cnt_Y = 0
+        for line in X_value:
+            x1, x2 = parseLineForBert(line, tokenizer)
+            X1.append(x1)
+            X2.append(x2)
+            i += 1
+            cnt += 1
+            if cnt == batch_size or i == length:
+                # print("cnt_Y's type = ", type(cnt_Y))
+                # print("i's type = ", type(i))
+                Y = Y_value[int(cnt_Y): int(i)]
+                # print("Y = ", Y)
+                cnt_Y += batch_size
+
+                cnt = 0
+                yield ([np.array(X1), np.array(X2)], to_categorical(Y, num_classes=4))
+                X1 = []
+                X2 = []
+                Y = []
+
+
+# 批量产生X
+def generateXSetForBert(X_value, y_length, batch_size, tokenizer):
+    while True:
+        # print("in generateXSetForBert...")
+        cnt = 0
+        X1 = []
+        X2 = []
+        i = 0
+        for line in X_value:
+            x1, x2 = parseLineForBert(line, tokenizer)
+            X1.append(x1)
+            X2.append(x2)
+            i += 1
+            cnt += 1
+            if cnt == batch_size or i == y_length:
+                cnt = 0
+                yield ([np.array(X1), np.array(X2)])
+                X1 = []
+                X2 = []
+
+
 # 使用generator yield批量训练数据，从文件中读取X
 def generateTrainSetFromFile(X_path, Y_train, batch_size, debug):
     # print("从", X_path, "中读取X_train数据")
@@ -691,6 +784,13 @@ def generateXFromFile(X_path, y_length, batch_size, debug):
                 # print("X = ", X)
                 yield (np.array(X))
                 X = []
+
+
+# 将text转为token
+def parseLineForBert(line, tokenizer):
+    indices, segments = tokenizer.encode(first=line, max_len=512)
+
+    return np.array(indices), np.array(segments)
 
 
 def parseLine(line, debug=False):

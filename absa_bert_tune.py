@@ -7,10 +7,11 @@ from keras_bert import Tokenizer as bert_Tokenizer, load_trained_model_from_chec
 import os
 import numpy as np
 import keras
-from keras.layers import Input, Dense, Lambda
+from keras.layers import Input, Dense, Lambda, Flatten
 from keras.models import Model
 from keras.optimizers import Adam
 from keras.utils import to_categorical
+import tensorflow as tf
 
 # 句子的最大长度
 MAXLEN = 512
@@ -43,7 +44,7 @@ def get_texts():
 
 
 def get_texts_2():
-    texts = {"非常差！不会再去了！！！", "感觉还不错，客服态度挺好的，赞！", "一般般吧，还好价格不算贵", "中规中矩，也算对得起这个价格了"}
+    texts = {"差！非常差！不会再去了！！！", "感觉还不错，客服态度挺好的，赞！", "一般般吧，还好价格不算贵", "中规中矩，也算对得起这个价格了"}
 
     return texts
 
@@ -74,24 +75,32 @@ def create_model():
     print(">>>开始加载Bert模型。。。")
     bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=False)
 
-    print(bert_model.summary())
+    # print(bert_model.summary())
 
-    '''
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
 
     x = bert_model([x1_in, x2_in])
+    # print("x's type = ", type(x))
+    # print("x1 = ", x)
+    # tensor_name = "functional_3/Encoder-12-FeedForward-Norm/add_1:0"
+    # tf.print(tensor_name)
     # x = bert_model([x1_in, x2_in], name='my_bert_model')
-    x = Lambda(lambda x: x[:, 0], name='last_layer')(x)  # 取出[CLS]对应的向量用来做分类
+    x = Lambda(lambda x: x[:, :], name='last_layer')(x)
+    # x = Lambda(lambda x: x[:, 0], name='last_layer')(x)  # 取出[CLS]对应的向量用来做分类
+    x = Lambda(lambda x: x[:, 0], name='last_layer_1')(x)  # 取出[CLS]对应的向量用来做分类
+    # x = Flatten()(x)
+    # x = Dense(768)(x)
     p = Dense(2, activation='softmax')(x)
 
     model = Model([x1_in, x2_in], p)
-    '''
 
+    '''
     inputs = bert_model.inputs[:2]
     dense = bert_model.get_layer('Encoder-12-FeedForward-Norm').output
     outputs = Dense(2, activation='softmax')(dense)
     model = Model(inputs, outputs)
+    '''
 
     model.compile(
         loss='categorical_crossentropy',
@@ -129,10 +138,12 @@ print("*" * 200)
 
 print("*" * 200)
 print(">>>intermediate_layer_model...")
-layer_name = 'functional_3'
-# layer_name = 'last_layer'
-intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(index=3).output)
+# layer_name = 'functional_3'
+layer_name = 'last_layer'
+intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(name=layer_name).output)
+# intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(index=3).output)
 intermediate_layer_model.summary()
+layer_name2 = 'last_layer_1'
 
 print("*" * 200)
 # 测试
@@ -143,6 +154,7 @@ X1_test, X2_test = load_data(tokenizer, texts_test)
 # print("Y_pred = ", Y_pred)
 '''
 '''
+print("*" * 200)
 
 text = '非常差！不会再去了！！'
 tokens = tokenizer.tokenize(text)
@@ -150,13 +162,30 @@ indices, segments = tokenizer.encode(first=text, max_len=512)
 print("indices = ", indices[:10])
 print("segments = ", segments[:10])
 
-# predicts = intermediate_layer_model.predict([np.array([indices]), np.array([segments])])[0]
-predicts = intermediate_layer_model.predict([np.array([indices]), np.array([segments])])
+'''
+predicts = intermediate_layer_model.predict([X1_test, X2_test])[0]
+# predicts = intermediate_layer_model.predict([np.array([indices]), np.array([segments])])
 print("predicts's length = ", len(predicts))
 print("predicts[0]'s length = ", len(predicts[0]))
+print("tokens = ", tokens)
 for i, token in enumerate(tokens):
-    print("token = ", token, ", predicts = ", predicts[i].tolist())
+    print("token = ", token, ", predicts = ", predicts[i].tolist()[:5])
     # print(token, predicts[i].tolist()[:5])
+'''
+
+for text_test in texts_test:
+    tokens = tokenizer.tokenize(text_test)
+    indices, segments = tokenizer.encode(first=text_test, max_len=512)
+    predicts_test = intermediate_layer_model.predict([np.array([indices]), np.array([segments])])
+    print("predicts_test_origin's length = ", len(predicts_test))
+    predicts_test = predicts_test[0]
+    print("predicts_test = ", predicts_test[:6])
+    print("predicts_test's length = ", len(predicts_test))
+    print("predicts_test[0]'s length = ", len(predicts_test[0]))
+    break
+
+'''
+'''
 
 '''
 text = '我是中国人,他是日本人,你们呢'
