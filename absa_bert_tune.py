@@ -12,6 +12,7 @@ from keras.models import Model
 from keras.optimizers import Adam
 from keras.utils import to_categorical
 import tensorflow as tf
+from keras.models import save_model, load_model
 
 # 句子的最大长度
 MAXLEN = 512
@@ -124,8 +125,8 @@ tokenizer = bert_Tokenizer(token_dict)
 texts, labels = get_texts()
 
 X1, X2 = load_data(tokenizer, texts)
-print("X1 = ", X1)
-print("X1.shape = ", X1.shape)
+# print("X1 = ", X1)
+# print("X1.shape = ", X1.shape)
 Y = to_categorical(labels)
 # print("Y = ", Y)
 
@@ -135,6 +136,11 @@ model.fit([X1, X2], Y, epochs=1, batch_size=10)
 
 print("*" * 200)
 # model.summary()
+model_path = "result/tuned_bert_model_test.h5"
+model.save(model_path)
+
+old_model = load_model(model_path)
+print(old_model.summary())
 
 print("*" * 200)
 print(">>>intermediate_layer_model...")
@@ -159,8 +165,8 @@ print("*" * 200)
 text = '非常差！不会再去了！！'
 tokens = tokenizer.tokenize(text)
 indices, segments = tokenizer.encode(first=text, max_len=512)
-print("indices = ", indices[:10])
-print("segments = ", segments[:10])
+# print("indices = ", indices[:10])
+# print("segments = ", segments[:10])
 
 '''
 predicts = intermediate_layer_model.predict([X1_test, X2_test])[0]
@@ -173,9 +179,13 @@ for i, token in enumerate(tokens):
     # print(token, predicts[i].tolist()[:5])
 '''
 
+'''
+print(">>>Here is what I need...")
 for text_test in texts_test:
     tokens = tokenizer.tokenize(text_test)
     indices, segments = tokenizer.encode(first=text_test, max_len=512)
+    print("indices = ", indices[:10])
+    print("segments = ", segments[:10])
     predicts_test = intermediate_layer_model.predict([np.array([indices]), np.array([segments])])
     print("predicts_test_origin's length = ", len(predicts_test))
     predicts_test = predicts_test[0]
@@ -184,7 +194,6 @@ for text_test in texts_test:
     print("predicts_test[0]'s length = ", len(predicts_test[0]))
     break
 
-'''
 '''
 
 '''

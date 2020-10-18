@@ -39,3 +39,10 @@ final_word_embeddings_train = 'result/final_word_embeddings_train.txt'
 membership_degree_validation = 'result/membership_degree_validation.txt'
 membership_degree_train = 'result/membership_degree_train.txt'
 
+# fine tune之后的字向量
+character_embeddings_train_tuned = 'result/character_embeddings_train_tuned.txt'
+character_embeddings_validation_tuned = 'result/character_embeddings_validation_tuned.txt'
+
+# 保存模型
+tuned_bert_model = 'result/tuned_bert_model.h5'
+

@@ -7,6 +7,7 @@ import time
 import codecs
 import csv
 import math
+from itertools import chain
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, confusion_matrix
@@ -291,7 +292,7 @@ def createBert():
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
-    x = Lambda(lambda x: x[:, :], name='last_layer_0')(x)  # 取出[CLS]对应的向量用来做分类
+    x = Lambda(lambda x: x[:, :], name='embeddings_layer')(x)  # 所有词向量
     x = Lambda(lambda x: x[:, 0], name='last_layer_1')(x)  # 取出[CLS]对应的向量用来做分类
     p = Dense(4, activation='softmax')(x)
 
@@ -308,6 +309,33 @@ def createBert():
     return model
 
 
+# bert+CNN
+def createBertCNN(filter, window_size, debug=False):
+    print(">>>开始加载Bert+CNN模型。。。")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+    x = bert_model([x1_in, x2_in])
+    cnn = Conv1D(filter, window_size, name='conv')(x)
+    cnn = MaxPool1D(name='max_pool')(cnn)
+
+    flatten = Flatten()(cnn)
+
+    x = Dense(32, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    p = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model([x1_in, x2_in], p)
+
+    model.compile(loss='categorical_crossentropy', optimizer=Adam(1e-5), metrics=['accuracy'])
+
+    print(">>>Bert+CNN模型加载结束。。。")
+    model.summary()
+
+    return model
+
+
 # 训练bert模型
 def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, debug=False):
     print("勿扰！训练模型ing。。。in trainBert。。。")
@@ -318,6 +346,9 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
 
     F1_scores = 0
     F1_score = 0
+    if debug:
+        y_cols_name = ['location']
+        batch_size_validation = batch_size
 
     for index, col in enumerate(y_cols_name):
         print("Current col is: ", col)
@@ -345,8 +376,8 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
 
         # 准确率：在所有预测为正的样本中，确实为正的比例
         # 召回率：本身为正的样本中，被预测为正的比例
-        print("y_val[200] = ", list(origin_data_current_col_val)[200])
-        print("y_val_pred[200] = ", list(y_val_pred)[200])
+        print("y_val[200] = ", list(origin_data_current_col_val)[20])
+        print("y_val_pred[200] = ", list(y_val_pred)[20])
         precision, recall, fscore, support = score(origin_data_current_col_val, y_val_pred)
         print("precision = ", precision)
         print("recall = ", recall)
@@ -367,6 +398,45 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
     print('all F1_score:', F1_scores / len(y_cols_name))
 
     print(">>>end of train_cnn_model function in featureFusion.py。。。")
+
+
+# 读取fine tune之后的bert词向量
+def getAndSaveBertEmbeddingsAfterTuned(bert_model, X, save_path, tokenizer):
+    print(">>>正在飞速获取并保存" + save_path + "fine tune之后的bert字符级向量和句子级向量")
+    print(">>>需要保存的评论条数是:", len(X))
+    character_embeddings = []
+    sentence_embeddings = []
+
+    layer_name = "embeddings_layer"
+    intermediate_layer_model = Model(inputs=bert_model.input, outputs=bert_model.get_layer(name=layer_name).output)
+    intermediate_layer_model.summary()
+
+    for text in X:
+        tokens = tokenizer.tokenize(text)
+        indices, segments = tokenizer.encode(first=text, max_len=512)
+        predicted = intermediate_layer_model.predict([np.array([indices]), np.array([segments])])
+        # print("predicted_origin's length = ", len(predicted))
+        predicted = predicted[0]  # predicts是一句话中所有字符向量构成的list
+        # print("predicted[:6] = ", predicted[:6])
+        # print("predicted's length = ", len(predicted))
+        # print("predicted[0]'s length = ", len(predicted[0]))
+
+        # 第一个字符[CLS]代表当前句子的向量
+        sentence_embeddings.append(predicted[0])
+
+        # 将一个二维的句子的字符向量转为一维
+        predicted = list(chain.from_iterable(predicted))
+
+        character_embeddings.append(predicted)
+
+    # 保存向量
+    character_save_path = 'result/character_embeddings_' + save_path + '_tuned.txt'
+    sentence_save_path = 'result/sentence_embeddings_' + save_path + '_tuned.txt'
+
+    dp.saveCharacterEmbeddings(character_embeddings, character_save_path)
+    dp.saveSentenceEmbeddings(sentence_embeddings, sentence_save_path)
+
+    print(">>>fine tune之后的" + save_path + "字符向量和句子向量保存完了。。。")
 
 
 # 加载tokenizer

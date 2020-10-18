@@ -56,7 +56,7 @@ def initDataForBert(path, debug=False, clean_enter=False, clean_space=False):
     data = pd.read_csv(path)
     # data = pd.read_csv(config.meituan_train)
     if debug:
-        data = data[:30000]
+        data = data[:150]
 
     # data = data[:1000]
     y = data[['location', 'service', 'price', 'environment', 'dish']]
