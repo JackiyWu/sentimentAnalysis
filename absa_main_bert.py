@@ -71,10 +71,12 @@ if __name__ == "__main__":
 
     # 提取词向量
     path = "train"
-    absa_models.getAndSaveBertEmbeddingsAfterTuned(bert_model, X, path, tokenizer)
+    # absa_models.getAndSaveBertEmbeddingsAfterTuned(bert_model, X, path, tokenizer)
+    absa_models.getAndSaveBertEmbeddingAfterTunedLittleByLittle(bert_model, X, path, tokenizer)
 
     path = "validation"
-    absa_models.getAndSaveBertEmbeddingsAfterTuned(bert_model, X_validation, path, tokenizer)
+    # absa_models.getAndSaveBertEmbeddingsAfterTuned(bert_model, X_validation, path, tokenizer)
+    absa_models.getAndSaveBertEmbeddingAfterTunedLittleByLittle(bert_model, X_validation, path, tokenizer)
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))

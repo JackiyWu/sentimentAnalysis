@@ -400,6 +400,49 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
     print(">>>end of train_cnn_model function in featureFusion.py。。。")
 
 
+# 读取fine tune之后的bert词向量，一点一点保存到文件
+def getAndSaveBertEmbeddingAfterTunedLittleByLittle(bert_model, X, save_path, tokenizer):
+    print(">>>正在飞速获取并保存" + save_path + "fine tune之后的bert字符级向量和句子级向量")
+    print(">>>需要保存的评论条数是:", len(X))
+    # 保存向量
+    character_save_path = 'result/character_embeddings_' + save_path + '_tuned.txt'
+    sentence_save_path = 'result/sentence_embeddings_' + save_path + '_tuned.txt'
+
+    character_embeddings = []
+    sentence_embeddings = []
+
+    layer_name = "embeddings_layer"
+    intermediate_layer_model = Model(inputs=bert_model.input, outputs=bert_model.get_layer(name=layer_name).output)
+    intermediate_layer_model.summary()
+
+    i = 1
+    length = len(X)
+
+    for text in X:
+        indices, segments = tokenizer.encode(first=text, max_len=512)
+        predicted = intermediate_layer_model.predict([np.array([indices]), np.array([segments])])
+        predicted = predicted[0]  # predicts是一句话中所有字符向量构成的list
+
+        # 第一个字符[CLS]代表当前句子的向量
+        sentence_embeddings.append(predicted[0])
+
+        # 将一个二维的句子的字符向量转为一维
+        predicted = list(chain.from_iterable(predicted))
+
+        character_embeddings.append(predicted)
+
+        if i % 10000 == 0 or i == length:
+            print("正在保存第", i, "个向量")
+            dp.saveCharacterEmbeddings(character_embeddings, character_save_path)
+            dp.saveSentenceEmbeddings(sentence_embeddings, sentence_save_path)
+            character_embeddings = []
+            sentence_embeddings = []
+
+        i += 1
+
+    print(">>>fine tune之后的" + save_path + "字符向量和句子向量保存完了。。。")
+
+
 # 读取fine tune之后的bert词向量
 def getAndSaveBertEmbeddingsAfterTuned(bert_model, X, save_path, tokenizer):
     print(">>>正在飞速获取并保存" + save_path + "fine tune之后的bert字符级向量和句子级向量")

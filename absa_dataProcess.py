@@ -291,7 +291,7 @@ def saveCharacterEmbeddings(character_embeddings, save_path):
     # print("character_embeddings' shape = ", character_embeddings.shape)
     # print("character_embeddings' dim = ", character_embeddings.ndim)
 
-    with open(save_path, 'w') as file_object:
+    with open(save_path, 'a') as file_object:
         np.savetxt(file_object, character_embeddings, fmt='%f', delimiter=',')
 
 
@@ -316,7 +316,7 @@ def saveSentenceEmbeddings(sentence_embeddings, save_path):
     # print("sentence_embeddings' shape = ", sentence_embeddings.shape)
     # print("sentence_embeddings' dim = ", sentence_embeddings.ndim)
 
-    with open(save_path, 'w') as file_object:
+    with open(save_path, 'a') as file_object:
         np.savetxt(file_object, sentence_embeddings, fmt='%f', delimiter=',')
 
 
