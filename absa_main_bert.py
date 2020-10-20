@@ -41,12 +41,13 @@ if __name__ == "__main__":
     X, y_cols, Y = dp.initDataForBert(config.meituan_train_new, DEBUG, CLEAN_ENTER, CLEAN_SPACE)
     X_validation, y_cols_validation, Y_validation = dp.initDataForBert(config.meituan_validation_new, DEBUG, CLEAN_ENTER, CLEAN_SPACE)
 
+    # 加载tokenizer
+    tokenizer = absa_models.get_tokenizer()
+
+    '''
     # 加载bert模型
     bert_model = absa_models.createBert()
     # bert_model = absa_models.createBertCNN()
-
-    # 加载tokenizer
-    tokenizer = absa_models.get_tokenizer()
 
     experiment_name = ""
     model_name = "bert"
@@ -61,6 +62,7 @@ if __name__ == "__main__":
     print(">>>正在保存bert模型。。。")
     bert_model.save(config.tuned_bert_model)
     print(">>>bert模型已保存。。。")
+    '''
 
     print(">>>加载bert模型。。。")
     bert_model = load_model(config.tuned_bert_model, custom_objects=get_custom_objects())
