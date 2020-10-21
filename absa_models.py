@@ -431,7 +431,7 @@ def getAndSaveBertEmbeddingAfterTunedLittleByLittle(bert_model, X, save_path, to
 
         character_embeddings.append(predicted)
 
-        if i % 10000 == 0 or i == length:
+        if i % 3000 == 0 or i == length:
             print("正在保存第", i, "个向量")
             dp.saveCharacterEmbeddings(character_embeddings, character_save_path)
             dp.saveSentenceEmbeddings(sentence_embeddings, sentence_save_path)
