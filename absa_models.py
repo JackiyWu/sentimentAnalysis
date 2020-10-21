@@ -270,10 +270,13 @@ def createMLPModel(maxlen, embedding_dim, dense_dim, debug=False):
         embedding_dim = 8
     print(">>>开始构建MLP模型。。。")
     tensor_input = Input(shape=(maxlen, embedding_dim))
+    x = Lambda(lambda x: x[:, 0], name='lambda_layer')(tensor_input)
+    '''
     flatten = Flatten()(tensor_input)
     dense = Dense(dense_dim, activation='relu')(flatten)
     dropout = Dropout(0.4)(dense)
-    tensor_output = Dense(4, activation='softmax')(dropout)
+    '''
+    tensor_output = Dense(4, activation='softmax')(x)
 
     model = Model(inputs=tensor_input, outputs=tensor_output)
     print(model.summary())

@@ -204,8 +204,8 @@ if __name__ == "__main__":
     if DEBUG_ONLINE:
         X_train_path = X_validation_path
         y_train = y_validation
-    epochs = [3]
-    batch_sizes = [64]
+    epochs = [1]
+    batch_sizes = [1024]
     times = 1
     model_name = "MLP"
     no_fuzzy = True

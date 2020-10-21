@@ -44,26 +44,29 @@ if __name__ == "__main__":
     # 加载tokenizer
     tokenizer = absa_models.get_tokenizer()
 
-    '''
     # 加载bert模型
-    bert_model = absa_models.createBert()
-    # bert_model = absa_models.createBertCNN()
+    # bert_model = absa_models.createBert()
 
-    experiment_name = ""
-    model_name = "bert"
+    filters = 64
+    window_size = 6
+    bert_model = absa_models.createBertCNN(64, 6)
+
+    model_name = "bertCNNOrigin"
+    experiment_name = model_name + "_filters_" + str(filters) + "_windowSize_" + str(window_size)
 
     batch_size = 20
     batch_size_validation = 128
-    epoch = 5
+    epoch = 3
     # 训练模型
     absa_models.trainBert(experiment_name, bert_model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
 
     # 保存bert模型
     print(">>>正在保存bert模型。。。")
-    bert_model.save(config.tuned_bert_model)
+    save_model_name = config.tuned_bert_model + "_" + model_name + "_model.h5"
+    bert_model.save(save_model_name)
     print(">>>bert模型已保存。。。")
-    '''
 
+    '''
     print(">>>加载bert模型。。。")
     bert_model = load_model(config.tuned_bert_model, custom_objects=get_custom_objects())
     bert_model.summary()
@@ -77,6 +80,7 @@ if __name__ == "__main__":
     path = "validation"
     # absa_models.getAndSaveBertEmbeddingsAfterTuned(bert_model, X_validation, path, tokenizer)
     absa_models.getAndSaveBertEmbeddingAfterTunedLittleByLittle(bert_model, X_validation, path, tokenizer)
+    '''
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))

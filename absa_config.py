@@ -44,5 +44,5 @@ character_embeddings_train_tuned = 'result/character_embeddings_train_tuned.txt'
 character_embeddings_validation_tuned = 'result/character_embeddings_validation_tuned.txt'
 
 # 保存模型
-tuned_bert_model = 'result/tuned_bert_model.h5'
+tuned_bert_model = 'result/tuned'
 
