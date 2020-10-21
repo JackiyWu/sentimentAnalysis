@@ -739,7 +739,7 @@ def generateXSetForBert(X_value, y_length, batch_size, tokenizer):
 
 
 # 使用generator yield批量训练数据，从文件中读取X
-def generateTrainSetFromFile(X_path, Y_train, batch_size, debug):
+def generateTrainSetFromFile(X_path, Y_train, batch_size, debug, no_fuzzy):
     # print("从", X_path, "中读取X_train数据")
     length = len(Y_train)
     # print("Y_train's length = ", length)
@@ -751,7 +751,7 @@ def generateTrainSetFromFile(X_path, Y_train, batch_size, debug):
         i = 0  # 记录Y_train的遍历
         cnt_Y = 0
         for line in f:
-            X.append(parseLine(line, debug))
+            X.append(parseLine(line, debug, no_fuzzy))
             i += 1
             cnt += 1
             if cnt == batch_size or i == length:
@@ -768,7 +768,7 @@ def generateTrainSetFromFile(X_path, Y_train, batch_size, debug):
 
 
 # 使用generator yield生成批量数据，从文件中读取X，只生成X
-def generateXFromFile(X_path, y_length, batch_size, debug):
+def generateXFromFile(X_path, y_length, batch_size, debug, no_fuzzy):
     while True:
         # print("in generateXFromFile...")
         f = open(X_path)
@@ -776,7 +776,7 @@ def generateXFromFile(X_path, y_length, batch_size, debug):
         X = []
         i = 0
         for line in f:
-            X.append(parseLine(line, debug))
+            X.append(parseLine(line, debug, no_fuzzy))
             i += 1
             cnt += 1
             if cnt == batch_size or i == y_length:
@@ -793,7 +793,7 @@ def parseLineForBert(line, tokenizer):
     return np.array(indices), np.array(segments)
 
 
-def parseLine(line, debug=False):
+def parseLine(line, debug=False, no_fuzzy=False):
     # print("line = ", line)
     line = [float(x) for x in line.split(',')]
     # print("line = ", line)
@@ -802,7 +802,10 @@ def parseLine(line, debug=False):
     if debug:
         line = np.reshape(list(line), (-1, 8))  # 测试
     else:
-        line = np.reshape(line, (-1, 771))
+        if no_fuzzy:
+            line = np.reshape(line, (-1, 768))
+        else:
+            line = np.reshape(line, (-1, 771))
     return line
 
 

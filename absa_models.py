@@ -496,7 +496,7 @@ def get_tokenizer():
 
 
 # 训练模型，直接从文件中读取词向量
-def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_path, y_val, model_name, epoch=3, batch_size=128, debug=False):
+def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_path, y_val, model_name, epoch=3, batch_size=128, debug=False, no_fuzzy=False):
     print("勿扰！训练模型ing。。。in trainModelFromFile。。。")
     if len(X_path.strip()) > 0:
         print("从文件中直接读取词向量。。。")
@@ -521,12 +521,12 @@ def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_pat
         origin_data_current_col_val = np.array(origin_data_current_col_val)
         # print(y_val)
 
-        history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug), steps_per_epoch=math.ceil(length / batch_size),
-                            validation_data=dp.generateTrainSetFromFile(X_val_path, origin_data_current_col_val, batch_size, debug), validation_steps=math.ceil(length_validation / batch_size_validation),
+        history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug, no_fuzzy), steps_per_epoch=math.ceil(length / batch_size),
+                            validation_data=dp.generateTrainSetFromFile(X_val_path, origin_data_current_col_val, batch_size, debug, no_fuzzy), validation_steps=math.ceil(length_validation / batch_size_validation),
                             batch_size=batch_size, epochs=epoch, verbose=1)
 
         # 预测验证集
-        y_val_pred = model.predict(dp.generateXFromFile(X_val_path, length_validation, batch_size, debug), steps=math.ceil(length_validation / batch_size_validation))
+        y_val_pred = model.predict(dp.generateXFromFile(X_val_path, length_validation, batch_size, debug, no_fuzzy), steps=math.ceil(length_validation / batch_size_validation))
         print("y_val_pred's length = ", len(y_val_pred))
         print("y_validation's length = ", length_validation)
 
