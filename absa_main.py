@@ -98,7 +98,7 @@ import absa_models as absa_models
 
 # 如果DEBUG为True，则只测试少部分数据
 DEBUG = False
-DEBUG_ONLINE = True
+DEBUG_ONLINE = False
 
 # 句子的最大长度
 MAXLEN = 512
@@ -204,10 +204,10 @@ if __name__ == "__main__":
     if DEBUG_ONLINE:
         X_train_path = X_validation_path
         y_train = y_validation
-    epochs = [1]
-    batch_sizes = [1024]
+    epochs = [3]
+    batch_sizes = [256]
     times = 1
-    model_name = "MLP"
+    model_name = "MLP_noFuzzy"
     no_fuzzy = True
     if model_name == "CNN":
         filters = [64]
@@ -302,7 +302,6 @@ if __name__ == "__main__":
             for batch_size in batch_sizes:
                 for epoch in epochs:
                     for i in range(times):
-                        # model = absa_models.createMLPModel(MAXLEN, EMBEDDING_DIM_FINAL, dim, DEBUG)
                         model = absa_models.createMLPModel(MAXLEN, embedding_dim, dim, DEBUG)
                         experiment_name += model_name + "_dim_" + str(dim) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                         print("experiment_name = ", experiment_name)

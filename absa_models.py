@@ -283,7 +283,7 @@ def createMLPModel(maxlen, embedding_dim, dense_dim, debug=False):
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-    # print(">>>TextCNNBiGRUModel模型构建结束。。。")
+    print(">>>MLPModel模型构建结束。。。")
     return model
 
 
@@ -537,8 +537,8 @@ def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_pat
 
         # 准确率：在所有预测为正的样本中，确实为正的比例
         # 召回率：本身为正的样本中，被预测为正的比例
-        print("y_val = ", list(origin_data_current_col_val))
-        print("y_val_pred = ", list(y_val_pred))
+        # print("y_val = ", list(origin_data_current_col_val))
+        # print("y_val_pred = ", list(y_val_pred))
         precision, recall, fscore, support = score(origin_data_current_col_val, y_val_pred)
         print("precision = ", precision)
         print("recall = ", recall)
