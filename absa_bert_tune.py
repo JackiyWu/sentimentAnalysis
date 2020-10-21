@@ -7,10 +7,11 @@ from keras_bert import Tokenizer as bert_Tokenizer, load_trained_model_from_chec
 import os
 import numpy as np
 import keras
-from keras.layers import Input, Dense, Lambda, Flatten
+from keras.layers import Input, Dense, Lambda, Flatten, Conv1D, MaxPool1D, Dropout
 from keras.models import Model
 from keras.optimizers import Adam
 from keras.utils import to_categorical
+from keras.layers.merge import concatenate
 import tensorflow as tf
 from keras.models import save_model, load_model
 
@@ -72,6 +73,71 @@ def load_data(tokenizer, texts):
     return np.array(texts_list_1), np.array(texts_list_2)
 
 
+def create_concat_model():
+    print(">>>开始构造融合模型...")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=False)
+
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+
+    x_bert = bert_model([x1_in, x2_in])
+    x_bert = Lambda(lambda x: x[:, 0], name='last_layer_1')(x_bert)  # 取出[CLS]对应的向量用来做分类
+
+    x3_in = Input(shape=(3,))
+    x_fuzzy = Dense(3, activation='linear', name='dense1_fuzzy')(x3_in)
+
+    x = concatenate([x_bert, x_fuzzy], axis=-1)
+
+    p = Dense(2, activation='softmax')(x)
+
+    model = Model([x1_in, x2_in, x3_in], p)
+
+    model.compile(
+        loss='categorical_crossentropy',
+        optimizer=Adam(1e-5),  # 用足够小的学习率
+        metrics=['accuracy']
+    )
+    print(">>>融合模型加载结束。。。")
+    model.summary()
+
+    return model
+
+
+# 三维融合模型
+def create_concat_model2():
+    print(">>>开始构造融合模型2...")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=False)
+
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+
+    x_bert = bert_model([x1_in, x2_in])
+    # x_bert = Lambda(lambda x: x[:, 0], name='last_layer_1')(x_bert)  # 取出[CLS]对应的向量用来做分类
+
+    x3_in = Input(shape=(512, 3,))
+    # x_fuzzy = Dense(3, activation='linear', name='dense1_fuzzy')(x3_in)
+
+    x = concatenate([x_bert, x3_in], axis=-1)
+
+    cnn = Conv1D(32, 6, name='conv')(x)
+    cnn = MaxPool1D(name='max_pool')(cnn)
+
+    flatten = Flatten()(cnn)
+
+    x = Dense(32, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    p = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model([x1_in, x2_in, x3_in], p)
+
+    model.compile(loss='categorical_crossentropy', optimizer=Adam(1e-5), metrics=['accuracy'])
+
+    model.summary()
+    print(">>>融合模型2加载结束。。。")
+
+    return model
+
+
 def create_model():
     print(">>>开始加载Bert模型。。。")
     bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=False)
@@ -87,7 +153,7 @@ def create_model():
     # tensor_name = "functional_3/Encoder-12-FeedForward-Norm/add_1:0"
     # tf.print(tensor_name)
     # x = bert_model([x1_in, x2_in], name='my_bert_model')
-    x = Lambda(lambda x: x[:, :], name='last_layer')(x)
+    # x = Lambda(lambda x: x[:, :], name='last_layer')(x)
     # x = Lambda(lambda x: x[:, 0], name='last_layer')(x)  # 取出[CLS]对应的向量用来做分类
     x = Lambda(lambda x: x[:, 0], name='last_layer_1')(x)  # 取出[CLS]对应的向量用来做分类
     # x = Flatten()(x)
@@ -114,6 +180,14 @@ def create_model():
     return model
 
 
+def load_X3():
+    x3 = np.array([1, 2, 3])
+    X3 = np.array([x3, x3, x3, x3, x3, x3, x3, x3, x3, x3, x3, x3, x3, x3, x3, x3, x3, x3, x3, x3])
+    print("X3.shape = ", X3.shape)
+
+    return X3
+
+
 token_dict = {}
 with codecs.open(config.bert_dict_path, 'r', 'utf8') as reader:
     for line in reader:
@@ -122,27 +196,41 @@ with codecs.open(config.bert_dict_path, 'r', 'utf8') as reader:
 
 tokenizer = bert_Tokenizer(token_dict)
 
+# 测试3维融合模型
+concat_model2 = create_concat_model2()
+
+# 测试融合模型
+concat_model = create_concat_model()
+X3 = load_X3()
+# print("X3 = ", X3)
+
 texts, labels = get_texts()
 
 X1, X2 = load_data(tokenizer, texts)
 # print("X1 = ", X1)
-# print("X1.shape = ", X1.shape)
+print("X1.shape = ", X1.shape)
+print("X2.shape = ", X2.shape)
+print("labels = ", labels)
+print("labels' length = ", len(labels))
 Y = to_categorical(labels)
-# print("Y = ", Y)
-
-model = create_model()
-
-model.fit([X1, X2], Y, epochs=1, batch_size=10)
 
 print("*" * 200)
+
+# model = create_model()
+
+print(">>>开始训练模型。。。")
+concat_model.fit([X1, X2, X3], Y, epochs=1, batch_size=10, verbose=1)
+# model.fit([X1, X2], Y, epochs=1, batch_size=10, verbose=1)
+
 # model.summary()
-model_path = "result/tuned_bert_model_test.h5"
-model.save(model_path)
+# model_path = "result/tuned_bert_model_test.h5"
+# model.save(model_path)
 
-old_model = load_model(model_path)
-print(old_model.summary())
+# old_model = load_model(model_path)
+# print(old_model.summary())
 
 print("*" * 200)
+'''
 print(">>>intermediate_layer_model...")
 # layer_name = 'functional_3'
 layer_name = 'last_layer'
@@ -155,10 +243,10 @@ print("*" * 200)
 # 测试
 texts_test = get_texts_2()
 X1_test, X2_test = load_data(tokenizer, texts_test)
+'''
 
 # Y_pred = model.predict([X1_test[0], X2_test[0]])
 # print("Y_pred = ", Y_pred)
-'''
 '''
 print("*" * 200)
 
@@ -167,6 +255,7 @@ tokens = tokenizer.tokenize(text)
 indices, segments = tokenizer.encode(first=text, max_len=512)
 # print("indices = ", indices[:10])
 # print("segments = ", segments[:10])
+'''
 
 '''
 predicts = intermediate_layer_model.predict([X1_test, X2_test])[0]
