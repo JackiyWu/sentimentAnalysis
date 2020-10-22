@@ -22,22 +22,22 @@ bert_checkpoint_path = 'config/keras_bert/chinese_L-12_H-768_A-12/bert_model.ckp
 bert_dict_path = 'config/keras_bert/chinese_L-12_H-768_A-12/vocab.txt'
 
 # 结果保存
-cluster_center_validation_1 = 'result/cluster_center_validation.csv'
-cluster_center_train_1 = 'result/cluster_center_train.csv'
+cluster_center_validation_1 = 'result/cluster_center_validation_tuned.csv'
+cluster_center_train_1 = 'result/cluster_center_train_tuned.csv'
 
 cluster_center_validation_2 = 'result/cluster_center_validation_2.csv'
 cluster_center_train_2 = 'result/cluster_center_train_2.csv'
 
-character_embeddings_validation = 'result/character_embeddings_validation.txt'
-character_embeddings_train = 'result/character_embeddings_train.txt'
-sentence_embeddings_validation = 'result/sentence_embeddings_validation.txt'
-sentence_embeddings_train = 'result/sentence_embeddings_train.txt'
+character_embeddings_validation = 'result/character_embeddings_validation_tuned.txt'
+character_embeddings_train = 'result/character_embeddings_train_tuned.txt'
+sentence_embeddings_validation = 'result/sentence_embeddings_validation_tuned.txt'
+sentence_embeddings_train = 'result/sentence_embeddings_train_tuned.txt'
 
 final_word_embeddings_validation = 'result/final_word_embeddings_validation.txt'
 final_word_embeddings_train = 'result/final_word_embeddings_train.txt'
 
-membership_degree_validation = 'result/membership_degree_validation.txt'
-membership_degree_train = 'result/membership_degree_train.txt'
+membership_degree_validation = 'result/membership_degree_validation_tuned.txt'
+membership_degree_train = 'result/membership_degree_train_tuned.txt'
 
 # fine tune之后的字向量
 character_embeddings_train_tuned = 'result/character_embeddings_train_tuned.txt'
@@ -45,4 +45,5 @@ character_embeddings_validation_tuned = 'result/character_embeddings_validation_
 
 # 保存模型
 tuned_bert_model = 'result/tuned'
+origin_tuned_bert_model = 'result/tuned_bert_model.h5'
 

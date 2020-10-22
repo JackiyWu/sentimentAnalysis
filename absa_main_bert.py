@@ -66,7 +66,6 @@ if __name__ == "__main__":
     bert_model.save(save_model_name)
     print(">>>bert模型已保存。。。")
 
-    '''
     print(">>>加载bert模型。。。")
     bert_model = load_model(config.tuned_bert_model, custom_objects=get_custom_objects())
     bert_model.summary()
@@ -80,6 +79,7 @@ if __name__ == "__main__":
     path = "validation"
     # absa_models.getAndSaveBertEmbeddingsAfterTuned(bert_model, X_validation, path, tokenizer)
     absa_models.getAndSaveBertEmbeddingAfterTunedLittleByLittle(bert_model, X_validation, path, tokenizer)
+    '''
     '''
 
     end_time = time.time()

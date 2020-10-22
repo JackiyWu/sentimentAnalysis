@@ -114,6 +114,7 @@ def create_concat_model2():
     x_bert = bert_model([x1_in, x2_in])
     # x_bert = Lambda(lambda x: x[:, 0], name='last_layer_1')(x_bert)  # 取出[CLS]对应的向量用来做分类
 
+    # x3_in是每个字符隶属于三个聚类中心（负向、中性、正向）的程度
     x3_in = Input(shape=(512, 3,))
     # x_fuzzy = Dense(3, activation='linear', name='dense1_fuzzy')(x3_in)
 
@@ -242,8 +243,8 @@ layer_name2 = 'last_layer_1'
 print("*" * 200)
 # 测试
 texts_test = get_texts_2()
-X1_test, X2_test = load_data(tokenizer, texts_test)
 '''
+X1_test, X2_test = load_data(tokenizer, texts_test)
 
 # Y_pred = model.predict([X1_test[0], X2_test[0]])
 # print("Y_pred = ", Y_pred)

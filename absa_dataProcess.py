@@ -13,8 +13,9 @@ import codecs
 
 from sklearn.cluster import KMeans
 
-from keras_bert import Tokenizer as bert_Tokenizer, load_trained_model_from_checkpoint, extract_embeddings
+from keras_bert import Tokenizer as bert_Tokenizer, load_trained_model_from_checkpoint, extract_embeddings, get_custom_objects
 from keras.utils import to_categorical
+from keras.models import load_model, Model
 
 import absa_config as config
 
@@ -400,10 +401,30 @@ def getSentimentWords(path, debug=False):
 
 # 从bert_model中读取词向量
 def getSentimentWordsEmbeddings(negative_words, neutral_words, positive_words, bert_path, debug):
+    print(">>>加载bert模型。。。")
+    bert_model = load_model(config.origin_tuned_bert_model, custom_objects=get_custom_objects())
+    # bert_model.summary()
+    print(">>>bert模型加载结束。。。")
+
     print(">>>从bert_model中读取词向量...")
+    # 第一种方式：使用原始bert字符向量
+    '''
     negative_words_embeddings = getSentimentWordsEmbeddingsByList(negative_words, bert_path, debug)
     neutral_words_embeddings = getSentimentWordsEmbeddingsByList(neutral_words, bert_path, debug)
     positive_words_embeddings = getSentimentWordsEmbeddingsByList(positive_words, bert_path, debug)
+    '''
+
+    # 第二种方式：使用fine tune之后的字符向量
+    token_dict = {}
+    with codecs.open(config.bert_dict_path, 'r', 'utf8') as reader:
+        for line in reader:
+            token = line.strip()
+            token_dict[token] = len(token_dict)
+
+    tokenizer = bert_Tokenizer(token_dict)
+    negative_words_embeddings = getTunedSentimentWrodEmbeddingsByList(negative_words, tokenizer, bert_model, debug)
+    neutral_words_embeddings = getTunedSentimentWrodEmbeddingsByList(neutral_words, tokenizer, bert_model, debug)
+    positive_words_embeddings = getTunedSentimentWrodEmbeddingsByList(positive_words, tokenizer, bert_model, debug)
 
     return negative_words_embeddings, neutral_words_embeddings, positive_words_embeddings
 
@@ -422,6 +443,25 @@ def getSentimentWordsEmbeddingsByList(texts, bert_path, debug=False):
         final_embeddings.append(CLS)
 
     return final_embeddings
+
+
+# 提取fine tune之后的字符向量
+def getTunedSentimentWrodEmbeddingsByList(texts, tokenizer, bert_model, debug=False):
+    result = []
+
+    layer_name = "embeddings_layer"
+    intermediate_layer_model = Model(inputs=bert_model.input, outputs=bert_model.get_layer(name=layer_name).output)
+    intermediate_layer_model.summary()
+
+    for text in texts:
+        indices, segments = tokenizer.encode(first=text, max_len=512)
+        predicted = intermediate_layer_model.predict([np.array([indices]), np.array([segments])])
+        predicted = predicted[0]  # predicts是一句话中所有字符向量构成的list
+
+        # 第一个字符[CLS]代表当前句子的向量
+        result.append(predicted[0])
+
+    return result
 
 
 # 计算词向量的聚类中心1，各自聚类一个中心，然后输出三个中心

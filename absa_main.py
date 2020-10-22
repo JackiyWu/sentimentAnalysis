@@ -122,7 +122,7 @@ if __name__ == "__main__":
     print("》》》【1】读取原始训练数据集,去掉换行符、空格（测试）*******************************************************************************************************************************************************")
     # origin_data, y_cols, y = dp.initData(DEBUG, CLEAN_ENTER, CLEAN_SPACE)
     # 1.1 读取原始训练数据集的labels
-    y_cols_name, y_train, y_validation = dp.initDataLabels(DEBUG)
+    # y_cols_name, y_train, y_validation = dp.initDataLabels(DEBUG)
 
     # 把细粒度属性标签转为粗粒度属性标签
     # dp.processDataToTarget(origin_data)
@@ -151,6 +151,8 @@ if __name__ == "__main__":
         membership_degree_path = config.membership_degree_train
         final_word_embeddings_path = config.final_word_embeddings_train
         X_train_path = config.final_word_embeddings_train
+    membership_degree_path = config.membership_degree_validation
+    character_embeddings_path = config.character_embeddings_validation
 
     # 3.从bert_model获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings
     print("》》》【3】正在从bert模型获取origin_data对应的字符向量character_embeddings、句子级向量sentence_embeddings(此处比较耗时间注意哦~）****************************************************************************")
@@ -169,17 +171,19 @@ if __name__ == "__main__":
     # bert_path = config.bert_path
     # cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, DEBUG)
     # 4.1 直接从文件中读取聚类中心向量
-    # cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
-    # print("cluster_centers' length = ", len(cluster_centers))
+    cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
+    print("cluster_centers' length = ", len(cluster_centers))
+    print("cluster_centers[0]' length = ", len(cluster_centers[0]))
+    # print("cluster_centers[0][0]' length = ", len(cluster_centers[0][0]))
 
     # 5.计算每条评论的特征向量（字符级向量）到不同聚类中心的隶属值 distance_from_feature_to_cluster
     print("》》》【5、6】计算评论对聚类中心的隶属值*********************************************************************************************************************************************************************")
     # 6.使用cosin余弦距离来定义隶属函数,根据distance_from_feature_to_cluster和隶属函数计算特征向量对三个类别的隶属值review_sentiment_membership_degree([])（三维隶属值，表示负向、中性、正向）
     # review_sentiment_membership_degree = dp.calculateMembershipDegree(cluster_centers, character_embeddings)
     # 计算并保存评论文本的隶属度
-    # review_sentiment_membership_degree = dp.calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_path, membership_degree_path, DEBUG)
+    review_sentiment_membership_degree = dp.calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_path, membership_degree_path, DEBUG)
     # 直接读取评论文本的隶属度
-    # review_sentiment_membership_degree = dp.getMembershipDegrees(membership_degree_path)
+    review_sentiment_membership_degree = dp.getMembershipDegrees(membership_degree_path)
 
     # 7.将review_sentiment_membership_degree拼接在character_embeddings后面生成最终的词向量final_word_embeddings
     print("》》》【7】将隶属值拼接在原词向量上生成最终的词向量**********************************************************************************************************************************************************")
@@ -207,7 +211,7 @@ if __name__ == "__main__":
     epochs = [3]
     batch_sizes = [256]
     times = 1
-    model_name = "MLP_noFuzzy"
+    model_name = "XXXMLP_noFuzzy"
     no_fuzzy = True
     if model_name == "CNN":
         filters = [64]
@@ -322,6 +326,8 @@ if __name__ == "__main__":
                                     experiment_name += model_name + "_filter_" + str(cnn_filter) + "_window_size_" + str(window_size) + "_gru_dim1_" + str(dim_1) + "_gru_dim2_" + str(dim_2) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                                     print("experiment_name = ", experiment_name)
                                     absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG)
+    else:
+        pass
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))
