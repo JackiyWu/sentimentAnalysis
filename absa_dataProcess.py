@@ -57,7 +57,7 @@ def initDataForBert(path, debug=False, clean_enter=False, clean_space=False):
     data = pd.read_csv(path)
     # data = pd.read_csv(config.meituan_train)
     if debug:
-        data = data[:150]
+        data = data[:50]
 
     # data = data[:1000]
     y = data[['location', 'service', 'price', 'environment', 'dish']]
@@ -727,7 +727,7 @@ def generateTrainSet(X_train, Y_train, batch_size):
 
 
 # 批量产生训练数据
-def generateSetForBert(X_value, Y_value, batch_size, tokenizer, debug):
+def generateSetForBert(X_value, Y_value, batch_size, tokenizer):
     length = len(Y_value)
 
     while True:

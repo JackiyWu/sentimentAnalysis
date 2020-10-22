@@ -7,6 +7,7 @@ import time
 import codecs
 import csv
 import math
+from itertools import chain
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, confusion_matrix
@@ -25,7 +26,7 @@ from keras.optimizers import Adam
 
 from tensorflow.keras.layers import SeparableConvolution1D
 
-from keras_bert import Tokenizer, load_trained_model_from_checkpoint
+from keras_bert import Tokenizer, load_trained_model_from_checkpoint, AdamWarmup, calc_train_steps
 
 import absa_config as config
 import absa_dataProcess as dp
@@ -41,7 +42,9 @@ def createBertEmbeddingModel():
             token = line.strip()
             TOKEN_DICT[token] = len(TOKEN_DICT)
 
-    model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path)
+    model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+
+    print(">>>bert模型加载完成...")
 
     return model
 
@@ -70,6 +73,45 @@ def createCNNModel(maxlen, embedding_dim, filter, window_size, debug=False):
     return model
 
 
+# Bert+CNN模型
+# 不提取词向量，直接用bert连接后面的模型
+def createBertCNNModel(bert_model, filter, window_size):
+    print("开始构建Bert+CNN模型。。。")
+
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+    x = bert_model([x1_in, x2_in])
+    cnn = Conv1D(filter, window_size, name='conv')(x)
+    cnn = BatchNormalization()(cnn)
+    cnn = MaxPool1D(name='max_pool')(cnn)
+
+    flatten = Flatten()(cnn)
+
+    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    p = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model([x1_in, x2_in], p)
+
+    train_x = np.random.standard_normal((1024, 100))
+
+    total_steps, warmup_steps = calc_train_steps(
+        num_example=train_x.shape[0],
+        batch_size=32,
+        epochs=10,
+        warmup_proportion=0.1,
+    )
+
+    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+
+    model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+
+    model.summary()
+    print(">>>Bert+CNN模型构建结束。。。")
+
+    return model
+
+
 # GRU模型
 def createGRUModel(maxlen, embedding_dim, dim_1, dim_2, debug=False):
     if debug:
@@ -92,6 +134,80 @@ def createGRUModel(maxlen, embedding_dim, dim_1, dim_2, debug=False):
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
+
+    return model
+
+
+# Bert+GRU模型
+# 不提取词向量，直接用bert连接后面的模型
+def createBertGRUModel(bert_model, dim_1, dim_2):
+    print("开始构建BertGRU模型。。。")
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+    x = bert_model([x1_in, x2_in])
+
+    bi_gru1 = Bidirectional(GRU(dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(x)
+    bi_gru1 = BatchNormalization()(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = BatchNormalization()(bi_gru2)
+
+    flatten = Flatten()(bi_gru2)
+
+    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    p = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model(inputs=[x1_in, x2_in], outputs=p)
+
+    train_x = np.random.standard_normal((1024, 100))
+
+    total_steps, warmup_steps = calc_train_steps(
+        num_example=train_x.shape[0],
+        batch_size=32,
+        epochs=10,
+        warmup_proportion=0.1,
+    )
+
+    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+    print("BertGRU模型构建结束。。。")
+
+    return model
+
+
+# Bert+LSTM模型
+# 不提取词向量，直接用bert连接后面的模型
+def createBertLSTMModel(bert_model, dim1, dim2):
+    print("开始构建BertLSTM模型。。。")
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+    x = bert_model([x1_in, x2_in])
+
+    lstm = Bidirectional(LSTM(dim1, return_sequences=True, name='lstm1'))(x)
+    lstm = Bidirectional(LSTM(dim2, return_sequences=False, name='lstm2'))(lstm)
+
+    x = Dense(64, activation='relu', name='dense_1')(lstm)
+    x = Dropout(0.4, name='dropout')(x)
+    p = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model(inputs=[x1_in, x2_in], outputs=p)
+
+    train_x = np.random.standard_normal((1024, 100))
+
+    total_steps, warmup_steps = calc_train_steps(
+        num_example=train_x.shape[0],
+        batch_size=32,
+        epochs=10,
+        warmup_proportion=0.1,
+    )
+
+    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+    print("BertLSTM模型构建结束。。。")
 
     return model
 
@@ -151,6 +267,53 @@ def createSeparableCNNModel(maxlen, embedding_dim, debug=False):
     return model
 
 
+# Bert+SeparableCNN模型
+# 不提取词向量，直接用bert连接后面的模型
+def createBertSeparableCNNModel(bert_model, ):
+    print(">>>开始构建BertSeparableCNN模型。。。")
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+    x = bert_model([x1_in, x2_in])
+
+    cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(x)
+    cnn1 = BatchNormalization()(cnn1)
+    cnn1 = MaxPool1D(pool_size=100)(cnn1)
+    cnn2 = SeparableConvolution1D(200, 4, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(x)
+    cnn2 = BatchNormalization()(cnn2)
+    cnn2 = MaxPool1D(pool_size=100)(cnn2)
+    cnn3 = SeparableConvolution1D(200, 5, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_3")(x)
+    cnn3 = BatchNormalization()(cnn3)
+    cnn3 = MaxPool1D(pool_size=100)(cnn3)
+    cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
+
+    dropout = Dropout(0.2)(cnn)
+    flatten = Flatten()(dropout)
+    dense = Dense(512, activation='relu')(flatten)
+    dense = BatchNormalization()(dense)
+    dropout = Dropout(0.2)(dense)
+    tensor_output = Dense(4, activation='softmax')(dropout)
+
+    model = Model(inputs=[x1_in, x2_in], outputs=tensor_output)
+
+    train_x = np.random.standard_normal((1024, 100))
+
+    total_steps, warmup_steps = calc_train_steps(
+        num_example=train_x.shape[0],
+        batch_size=32,
+        epochs=10,
+        warmup_proportion=0.1,
+    )
+
+    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+
+    print(model.summary())
+    print(">>>BertSeparableCNN模型构建结束。。。")
+
+    return model
+
+
 # 构建单层CNN+BiGRU
 def createCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size, gru_output_dim_1, gru_output_dim_2, debug=False):
     if debug:
@@ -179,6 +342,53 @@ def createCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size, gru_
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
+
+    return model
+
+
+# 构建单层CNN+BiGRU
+# Bert+单层CNN+BiGRU模型
+# 不提取词向量，直接用bert连接后面的模型
+def createBertCNNBiGRUModel(bert_model, cnn_filter, cnn_window_size, gru_output_dim_1, gru_output_dim_2, debug=False):
+    print("开始构建CNNBiGRU模型。。。")
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+    x = bert_model([x1_in, x2_in])
+
+    cnn = Conv1D(cnn_filter, cnn_window_size, padding='same', strides=1, activation='relu', name='conv')(x)
+    cnn = BatchNormalization()(cnn)
+    cnn = MaxPool1D(name='max_pool')(cnn)
+
+    dropout = Dropout(0.2)(cnn)
+    # flatten = Flatten()(dropout)
+
+    bi_gru1 = Bidirectional(GRU(gru_output_dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
+    bi_gru1 = BatchNormalization()(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(gru_output_dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = BatchNormalization()(bi_gru2)
+
+    flatten = Flatten()(bi_gru2)
+
+    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    x = Dense(4, activation='softmax', name='softmax')(x)
+
+    train_x = np.random.standard_normal((1024, 100))
+
+    total_steps, warmup_steps = calc_train_steps(
+        num_example=train_x.shape[0],
+        batch_size=32,
+        epochs=10,
+        warmup_proportion=0.1,
+    )
+
+    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+
+    model = Model(inputs=[x1_in, x2_in], outputs=x)
+
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+    print("BertCNNBiGRU模型构建完成。。。")
 
     return model
 
@@ -218,6 +428,57 @@ def createMultiCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size_
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
+
+    return model
+
+
+# Bert+双层CNN+BiGRU模型
+# 不提取词向量，直接用bert连接后面的模型
+def createBertMultiCNNBiGRUModel(bert_model, cnn_filter, cnn_window_size_1, cnn_window_size_2, gru_output_dim_1, gru_output_dim_2, debug=False):
+    print("开始构建BertMultiCNNBiGRU模型。。。")
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+    x = bert_model([x1_in, x2_in])
+
+    cnn1 = Conv1D(cnn_filter, cnn_window_size_1, padding='same', strides=1, activation='relu', name='conv')(x)
+    cnn1 = BatchNormalization()(cnn1)
+    cnn1 = MaxPool1D(name='max_pool')(cnn1)
+
+    cnn2 = Conv1D(cnn_filter, cnn_window_size_2, padding='same', strides=1, activation='relu', name='conv')(x)
+    cnn2 = BatchNormalization()(cnn2)
+    cnn2 = MaxPool1D(name='max_pool')(cnn2)
+
+    cnn = concatenate([cnn1, cnn2], axis=-1)
+
+    dropout = Dropout(0.2)(cnn)
+
+    bi_gru1 = Bidirectional(GRU(gru_output_dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
+    bi_gru1 = BatchNormalization()(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(gru_output_dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = BatchNormalization()(bi_gru2)
+
+    flatten = Flatten()(bi_gru2)
+
+    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    x = Dense(4, activation='softmax', name='softmax')(x)
+
+    train_x = np.random.standard_normal((1024, 100))
+
+    total_steps, warmup_steps = calc_train_steps(
+        num_example=train_x.shape[0],
+        batch_size=32,
+        epochs=10,
+        warmup_proportion=0.1,
+    )
+
+    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+
+    model = Model(inputs=[x1_in, x2_in], outputs=x)
+
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+    print("BertMultiCNNBiGRU模型构建完成。。。")
 
     return model
 
@@ -263,23 +524,111 @@ def createSeparableCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, window_size_
     return model
 
 
+# Bert+SeparableCNNBiGRU模型
+# 不提取词向量，直接用bert连接后面的模型
+def createBertSeparableCNNBiGRUModel(bert_model, cnn_filter, window_size_1, window_size_2, window_size_3, debug=False):
+    print(">>>开始构建BertSeparableCNNBiGRU模型。。。")
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+    x = bert_model([x1_in, x2_in])
+
+    cnn1 = SeparableConvolution1D(cnn_filter, window_size_1, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_0")(x)
+    cnn1 = BatchNormalization()(cnn1)
+    cnn1 = MaxPool1D(pool_size=100)(cnn1)
+    cnn2 = SeparableConvolution1D(cnn_filter, window_size_2, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(x)
+    cnn2 = BatchNormalization()(cnn2)
+    cnn2 = MaxPool1D(pool_size=100)(cnn2)
+    cnn3 = SeparableConvolution1D(cnn_filter, window_size_3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(x)
+    cnn3 = BatchNormalization()(cnn3)
+    cnn3 = MaxPool1D(pool_size=100)(cnn3)
+    cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
+
+    dropout = Dropout(0.2)(cnn)
+    # flatten = Flatten()(dropout)
+
+    bi_gru1 = Bidirectional(GRU(128, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
+    bi_gru1 = BatchNormalization()(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(256, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = BatchNormalization()(bi_gru2)
+
+    flatten = Flatten()(bi_gru2)
+
+    dense = Dense(512, activation='relu')(flatten)
+    dense = BatchNormalization()(dense)
+    dropout = Dropout(0.2)(dense)
+    tensor_output = Dense(4, activation='softmax')(dropout)
+
+    model = Model(inputs=[x1_in, x2_in], outputs=tensor_output)
+
+    train_x = np.random.standard_normal((1024, 100))
+
+    total_steps, warmup_steps = calc_train_steps(
+        num_example=train_x.shape[0],
+        batch_size=32,
+        epochs=10,
+        warmup_proportion=0.1,
+    )
+
+    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+    print(">>>BertSeparableCNNBiGRU模型构建结束。。。")
+
+    return model
+
+
 # MLP
 def createMLPModel(maxlen, embedding_dim, dense_dim, debug=False):
     if debug:
         embedding_dim = 8
     print(">>>开始构建MLP模型。。。")
     tensor_input = Input(shape=(maxlen, embedding_dim))
+    x = Lambda(lambda x: x[:, 0], name='lambda_layer')(tensor_input)
+    '''
     flatten = Flatten()(tensor_input)
     dense = Dense(dense_dim, activation='relu')(flatten)
     dropout = Dropout(0.4)(dense)
-    tensor_output = Dense(4, activation='softmax')(dropout)
+    '''
+    tensor_output = Dense(4, activation='softmax')(x)
 
     model = Model(inputs=tensor_input, outputs=tensor_output)
     print(model.summary())
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-    # print(">>>TextCNNBiGRUModel模型构建结束。。。")
+    print(">>>MLPModel模型构建结束。。。")
+    return model
+
+
+# Bert+MLP模型
+# 不提取词向量，直接用bert连接后面的模型
+def createBertMLPModel(bert_model, dense_dim, debug=False):
+    print(">>>开始构建BertMLP模型。。。")
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+    x = bert_model([x1_in, x2_in])
+
+    x = Lambda(lambda x: x[:, 0], name='lambda_layer')(x)
+    tensor_output = Dense(4, activation='softmax')(x)
+
+    model = Model(inputs=[x1_in, x2_in], outputs=tensor_output)
+
+    train_x = np.random.standard_normal((1024, 100))
+
+    total_steps, warmup_steps = calc_train_steps(
+        num_example=train_x.shape[0],
+        batch_size=32,
+        epochs=10,
+        warmup_proportion=0.1,
+    )
+
+    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+    print(">>>BertMLPModel模型构建结束。。。")
+
     return model
 
 
@@ -291,7 +640,7 @@ def createBert():
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
-    x = Lambda(lambda x: x[:, :], name='last_layer_0')(x)  # 取出[CLS]对应的向量用来做分类
+    x = Lambda(lambda x: x[:, :], name='embeddings_layer')(x)  # 所有词向量
     x = Lambda(lambda x: x[:, 0], name='last_layer_1')(x)  # 取出[CLS]对应的向量用来做分类
     p = Dense(4, activation='softmax')(x)
 
@@ -302,22 +651,37 @@ def createBert():
         optimizer=Adam(1e-5),  # 用足够小的学习率
         metrics=['accuracy']
     )
-    print(">>>Bert模型加载结束。。。")
     model.summary()
+    print(">>>Bert模型加载结束。。。")
 
     return model
 
 
 # bert+CNN
-def createBertCNN():
-    print(">>>开始加载bert+cnn模型。。。")
+def createBertCNN(filter, window_size, debug=False):
+    print(">>>开始加载Bert+CNN模型。。。")
     bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
 
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
-    x = Lambda(lambda x: x[:, :], name='last_layer_0')(x)  # 取出[CLS]对应的向量用来做分类
-    x = Lambda(lambda x: x[:, 0], name='last_layer_1')(x)  # 取出[CLS]对应的向量用来做分类
+    cnn = Conv1D(filter, window_size, name='conv')(x)
+    cnn = MaxPool1D(name='max_pool')(cnn)
+
+    flatten = Flatten()(cnn)
+
+    x = Dense(32, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    p = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model([x1_in, x2_in], p)
+
+    model.compile(loss='categorical_crossentropy', optimizer=Adam(1e-5), metrics=['accuracy'])
+
+    model.summary()
+    print(">>>Bert+CNN模型加载结束。。。")
+
+    return model
 
 
 # 训练bert模型
@@ -330,6 +694,9 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
 
     F1_scores = 0
     F1_score = 0
+    if debug:
+        y_cols_name = ['location']
+        batch_size_validation = batch_size
 
     for index, col in enumerate(y_cols_name):
         print("Current col is: ", col)
@@ -357,8 +724,8 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
 
         # 准确率：在所有预测为正的样本中，确实为正的比例
         # 召回率：本身为正的样本中，被预测为正的比例
-        print("y_val[200] = ", list(origin_data_current_col_val)[200])
-        print("y_val_pred[200] = ", list(y_val_pred)[200])
+        print("y_val[200] = ", list(origin_data_current_col_val)[20])
+        print("y_val_pred[200] = ", list(y_val_pred)[20])
         precision, recall, fscore, support = score(origin_data_current_col_val, y_val_pred)
         print("precision = ", precision)
         print("recall = ", recall)
@@ -381,6 +748,88 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
     print(">>>end of train_cnn_model function in featureFusion.py。。。")
 
 
+# 读取fine tune之后的bert词向量，一点一点保存到文件
+def getAndSaveBertEmbeddingAfterTunedLittleByLittle(bert_model, X, save_path, tokenizer):
+    print(">>>正在飞速获取并保存" + save_path + "fine tune之后的bert字符级向量和句子级向量")
+    print(">>>需要保存的评论条数是:", len(X))
+    # 保存向量
+    character_save_path = 'result/character_embeddings_' + save_path + '_tuned.txt'
+    sentence_save_path = 'result/sentence_embeddings_' + save_path + '_tuned.txt'
+
+    character_embeddings = []
+    sentence_embeddings = []
+
+    layer_name = "embeddings_layer"
+    intermediate_layer_model = Model(inputs=bert_model.input, outputs=bert_model.get_layer(name=layer_name).output)
+    intermediate_layer_model.summary()
+
+    i = 1
+    length = len(X)
+
+    for text in X:
+        indices, segments = tokenizer.encode(first=text, max_len=512)
+        predicted = intermediate_layer_model.predict([np.array([indices]), np.array([segments])])
+        predicted = predicted[0]  # predicts是一句话中所有字符向量构成的list
+
+        # 第一个字符[CLS]代表当前句子的向量
+        sentence_embeddings.append(predicted[0])
+
+        # 将一个二维的句子的字符向量转为一维
+        predicted = list(chain.from_iterable(predicted))
+
+        character_embeddings.append(predicted)
+
+        if i % 3000 == 0 or i == length:
+            print("正在保存第", i, "个向量")
+            dp.saveCharacterEmbeddings(character_embeddings, character_save_path)
+            dp.saveSentenceEmbeddings(sentence_embeddings, sentence_save_path)
+            character_embeddings = []
+            sentence_embeddings = []
+
+        i += 1
+
+    print(">>>fine tune之后的" + save_path + "字符向量和句子向量保存完了。。。")
+
+
+# 读取fine tune之后的bert词向量
+def getAndSaveBertEmbeddingsAfterTuned(bert_model, X, save_path, tokenizer):
+    print(">>>正在飞速获取并保存" + save_path + "fine tune之后的bert字符级向量和句子级向量")
+    print(">>>需要保存的评论条数是:", len(X))
+    character_embeddings = []
+    sentence_embeddings = []
+
+    layer_name = "embeddings_layer"
+    intermediate_layer_model = Model(inputs=bert_model.input, outputs=bert_model.get_layer(name=layer_name).output)
+    intermediate_layer_model.summary()
+
+    for text in X:
+        tokens = tokenizer.tokenize(text)
+        indices, segments = tokenizer.encode(first=text, max_len=512)
+        predicted = intermediate_layer_model.predict([np.array([indices]), np.array([segments])])
+        # print("predicted_origin's length = ", len(predicted))
+        predicted = predicted[0]  # predicts是一句话中所有字符向量构成的list
+        # print("predicted[:6] = ", predicted[:6])
+        # print("predicted's length = ", len(predicted))
+        # print("predicted[0]'s length = ", len(predicted[0]))
+
+        # 第一个字符[CLS]代表当前句子的向量
+        sentence_embeddings.append(predicted[0])
+
+        # 将一个二维的句子的字符向量转为一维
+        predicted = list(chain.from_iterable(predicted))
+
+        character_embeddings.append(predicted)
+
+    # 保存向量
+    character_save_path = 'result/character_embeddings_' + save_path + '_tuned.txt'
+    sentence_save_path = 'result/sentence_embeddings_' + save_path + '_tuned.txt'
+
+    dp.saveCharacterEmbeddings(character_embeddings, character_save_path)
+    dp.saveSentenceEmbeddings(sentence_embeddings, sentence_save_path)
+
+    print(">>>fine tune之后的" + save_path + "字符向量和句子向量保存完了。。。")
+
+
 # 加载tokenizer
 def get_tokenizer():
     token_dict = {}
@@ -395,7 +844,7 @@ def get_tokenizer():
 
 
 # 训练模型，直接从文件中读取词向量
-def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_path, y_val, model_name, epoch=3, batch_size=128, debug=False):
+def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_path, y_val, model_name, epoch=3, batch_size=128, debug=False, no_fuzzy=False):
     print("勿扰！训练模型ing。。。in trainModelFromFile。。。")
     if len(X_path.strip()) > 0:
         print("从文件中直接读取词向量。。。")
@@ -420,12 +869,12 @@ def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_pat
         origin_data_current_col_val = np.array(origin_data_current_col_val)
         # print(y_val)
 
-        history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug), steps_per_epoch=math.ceil(length / batch_size),
-                            validation_data=dp.generateTrainSetFromFile(X_val_path, origin_data_current_col_val, batch_size, debug), validation_steps=math.ceil(length_validation / batch_size_validation),
+        history = model.fit(dp.generateTrainSetFromFile(X_path, origin_data_current_col, batch_size, debug, no_fuzzy), steps_per_epoch=math.ceil(length / batch_size),
+                            validation_data=dp.generateTrainSetFromFile(X_val_path, origin_data_current_col_val, batch_size, debug, no_fuzzy), validation_steps=math.ceil(length_validation / batch_size_validation),
                             batch_size=batch_size, epochs=epoch, verbose=1)
 
         # 预测验证集
-        y_val_pred = model.predict(dp.generateXFromFile(X_val_path, length_validation, batch_size, debug), steps=math.ceil(length_validation / batch_size_validation))
+        y_val_pred = model.predict(dp.generateXFromFile(X_val_path, length_validation, batch_size, debug, no_fuzzy), steps=math.ceil(length_validation / batch_size_validation))
         print("y_val_pred's length = ", len(y_val_pred))
         print("y_validation's length = ", length_validation)
 
@@ -433,8 +882,8 @@ def trainModelFromFile(experiment_name, model, X_path, y, y_cols_name, X_val_pat
 
         # 准确率：在所有预测为正的样本中，确实为正的比例
         # 召回率：本身为正的样本中，被预测为正的比例
-        print("y_val = ", list(origin_data_current_col_val))
-        print("y_val_pred = ", list(y_val_pred))
+        # print("y_val = ", list(origin_data_current_col_val))
+        # print("y_val_pred = ", list(y_val_pred))
         precision, recall, fscore, support = score(origin_data_current_col_val, y_val_pred)
         print("precision = ", precision)
         print("recall = ", recall)

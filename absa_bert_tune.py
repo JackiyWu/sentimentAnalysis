@@ -248,7 +248,6 @@ X1_test, X2_test = load_data(tokenizer, texts_test)
 
 # Y_pred = model.predict([X1_test[0], X2_test[0]])
 # print("Y_pred = ", Y_pred)
-'''
 print("*" * 200)
 
 text = '非常差！不会再去了！！'
@@ -256,6 +255,7 @@ tokens = tokenizer.tokenize(text)
 indices, segments = tokenizer.encode(first=text, max_len=512)
 # print("indices = ", indices[:10])
 # print("segments = ", segments[:10])
+'''
 '''
 
 '''
@@ -269,7 +269,6 @@ for i, token in enumerate(tokens):
     # print(token, predicts[i].tolist()[:5])
 '''
 
-'''
 print(">>>Here is what I need...")
 for text_test in texts_test:
     tokens = tokenizer.tokenize(text_test)
@@ -284,6 +283,7 @@ for text_test in texts_test:
     print("predicts_test[0]'s length = ", len(predicts_test[0]))
     break
 
+'''
 '''
 
 '''

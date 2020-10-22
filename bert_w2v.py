@@ -34,7 +34,6 @@ predicts = model.predict([np.array([indices]), np.array([segments])])[0]
 for i, token in enumerate(tokens):
     print(token, predicts[i].tolist()[:5])
 
-'''
 model_path = "config/keras_bert/chinese_L-12_H-768_A-12"
 print("*" * 100)
 
@@ -43,6 +42,7 @@ texts = ["清秀", "脏乱", "适得其反", "藏污纳垢"]
 embeddings = extract_embeddings(model_path, texts)
 print("")
 
+'''
 # print("embeddings = ", embeddings)
 print("embeddings' length = ", len(embeddings))
 
