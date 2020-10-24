@@ -225,9 +225,8 @@ if __name__ == "__main__":
     batch_size = 20
     filters = 64
     window_size = 6
-    experiment_name += model_name + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size) + "_filter_" + str(filters) + "_windowSize_" + str(window_size)
-    model = absa_models.createBertCNN(filters, window_size)
-    absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
+    # experiment_name += model_name + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size) + "_filter_" + str(filters) + "_windowSize_" + str(window_size)
+    # model = absa_models.createBertCNN(filters, window_size)
 
     if model_name.startswith("BertCNNModel"):
         filters = [64]
@@ -241,6 +240,7 @@ if __name__ == "__main__":
                             # model = absa_models.createCNNModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size, DEBUG)
                             model = absa_models.createBertCNNModel(cnn_filter, window_size)
                             print("experiment_name = ", experiment_name)
+                            absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
                             # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
     elif model_name.startswith("BertSeparableCNNModel"):
         for batch_size in batch_sizes:
