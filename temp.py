@@ -269,7 +269,7 @@ def createSeparableCNNModel(maxlen, embedding_dim, debug=False):
 
 # Bert+SeparableCNN模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertSeparableCNNModel(bert_model, ):
+def createBertSeparableCNNModel(bert_model):
     print(">>>开始构建BertSeparableCNN模型。。。")
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
@@ -440,19 +440,19 @@ def createBertMultiCNNBiGRUModel(bert_model, cnn_filter, cnn_window_size_1, cnn_
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
 
-    cnn1 = Conv1D(cnn_filter, cnn_window_size_1, padding='same', strides=1, activation='relu', name='conv')(x)
+    cnn1 = Conv1D(cnn_filter, cnn_window_size_1, padding='same', strides=1, activation='relu', name='conv1')(x)
     cnn1 = BatchNormalization()(cnn1)
-    cnn1 = MaxPool1D(name='max_pool')(cnn1)
+    cnn1 = MaxPool1D(name='max_pool1')(cnn1)
 
-    cnn2 = Conv1D(cnn_filter, cnn_window_size_2, padding='same', strides=1, activation='relu', name='conv')(x)
+    cnn2 = Conv1D(cnn_filter, cnn_window_size_2, padding='same', strides=1, activation='relu', name='conv2')(x)
     cnn2 = BatchNormalization()(cnn2)
-    cnn2 = MaxPool1D(name='max_pool')(cnn2)
+    cnn2 = MaxPool1D(name='max_pool2')(cnn2)
 
     cnn = concatenate([cnn1, cnn2], axis=-1)
 
-    dropout = Dropout(0.2)(cnn)
+    # dropout = Dropout(0.2)(cnn)
 
-    bi_gru1 = Bidirectional(GRU(gru_output_dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
+    bi_gru1 = Bidirectional(GRU(gru_output_dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(cnn)
     bi_gru1 = BatchNormalization()(bi_gru1)
     bi_gru2 = Bidirectional(GRU(gru_output_dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
     bi_gru2 = BatchNormalization()(bi_gru2)
@@ -460,8 +460,10 @@ def createBertMultiCNNBiGRUModel(bert_model, cnn_filter, cnn_window_size_1, cnn_
     flatten = Flatten()(bi_gru2)
 
     x = Dense(64, activation='relu', name='dense_1')(flatten)
-    x = Dropout(0.4, name='dropout')(x)
-    x = Dense(4, activation='softmax', name='softmax')(x)
+    x = Dropout(0.4, name='dropout_2')(x)
+    p = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model(inputs=[x1_in, x2_in], outputs=p)
 
     train_x = np.random.standard_normal((1024, 100))
 
@@ -473,8 +475,6 @@ def createBertMultiCNNBiGRUModel(bert_model, cnn_filter, cnn_window_size_1, cnn_
     )
 
     optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
-
-    model = Model(inputs=[x1_in, x2_in], outputs=x)
 
     model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
@@ -710,9 +710,9 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
         # origin_data_current_col_val = np.array(origin_data_current_col_val)
         # print(y_val)
 
-        history = model.fit(dp.generateSetForBert(X, origin_data_current_col, batch_size, tokenizer, debug), steps_per_epoch=math.ceil(length / batch_size),
+        history = model.fit(dp.generateSetForBert(X, origin_data_current_col, batch_size, tokenizer), steps_per_epoch=math.ceil(length / batch_size),
                             epochs=epoch, batch_size=batch_size, verbose=1, validation_steps=math.ceil(length_validation / batch_size_validation),
-                            validation_data=dp.generateSetForBert(X_validation, origin_data_current_col_val, batch_size_validation, tokenizer, debug))
+                            validation_data=dp.generateSetForBert(X_validation, origin_data_current_col_val, batch_size_validation, tokenizer))
 
         # 预测验证集
         y_val_pred = model.predict(dp.generateXSetForBert(X_validation, length_validation, batch_size_validation, tokenizer), steps=math.ceil(length_validation / batch_size_validation))
@@ -741,7 +741,7 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
         print("%Y-%m%d %H:%M:%S", time.localtime())
 
         # 保存当前属性的结果,整体的结果根据所有属性的结果来计算
-        save_result_to_csv(report, F1_score, experiment_name, model_name)
+        save_result_to_csv(report, F1_score, experiment_name, model_name, col)
 
     print('all F1_score:', F1_scores / len(y_cols_name))
 
@@ -977,7 +977,7 @@ def trainModel(experiment_name, model, x, embeddings_path, y, y_cols, ratio_styl
 
 # 把结果保存到csv
 # report是classification_report生成的字典结果
-def save_result_to_csv(report, f1_score, experiment_id, model_name):
+def save_result_to_csv(report, f1_score, experiment_id, model_name, col_name):
     accuracy = report.get("accuracy")
 
     macro_avg = report.get("macro avg")
@@ -989,7 +989,7 @@ def save_result_to_csv(report, f1_score, experiment_id, model_name):
     weighted_precision = weighted_avg.get("precision")
     weighted_recall = weighted_avg.get("recall")
     weighted_f1 = weighted_avg.get('f1-score')
-    data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
+    data = [experiment_id, col_name, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
 
     path = "result/result_absa_" + model_name + ".csv"
     with codecs.open(path, "a", "utf-8") as f:

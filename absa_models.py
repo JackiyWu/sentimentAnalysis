@@ -82,17 +82,17 @@ def createBertCNNModel(bert_model, filter, window_size):
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
     cnn = Conv1D(filter, window_size, name='conv')(x)
-    cnn = BatchNormalization()(cnn)
+    # cnn = BatchNormalization()(cnn)
     cnn = MaxPool1D(name='max_pool')(cnn)
 
     flatten = Flatten()(cnn)
 
-    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dense(32, activation='relu', name='dense_1')(flatten)
     x = Dropout(0.4, name='dropout')(x)
     p = Dense(4, activation='softmax', name='softmax')(x)
 
     model = Model([x1_in, x2_in], p)
-
+    '''
     train_x = np.random.standard_normal((1024, 100))
 
     total_steps, warmup_steps = calc_train_steps(
@@ -103,8 +103,9 @@ def createBertCNNModel(bert_model, filter, window_size):
     )
 
     optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+    '''
 
-    model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
     model.summary()
     print(">>>Bert+CNN模型构建结束。。。")
@@ -193,7 +194,7 @@ def createBertLSTMModel(bert_model, dim1, dim2):
     p = Dense(4, activation='softmax', name='softmax')(x)
 
     model = Model(inputs=[x1_in, x2_in], outputs=p)
-
+    '''
     train_x = np.random.standard_normal((1024, 100))
 
     total_steps, warmup_steps = calc_train_steps(
@@ -204,8 +205,9 @@ def createBertLSTMModel(bert_model, dim1, dim2):
     )
 
     optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+    '''
 
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print("BertLSTM模型构建结束。。。")
 
@@ -741,7 +743,7 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
         print("%Y-%m%d %H:%M:%S", time.localtime())
 
         # 保存当前属性的结果,整体的结果根据所有属性的结果来计算
-        save_result_to_csv(report, F1_score, experiment_name, model_name)
+        save_result_to_csv(report, F1_score, experiment_name, model_name, col)
 
     print('all F1_score:', F1_scores / len(y_cols_name))
 
@@ -977,7 +979,7 @@ def trainModel(experiment_name, model, x, embeddings_path, y, y_cols, ratio_styl
 
 # 把结果保存到csv
 # report是classification_report生成的字典结果
-def save_result_to_csv(report, f1_score, experiment_id, model_name):
+def save_result_to_csv(report, f1_score, experiment_id, model_name, col_name):
     accuracy = report.get("accuracy")
 
     macro_avg = report.get("macro avg")
@@ -989,7 +991,7 @@ def save_result_to_csv(report, f1_score, experiment_id, model_name):
     weighted_precision = weighted_avg.get("precision")
     weighted_recall = weighted_avg.get("recall")
     weighted_f1 = weighted_avg.get('f1-score')
-    data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
+    data = [experiment_id, col_name, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
 
     path = "result/result_absa_" + model_name + ".csv"
     with codecs.open(path, "a", "utf-8") as f:

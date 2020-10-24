@@ -51,7 +51,7 @@ if __name__ == "__main__":
     window_size = 6
     bert_model = absa_models.createBertCNN(64, 6)
 
-    model_name = "bertCNNOrigin"
+    model_name = "bertCNNOrigin2"
     experiment_name = model_name + "_filters_" + str(filters) + "_windowSize_" + str(window_size)
 
     batch_size = 20
@@ -60,6 +60,7 @@ if __name__ == "__main__":
     # 训练模型
     absa_models.trainBert(experiment_name, bert_model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
 
+    '''
     # 保存bert模型
     print(">>>正在保存bert模型。。。")
     save_model_name = config.tuned_bert_model + "_" + model_name + "_model.h5"
@@ -79,7 +80,6 @@ if __name__ == "__main__":
     path = "validation"
     # absa_models.getAndSaveBertEmbeddingsAfterTuned(bert_model, X_validation, path, tokenizer)
     absa_models.getAndSaveBertEmbeddingAfterTunedLittleByLittle(bert_model, X_validation, path, tokenizer)
-    '''
     '''
 
     end_time = time.time()

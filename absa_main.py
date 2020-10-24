@@ -197,10 +197,13 @@ if __name__ == "__main__":
     # 8.加载bert模型
     print("》》》【8】构建bert学习模型**********************************************************************************************************************************************************************************")
     # bert词向量的维度是768，增加不同类别的隶属度三个维度，一共771维
-    bert_model = absa_models.createBertEmbeddingModel()
+    # bert_model = absa_models.createBertEmbeddingModel()
 
     X, y_cols, Y = dp.initDataForBert(config.meituan_train_new, DEBUG, CLEAN_ENTER, CLEAN_SPACE)
     X_validation, y_cols_validation, Y_validation = dp.initDataForBert(config.meituan_validation_new, DEBUG, CLEAN_ENTER, CLEAN_SPACE)
+
+    # 加载tokenizer
+    tokenizer = absa_models.get_tokenizer()
 
     experiment_name = ""
 
@@ -212,28 +215,33 @@ if __name__ == "__main__":
     #     X_train_path = X_validation_path
     #     y_train = y_validation
     epochs = [3]
-    batch_sizes = [16]
+    batch_sizes = [20]
     times = 10
-    model_name = "BertSeparableCNNModel_OriginBert"
+    model_name = "XXXXXBertCNNModel_NoWarmup"
     no_fuzzy = True
     batch_size_validation = 128
-    # 加载tokenizer
-    tokenizer = absa_models.get_tokenizer()
-    if model_name == "BertCNNModel":
+
+    epoch = 3
+    batch_size = 20
+    filters = 64
+    window_size = 6
+    experiment_name += model_name + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size) + "_filter_" + str(filters) + "_windowSize_" + str(window_size)
+    model = absa_models.createBertCNN(filters, window_size)
+    absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
+
+    if model_name.startswith("BertCNNModel"):
         filters = [64]
-        window_sizes = [5]
+        window_sizes = [6]
         # window_sizes = [4, 5, 6, 7]
         for cnn_filter in filters:
             for window_size in window_sizes:
                 for batch_size in batch_sizes:
                     for epoch in epochs:
-                        experiment_name += model_name + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size) + "_filter_" + str(cnn_filter) + "_windowSize_" + str(window_size)
                         for i in range(times):
                             # model = absa_models.createCNNModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size, DEBUG)
-                            model = absa_models.createBertCNNModel(bert_model, cnn_filter, window_size)
+                            # model = absa_models.createBertCNNModel(bert_model, cnn_filter, window_size)
                             print("experiment_name = ", experiment_name)
                             # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
-                            absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
     elif model_name.startswith("BertSeparableCNNModel"):
         for batch_size in batch_sizes:
             for epoch in epochs:
