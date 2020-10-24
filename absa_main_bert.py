@@ -10,6 +10,7 @@ import absa_models as absa_models
 from keras.models import load_model
 from keras.layers import Lambda
 from keras_bert import get_custom_objects
+import sys
 
 
 import os
@@ -47,18 +48,31 @@ if __name__ == "__main__":
     # 加载bert模型
     # bert_model = absa_models.createBert()
 
-    filters = 64
-    window_size = 6
-    bert_model = absa_models.createBertCNN(64, 6)
+    model_name = "BertSeparableCNNModel"
+    if model_name.startswith("bertCNNModel"):
+        filters = 64
+        window_size = 6
+        model = absa_models.createBertCNN(64, 6)
+        experiment_name = model_name + "_filters_" + str(filters) + "_windowSize_" + str(window_size)
+    elif model_name.startswith("BertMLPModel"):
+        experiment_name = model_name
+        model = absa_models.createBertMLPModel()
+    elif model_name.startswith("BertLSTMModel"):
+        dim_1 = 64
+        dim_2 = 32
+        model = absa_models.createBertLSTMModel(dim_1, dim_2)
+        experiment_name = model_name + "_dim1_" + str(dim_1) + "_dim2_" + str(dim_2)
+    elif model_name.startswith("BertSeparableCNNModel"):
+        model = absa_models.createBertSeparableCNNModel()
+        experiment_name = model_name
+    else:
+        sys.exit(0)
 
-    model_name = "bertCNNOrigin2"
-    experiment_name = model_name + "_filters_" + str(filters) + "_windowSize_" + str(window_size)
-
-    batch_size = 20
+    batch_size = 8
     batch_size_validation = 128
-    epoch = 3
+    epoch = 1
     # 训练模型
-    absa_models.trainBert(experiment_name, bert_model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
+    absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
 
     '''
     # 保存bert模型

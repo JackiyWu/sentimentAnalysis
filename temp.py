@@ -82,17 +82,17 @@ def createBertCNNModel(bert_model, filter, window_size):
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
     cnn = Conv1D(filter, window_size, name='conv')(x)
-    cnn = BatchNormalization()(cnn)
+    # cnn = BatchNormalization()(cnn)
     cnn = MaxPool1D(name='max_pool')(cnn)
 
     flatten = Flatten()(cnn)
 
-    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dense(32, activation='relu', name='dense_1')(flatten)
     x = Dropout(0.4, name='dropout')(x)
     p = Dense(4, activation='softmax', name='softmax')(x)
 
     model = Model([x1_in, x2_in], p)
-
+    '''
     train_x = np.random.standard_normal((1024, 100))
 
     total_steps, warmup_steps = calc_train_steps(
@@ -103,8 +103,9 @@ def createBertCNNModel(bert_model, filter, window_size):
     )
 
     optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+    '''
 
-    model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
     model.summary()
     print(">>>Bert+CNN模型构建结束。。。")
@@ -179,8 +180,9 @@ def createBertGRUModel(bert_model, dim_1, dim_2):
 
 # Bert+LSTM模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertLSTMModel(bert_model, dim1, dim2):
+def createBertLSTMModel(dim1, dim2):
     print("开始构建BertLSTM模型。。。")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
@@ -193,7 +195,7 @@ def createBertLSTMModel(bert_model, dim1, dim2):
     p = Dense(4, activation='softmax', name='softmax')(x)
 
     model = Model(inputs=[x1_in, x2_in], outputs=p)
-
+    '''
     train_x = np.random.standard_normal((1024, 100))
 
     total_steps, warmup_steps = calc_train_steps(
@@ -204,8 +206,9 @@ def createBertLSTMModel(bert_model, dim1, dim2):
     )
 
     optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+    '''
 
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print("BertLSTM模型构建结束。。。")
 
@@ -603,8 +606,9 @@ def createMLPModel(maxlen, embedding_dim, dense_dim, debug=False):
 
 # Bert+MLP模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertMLPModel(bert_model, dense_dim, debug=False):
+def createBertMLPModel(debug=False):
     print(">>>开始构建BertMLP模型。。。")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
@@ -665,6 +669,7 @@ def createBertCNN(filter, window_size, debug=False):
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
+
     cnn = Conv1D(filter, window_size, name='conv')(x)
     cnn = MaxPool1D(name='max_pool')(cnn)
 
