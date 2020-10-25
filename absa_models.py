@@ -23,6 +23,7 @@ from keras.utils import to_categorical
 from keras import regularizers
 from keras.layers.merge import concatenate
 from keras.optimizers import Adam
+from keras.utils.multi_gpu_utils import multi_gpu_model
 
 from tensorflow.keras.layers import SeparableConvolution1D
 
@@ -33,6 +34,9 @@ import absa_dataProcess as dp
 
 # 一些超参数
 TOKEN_DICT = {}
+
+# 并行
+gpus = 4
 
 
 # 创建bert模型
@@ -105,6 +109,7 @@ def createBertCNNModel(filter, window_size):
 
     optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
     '''
+    model = multi_gpu_model(model, gpus=gpus)
 
     model.compile(loss='categorical_crossentropy', optimizer=Adam(1e-5), metrics=['accuracy'])
 
