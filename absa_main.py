@@ -216,7 +216,8 @@ if __name__ == "__main__":
     #     y_train = y_validation
     epochs = [3]
     batch_sizes = [20]
-    times = 10
+    times = 5
+    print("training times = ", times)
     model_name = "BertMultiCNNModel_NoWarmup"
     no_fuzzy = True
     batch_size_validation = 128
