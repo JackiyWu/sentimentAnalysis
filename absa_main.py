@@ -214,12 +214,13 @@ if __name__ == "__main__":
     # if DEBUG_ONLINE:
     #     X_train_path = X_validation_path
     #     y_train = y_validation
-    epochs = [5, 8]
-    batch_sizes = [80]
+    epochs = [5]
+    batch_sizes = [120]
     times = 5
     print("training times = ", times)
-    model_name = "BertMultiCNNModel_multiGPU"
+    model_name = "BertMLPModel_multiGPU"
     no_fuzzy = True
+    batch_size_train = 120
     batch_size_validation = 256
 
     if model_name.startswith("BertCNNModel"):
@@ -247,13 +248,15 @@ if __name__ == "__main__":
             for window_size1 in window_sizes1:
                 for cnn_filter2 in filters2:
                     for window_size2 in window_sizes2:
-                        experiment_name += model_name + "_filter1_" + str(cnn_filter1) + "_windowSize1_" + str(window_size1) + "_filter2_" + str(cnn_filter2) + "_windowSize2_" + str(window_size2)
-                        print("experiment_name = ", experiment_name)
-                        for i in range(times):
-                            model = absa_models.createBertMultiCNNModel(cnn_filter1, window_size1, cnn_filter2, window_size2)
-                            # model = multi_gpu_model(model, gpus=gpus)
-                            absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
-                            # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
+                        for batch_size in batch_sizes:
+                            for epoch in epochs:
+                                experiment_name += model_name + "_filter1_" + str(cnn_filter1) + "_windowSize1_" + str(window_size1) + "_filter2_" + str(cnn_filter2) + "_windowSize2_" + str(window_size2) + "_batchSize_" + str(batch_size) + "_epoch_" + str(epoch)
+                                print("experiment_name = ", experiment_name)
+                                for i in range(times):
+                                    model = absa_models.createBertMultiCNNModel(cnn_filter1, window_size1, cnn_filter2, window_size2)
+                                    # model = multi_gpu_model(model, gpus=gpus)
+                                    absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
+                                    # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
     elif model_name.startswith("BertSeparableCNNModel"):
         for batch_size in batch_sizes:
             for epoch in epochs:
