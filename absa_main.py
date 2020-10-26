@@ -216,9 +216,9 @@ if __name__ == "__main__":
     #     y_train = y_validation
     epochs = [5]
     batch_sizes = [120]
-    times = 5
+    times = 1  # 设置为1是为了测试看结果
     print("training times = ", times)
-    model_name = "BertMLPModel_multiGPU"
+    model_name = "BertGRUModel_multiGPU"
     no_fuzzy = True
     batch_size_train = 120
     batch_size_validation = 256
@@ -268,8 +268,8 @@ if __name__ == "__main__":
                     absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
                     # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
     elif model_name.startswith("BertGRUModel"):
-        gru_output_dim_1 = [64]
-        gru_output_dim_2 = [32]
+        gru_output_dim_1 = [128, 256]
+        gru_output_dim_2 = [64, 128]
         for dim_1 in gru_output_dim_1:
             for dim_2 in gru_output_dim_2:
                 for batch_size in batch_sizes:
