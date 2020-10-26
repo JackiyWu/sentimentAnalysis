@@ -26,6 +26,7 @@ from keras.optimizers import Adam
 from keras.utils.multi_gpu_utils import multi_gpu_model
 
 from tensorflow.keras.layers import SeparableConvolution1D
+import tensorflow as tf
 
 from keras_bert import Tokenizer, load_trained_model_from_checkpoint, AdamWarmup, calc_train_steps
 
@@ -36,7 +37,7 @@ import absa_dataProcess as dp
 TOKEN_DICT = {}
 
 # 并行
-gpus = 4
+gpus = 2
 
 
 # 创建bert模型
@@ -81,37 +82,40 @@ def createCNNModel(maxlen, embedding_dim, filter, window_size, debug=False):
 # 不提取词向量，直接用bert连接后面的模型
 def createBertCNNModel(filter, window_size):
     print("开始构建Bert+CNN模型。。。")
-    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
 
-    x1_in = Input(shape=(None,))
-    x2_in = Input(shape=(None,))
-    x = bert_model([x1_in, x2_in])
-    cnn = Conv1D(filter, window_size, name='conv')(x)
-    # cnn = BatchNormalization()(cnn)
-    cnn = MaxPool1D(name='max_pool')(cnn)
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
 
-    flatten = Flatten()(cnn)
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x = bert_model([x1_in, x2_in])
+        cnn = Conv1D(filter, window_size, name='conv')(x)
+        # cnn = BatchNormalization()(cnn)
+        cnn = MaxPool1D(name='max_pool')(cnn)
 
-    x = Dense(32, activation='relu', name='dense_1')(flatten)
-    x = Dropout(0.4, name='dropout')(x)
-    p = Dense(4, activation='softmax', name='softmax')(x)
+        flatten = Flatten()(cnn)
 
-    model = Model([x1_in, x2_in], p)
-    '''
-    train_x = np.random.standard_normal((1024, 100))
+        x = Dense(32, activation='relu', name='dense_1')(flatten)
+        x = Dropout(0.4, name='dropout')(x)
+        p = Dense(4, activation='softmax', name='softmax')(x)
 
-    total_steps, warmup_steps = calc_train_steps(
-        num_example=train_x.shape[0],
-        batch_size=32,
-        epochs=10,
-        warmup_proportion=0.1,
-    )
+        model = Model([x1_in, x2_in], p)
+        '''
+        train_x = np.random.standard_normal((1024, 100))
+    
+        total_steps, warmup_steps = calc_train_steps(
+            num_example=train_x.shape[0],
+            batch_size=32,
+            epochs=10,
+            warmup_proportion=0.1,
+        )
+    
+        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+        '''
+        # model = multi_gpu_model(model, gpus=gpus)
 
-    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
-    '''
-    model = multi_gpu_model(model, gpus=gpus)
-
-    model.compile(loss='categorical_crossentropy', optimizer=Adam(1e-5), metrics=['accuracy'])
+        model.compile(loss='categorical_crossentropy', optimizer=Adam(1e-5), metrics=['accuracy'])
 
     model.summary()
     print(">>>Bert+CNN模型构建结束。。。")
@@ -840,6 +844,9 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
     length_validation = len(Y_validation)
     print(">>>y's length = ", length)
 
+    # GPU数量
+    G = 2
+
     F1_scores = 0
     F1_score = 0
     if debug:
@@ -858,12 +865,12 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
         # origin_data_current_col_val = np.array(origin_data_current_col_val)
         # print(y_val)
 
-        history = model.fit(dp.generateSetForBert(X, origin_data_current_col, batch_size, tokenizer), steps_per_epoch=math.ceil(length / batch_size),
-                            epochs=epoch, batch_size=batch_size, verbose=1, validation_steps=math.ceil(length_validation / batch_size_validation),
+        history = model.fit(dp.generateSetForBert(X, origin_data_current_col, batch_size, tokenizer), steps_per_epoch=math.ceil(length / (batch_size)),
+                            epochs=epoch, batch_size=batch_size, verbose=1, validation_steps=math.ceil(length_validation / (batch_size_validation)),
                             validation_data=dp.generateSetForBert(X_validation, origin_data_current_col_val, batch_size_validation, tokenizer))
 
         # 预测验证集
-        y_val_pred = model.predict(dp.generateXSetForBert(X_validation, length_validation, batch_size_validation, tokenizer), steps=math.ceil(length_validation / batch_size_validation))
+        y_val_pred = model.predict(dp.generateXSetForBert(X_validation, length_validation, batch_size_validation, tokenizer), steps=math.ceil(length_validation / (batch_size_validation)))
 
         print("y_val_pred's length = ", len(y_val_pred))
         print("y_validation's length = ", length_validation)

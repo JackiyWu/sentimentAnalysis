@@ -217,10 +217,10 @@ if __name__ == "__main__":
     #     X_train_path = X_validation_path
     #     y_train = y_validation
     epochs = [3]
-    batch_sizes = [40]
+    batch_sizes = [80]
     times = 1
     print("training times = ", times)
-    model_name = "BertCNNModel_NoWarmup"
+    model_name = "BertCNNModel_multiGPU"
     no_fuzzy = True
     batch_size_validation = 128
 
@@ -228,11 +228,10 @@ if __name__ == "__main__":
     # batch_size = 64
     # filters = 64
     # window_size = 6
-    # experiment_name += model_name + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size) + "_filter_" + str(filters) + "_windowSize_" + str(window_size)
     # model = absa_models.createBertCNN(filters, window_size)
 
     # 并行
-    gpus = 4
+    gpus = 2
 
     if model_name.startswith("BertCNNModel"):
         filters = [64]
@@ -245,6 +244,7 @@ if __name__ == "__main__":
                         for i in range(times):
                             # model = absa_models.createCNNModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size, DEBUG)
                             model = absa_models.createBertCNNModel(cnn_filter, window_size)
+                            experiment_name += model_name + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size) + "_filter_" + str(filters) + "_windowSize_" + str(window_size)
                             # model = multi_gpu_model(model, gpus=gpus)
                             print("experiment_name = ", experiment_name)
                             absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
