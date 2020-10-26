@@ -23,7 +23,6 @@ from keras.utils import to_categorical
 from keras import regularizers
 from keras.layers.merge import concatenate
 from keras.optimizers import Adam
-from keras.utils.multi_gpu_utils import multi_gpu_model
 
 from tensorflow.keras.layers import SeparableConvolution1D
 import tensorflow as tf
@@ -35,9 +34,6 @@ import absa_dataProcess as dp
 
 # 一些超参数
 TOKEN_DICT = {}
-
-# 并行
-gpus = 2
 
 
 # 创建bert模型
@@ -84,7 +80,6 @@ def createBertCNNModel(filter, window_size):
     print("开始构建Bert+CNN模型。。。")
     strategy = tf.distribute.MirroredStrategy()
     with strategy.scope():
-
         bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
 
         x1_in = Input(shape=(None,))
@@ -93,6 +88,56 @@ def createBertCNNModel(filter, window_size):
         cnn = Conv1D(filter, window_size, name='conv')(x)
         # cnn = BatchNormalization()(cnn)
         cnn = MaxPool1D(name='max_pool')(cnn)
+
+        flatten = Flatten()(cnn)
+
+        x = Dense(32, activation='relu', name='dense_1')(flatten)
+        x = Dropout(0.4, name='dropout')(x)
+        p = Dense(4, activation='softmax', name='softmax')(x)
+
+        model = Model([x1_in, x2_in], p)
+
+        '''
+        train_x = np.random.standard_normal((1024, 100))
+    
+        total_steps, warmup_steps = calc_train_steps(
+            num_example=train_x.shape[0],
+            batch_size=32,
+            epochs=10,
+            warmup_proportion=0.1,
+        )
+    
+        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+        '''
+
+        model.compile(loss='categorical_crossentropy', optimizer=Adam(1e-5), metrics=['accuracy'])
+
+    model.summary()
+    print(">>>Bert+CNN模型构建结束。。。")
+
+    return model
+
+
+# Bert+MultiCNN模型
+# 不提取词向量，直接用bert连接后面的模型
+def createBertMultiCNNModel(filter1, window_size1, filter2, window_size2):
+    print("开始构建Bert+MultiCNN模型。。。")
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x = bert_model([x1_in, x2_in])
+
+        cnn1 = Conv1D(filter1, window_size1, name='conv')(x)
+        # cnn = BatchNormalization()(cnn)
+        cnn1 = MaxPool1D(name='max_pool')(cnn1)
+
+        cnn2 = Conv1D(filter2, window_size2, name='conv2')(x)
+        cnn2 = MaxPool1D(name='max_pool2')(cnn2)
+
+        cnn = concatenate([cnn1, cnn2], axis=-1)
 
         flatten = Flatten()(cnn)
 
@@ -113,56 +158,8 @@ def createBertCNNModel(filter, window_size):
     
         optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
         '''
-        # model = multi_gpu_model(model, gpus=gpus)
 
         model.compile(loss='categorical_crossentropy', optimizer=Adam(1e-5), metrics=['accuracy'])
-
-    model.summary()
-    print(">>>Bert+CNN模型构建结束。。。")
-
-    return model
-
-
-# Bert+MultiCNN模型
-# 不提取词向量，直接用bert连接后面的模型
-def createBertMultiCNNModel(filter1, window_size1, filter2, window_size2):
-    print("开始构建Bert+MultiCNN模型。。。")
-    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
-
-    x1_in = Input(shape=(None,))
-    x2_in = Input(shape=(None,))
-    x = bert_model([x1_in, x2_in])
-
-    cnn1 = Conv1D(filter1, window_size1, name='conv')(x)
-    # cnn = BatchNormalization()(cnn)
-    cnn1 = MaxPool1D(name='max_pool')(cnn1)
-
-    cnn2 = Conv1D(filter2, window_size2, name='conv2')(x)
-    cnn2 = MaxPool1D(name='max_pool2')(cnn2)
-
-    cnn = concatenate([cnn1, cnn2], axis=-1)
-
-    flatten = Flatten()(cnn)
-
-    x = Dense(32, activation='relu', name='dense_1')(flatten)
-    x = Dropout(0.4, name='dropout')(x)
-    p = Dense(4, activation='softmax', name='softmax')(x)
-
-    model = Model([x1_in, x2_in], p)
-    '''
-    train_x = np.random.standard_normal((1024, 100))
-
-    total_steps, warmup_steps = calc_train_steps(
-        num_example=train_x.shape[0],
-        batch_size=32,
-        epochs=10,
-        warmup_proportion=0.1,
-    )
-
-    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
-    '''
-
-    model.compile(loss='categorical_crossentropy', optimizer=Adam(1e-5), metrics=['accuracy'])
 
     model.summary()
     print(">>>Bert+CNN模型构建结束。。。")
@@ -200,37 +197,39 @@ def createGRUModel(maxlen, embedding_dim, dim_1, dim_2, debug=False):
 # 不提取词向量，直接用bert连接后面的模型
 def createBertGRUModel(dim_1, dim_2):
     print("开始构建BertGRU模型。。。")
-    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
 
-    x1_in = Input(shape=(None,))
-    x2_in = Input(shape=(None,))
-    x = bert_model([x1_in, x2_in])
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x = bert_model([x1_in, x2_in])
 
-    bi_gru1 = Bidirectional(GRU(dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(x)
-    bi_gru1 = BatchNormalization()(bi_gru1)
-    bi_gru2 = Bidirectional(GRU(dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
-    bi_gru2 = BatchNormalization()(bi_gru2)
+        bi_gru1 = Bidirectional(GRU(dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(x)
+        bi_gru1 = BatchNormalization()(bi_gru1)
+        bi_gru2 = Bidirectional(GRU(dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+        bi_gru2 = BatchNormalization()(bi_gru2)
 
-    flatten = Flatten()(bi_gru2)
+        flatten = Flatten()(bi_gru2)
 
-    x = Dense(64, activation='relu', name='dense_1')(flatten)
-    x = Dropout(0.4, name='dropout')(x)
-    p = Dense(4, activation='softmax', name='softmax')(x)
+        x = Dense(64, activation='relu', name='dense_1')(flatten)
+        x = Dropout(0.4, name='dropout')(x)
+        p = Dense(4, activation='softmax', name='softmax')(x)
 
-    model = Model(inputs=[x1_in, x2_in], outputs=p)
+        model = Model(inputs=[x1_in, x2_in], outputs=p)
 
-    train_x = np.random.standard_normal((1024, 100))
+        train_x = np.random.standard_normal((1024, 100))
 
-    total_steps, warmup_steps = calc_train_steps(
-        num_example=train_x.shape[0],
-        batch_size=32,
-        epochs=10,
-        warmup_proportion=0.1,
-    )
+        total_steps, warmup_steps = calc_train_steps(
+            num_example=train_x.shape[0],
+            batch_size=32,
+            epochs=10,
+            warmup_proportion=0.1,
+        )
 
-    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
 
-    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print("BertGRU模型构建结束。。。")
 
@@ -241,41 +240,43 @@ def createBertGRUModel(dim_1, dim_2):
 # 不提取词向量，直接用bert连接后面的模型
 def createBertOriginGRUModel(dim_1, dim_2):
     print("开始构建BertGRU模型。。。")
-    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
 
-    x1_in = Input(shape=(None,))
-    x2_in = Input(shape=(None,))
-    x = bert_model([x1_in, x2_in])
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x = bert_model([x1_in, x2_in])
 
-    bi_gru = GRU(dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, name="gru")(x)
+        bi_gru = GRU(dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, name="gru")(x)
 
-    '''
-    bi_gru1 = Bidirectional(GRU(dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(x)
-    bi_gru1 = BatchNormalization()(bi_gru1)
-    bi_gru2 = Bidirectional(GRU(dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
-    bi_gru2 = BatchNormalization()(bi_gru2)
-    '''
+        '''
+        bi_gru1 = Bidirectional(GRU(dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(x)
+        bi_gru1 = BatchNormalization()(bi_gru1)
+        bi_gru2 = Bidirectional(GRU(dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+        bi_gru2 = BatchNormalization()(bi_gru2)
+        '''
 
-    flatten = Flatten()(bi_gru)
+        flatten = Flatten()(bi_gru)
 
-    x = Dense(64, activation='relu', name='dense_1')(flatten)
-    x = Dropout(0.4, name='dropout')(x)
-    p = Dense(4, activation='softmax', name='softmax')(x)
+        x = Dense(64, activation='relu', name='dense_1')(flatten)
+        x = Dropout(0.4, name='dropout')(x)
+        p = Dense(4, activation='softmax', name='softmax')(x)
 
-    model = Model(inputs=[x1_in, x2_in], outputs=p)
+        model = Model(inputs=[x1_in, x2_in], outputs=p)
 
-    train_x = np.random.standard_normal((1024, 100))
+        train_x = np.random.standard_normal((1024, 100))
 
-    total_steps, warmup_steps = calc_train_steps(
-        num_example=train_x.shape[0],
-        batch_size=32,
-        epochs=10,
-        warmup_proportion=0.1,
-    )
+        total_steps, warmup_steps = calc_train_steps(
+            num_example=train_x.shape[0],
+            batch_size=32,
+            epochs=10,
+            warmup_proportion=0.1,
+        )
 
-    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
 
-    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print("BertGRU模型构建结束。。。")
 
@@ -286,32 +287,34 @@ def createBertOriginGRUModel(dim_1, dim_2):
 # 不提取词向量，直接用bert连接后面的模型
 def createBertLSTMModel(dim):
     print("开始构建BertLSTM模型。。。")
-    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
-    x1_in = Input(shape=(None,))
-    x2_in = Input(shape=(None,))
-    x = bert_model([x1_in, x2_in])
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x = bert_model([x1_in, x2_in])
 
-    lstm = LSTM(dim, return_sequences=False, name='lstm1')(x)
+        lstm = LSTM(dim, return_sequences=False, name='lstm1')(x)
 
-    x = Dense(64, activation='relu', name='dense_1')(lstm)
-    x = Dropout(0.4, name='dropout')(x)
-    p = Dense(4, activation='softmax', name='softmax')(x)
+        x = Dense(64, activation='relu', name='dense_1')(lstm)
+        x = Dropout(0.4, name='dropout')(x)
+        p = Dense(4, activation='softmax', name='softmax')(x)
 
-    model = Model(inputs=[x1_in, x2_in], outputs=p)
-    '''
-    train_x = np.random.standard_normal((1024, 100))
+        model = Model(inputs=[x1_in, x2_in], outputs=p)
+        '''
+        train_x = np.random.standard_normal((1024, 100))
+    
+        total_steps, warmup_steps = calc_train_steps(
+            num_example=train_x.shape[0],
+            batch_size=32,
+            epochs=10,
+            warmup_proportion=0.1,
+        )
+    
+        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+        '''
 
-    total_steps, warmup_steps = calc_train_steps(
-        num_example=train_x.shape[0],
-        batch_size=32,
-        epochs=10,
-        warmup_proportion=0.1,
-    )
-
-    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
-    '''
-
-    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print("BertLSTM模型构建结束。。。")
 
@@ -322,33 +325,35 @@ def createBertLSTMModel(dim):
 # 不提取词向量，直接用bert连接后面的模型
 def createBertBiLSTMModel(dim1, dim2):
     print("开始构建BertLSTM模型。。。")
-    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
-    x1_in = Input(shape=(None,))
-    x2_in = Input(shape=(None,))
-    x = bert_model([x1_in, x2_in])
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x = bert_model([x1_in, x2_in])
 
-    lstm = Bidirectional(LSTM(dim1, return_sequences=True, name='lstm1'))(x)
-    lstm = Bidirectional(LSTM(dim2, return_sequences=False, name='lstm2'))(lstm)
+        lstm = Bidirectional(LSTM(dim1, return_sequences=True, name='lstm1'))(x)
+        lstm = Bidirectional(LSTM(dim2, return_sequences=False, name='lstm2'))(lstm)
 
-    x = Dense(64, activation='relu', name='dense_1')(lstm)
-    x = Dropout(0.4, name='dropout')(x)
-    p = Dense(4, activation='softmax', name='softmax')(x)
+        x = Dense(64, activation='relu', name='dense_1')(lstm)
+        x = Dropout(0.4, name='dropout')(x)
+        p = Dense(4, activation='softmax', name='softmax')(x)
 
-    model = Model(inputs=[x1_in, x2_in], outputs=p)
-    '''
-    train_x = np.random.standard_normal((1024, 100))
+        model = Model(inputs=[x1_in, x2_in], outputs=p)
+        '''
+        train_x = np.random.standard_normal((1024, 100))
+    
+        total_steps, warmup_steps = calc_train_steps(
+            num_example=train_x.shape[0],
+            batch_size=32,
+            epochs=10,
+            warmup_proportion=0.1,
+        )
+    
+        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+        '''
 
-    total_steps, warmup_steps = calc_train_steps(
-        num_example=train_x.shape[0],
-        batch_size=32,
-        epochs=10,
-        warmup_proportion=0.1,
-    )
-
-    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
-    '''
-
-    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print("BertLSTM模型构建结束。。。")
 
@@ -414,43 +419,45 @@ def createSeparableCNNModel(maxlen, embedding_dim, debug=False):
 # 不提取词向量，直接用bert连接后面的模型
 def createBertSeparableCNNModel():
     print(">>>开始构建BertSeparableCNN模型。。。")
-    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
-    x1_in = Input(shape=(None,))
-    x2_in = Input(shape=(None,))
-    x = bert_model([x1_in, x2_in])
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x = bert_model([x1_in, x2_in])
 
-    cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(x)
-    cnn1 = BatchNormalization()(cnn1)
-    cnn1 = MaxPool1D(pool_size=100)(cnn1)
-    cnn2 = SeparableConvolution1D(200, 4, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(x)
-    cnn2 = BatchNormalization()(cnn2)
-    cnn2 = MaxPool1D(pool_size=100)(cnn2)
-    cnn3 = SeparableConvolution1D(200, 5, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_3")(x)
-    cnn3 = BatchNormalization()(cnn3)
-    cnn3 = MaxPool1D(pool_size=100)(cnn3)
-    cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
+        cnn1 = SeparableConvolution1D(200, 3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(x)
+        cnn1 = BatchNormalization()(cnn1)
+        cnn1 = MaxPool1D(pool_size=100)(cnn1)
+        cnn2 = SeparableConvolution1D(200, 4, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(x)
+        cnn2 = BatchNormalization()(cnn2)
+        cnn2 = MaxPool1D(pool_size=100)(cnn2)
+        cnn3 = SeparableConvolution1D(200, 5, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_3")(x)
+        cnn3 = BatchNormalization()(cnn3)
+        cnn3 = MaxPool1D(pool_size=100)(cnn3)
+        cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
 
-    dropout = Dropout(0.2)(cnn)
-    flatten = Flatten()(dropout)
-    dense = Dense(512, activation='relu')(flatten)
-    dense = BatchNormalization()(dense)
-    dropout = Dropout(0.2)(dense)
-    tensor_output = Dense(4, activation='softmax')(dropout)
+        dropout = Dropout(0.2)(cnn)
+        flatten = Flatten()(dropout)
+        dense = Dense(512, activation='relu')(flatten)
+        dense = BatchNormalization()(dense)
+        dropout = Dropout(0.2)(dense)
+        tensor_output = Dense(4, activation='softmax')(dropout)
 
-    model = Model(inputs=[x1_in, x2_in], outputs=tensor_output)
+        model = Model(inputs=[x1_in, x2_in], outputs=tensor_output)
 
-    train_x = np.random.standard_normal((1024, 100))
+        train_x = np.random.standard_normal((1024, 100))
 
-    total_steps, warmup_steps = calc_train_steps(
-        num_example=train_x.shape[0],
-        batch_size=32,
-        epochs=10,
-        warmup_proportion=0.1,
-    )
+        total_steps, warmup_steps = calc_train_steps(
+            num_example=train_x.shape[0],
+            batch_size=32,
+            epochs=10,
+            warmup_proportion=0.1,
+        )
 
-    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
 
-    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
 
     print(model.summary())
     print(">>>BertSeparableCNN模型构建结束。。。")
@@ -494,44 +501,46 @@ def createCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size, gru_
 # 不提取词向量，直接用bert连接后面的模型
 def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim_1, gru_output_dim_2, debug=False):
     print("开始构建CNNBiGRU模型。。。")
-    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
 
-    x1_in = Input(shape=(None,))
-    x2_in = Input(shape=(None,))
-    x = bert_model([x1_in, x2_in])
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x = bert_model([x1_in, x2_in])
 
-    cnn = Conv1D(cnn_filter, cnn_window_size, padding='same', strides=1, activation='relu', name='conv')(x)
-    cnn = BatchNormalization()(cnn)
-    cnn = MaxPool1D(name='max_pool')(cnn)
+        cnn = Conv1D(cnn_filter, cnn_window_size, padding='same', strides=1, activation='relu', name='conv')(x)
+        cnn = BatchNormalization()(cnn)
+        cnn = MaxPool1D(name='max_pool')(cnn)
 
-    dropout = Dropout(0.2)(cnn)
-    # flatten = Flatten()(dropout)
+        dropout = Dropout(0.2)(cnn)
+        # flatten = Flatten()(dropout)
 
-    bi_gru1 = Bidirectional(GRU(gru_output_dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
-    bi_gru1 = BatchNormalization()(bi_gru1)
-    bi_gru2 = Bidirectional(GRU(gru_output_dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
-    bi_gru2 = BatchNormalization()(bi_gru2)
+        bi_gru1 = Bidirectional(GRU(gru_output_dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
+        bi_gru1 = BatchNormalization()(bi_gru1)
+        bi_gru2 = Bidirectional(GRU(gru_output_dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+        bi_gru2 = BatchNormalization()(bi_gru2)
 
-    flatten = Flatten()(bi_gru2)
+        flatten = Flatten()(bi_gru2)
 
-    x = Dense(64, activation='relu', name='dense_1')(flatten)
-    x = Dropout(0.4, name='dropout')(x)
-    x = Dense(4, activation='softmax', name='softmax')(x)
+        x = Dense(64, activation='relu', name='dense_1')(flatten)
+        x = Dropout(0.4, name='dropout')(x)
+        x = Dense(4, activation='softmax', name='softmax')(x)
 
-    train_x = np.random.standard_normal((1024, 100))
+        train_x = np.random.standard_normal((1024, 100))
 
-    total_steps, warmup_steps = calc_train_steps(
-        num_example=train_x.shape[0],
-        batch_size=32,
-        epochs=10,
-        warmup_proportion=0.1,
-    )
+        total_steps, warmup_steps = calc_train_steps(
+            num_example=train_x.shape[0],
+            batch_size=32,
+            epochs=10,
+            warmup_proportion=0.1,
+        )
 
-    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
 
-    model = Model(inputs=[x1_in, x2_in], outputs=x)
+        model = Model(inputs=[x1_in, x2_in], outputs=x)
 
-    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print("BertCNNBiGRU模型构建完成。。。")
 
@@ -581,49 +590,51 @@ def createMultiCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size_
 # 不提取词向量，直接用bert连接后面的模型
 def createBertMultiCNNBiGRUModel(cnn_filter, cnn_window_size_1, cnn_window_size_2, gru_output_dim_1, gru_output_dim_2, debug=False):
     print("开始构建BertMultiCNNBiGRU模型。。。")
-    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
 
-    x1_in = Input(shape=(None,))
-    x2_in = Input(shape=(None,))
-    x = bert_model([x1_in, x2_in])
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x = bert_model([x1_in, x2_in])
 
-    cnn1 = Conv1D(cnn_filter, cnn_window_size_1, padding='same', strides=1, activation='relu', name='conv1')(x)
-    cnn1 = BatchNormalization()(cnn1)
-    cnn1 = MaxPool1D(name='max_pool1')(cnn1)
+        cnn1 = Conv1D(cnn_filter, cnn_window_size_1, padding='same', strides=1, activation='relu', name='conv1')(x)
+        cnn1 = BatchNormalization()(cnn1)
+        cnn1 = MaxPool1D(name='max_pool1')(cnn1)
 
-    cnn2 = Conv1D(cnn_filter, cnn_window_size_2, padding='same', strides=1, activation='relu', name='conv2')(x)
-    cnn2 = BatchNormalization()(cnn2)
-    cnn2 = MaxPool1D(name='max_pool2')(cnn2)
+        cnn2 = Conv1D(cnn_filter, cnn_window_size_2, padding='same', strides=1, activation='relu', name='conv2')(x)
+        cnn2 = BatchNormalization()(cnn2)
+        cnn2 = MaxPool1D(name='max_pool2')(cnn2)
 
-    cnn = concatenate([cnn1, cnn2], axis=-1)
+        cnn = concatenate([cnn1, cnn2], axis=-1)
 
-    # dropout = Dropout(0.2)(cnn)
+        # dropout = Dropout(0.2)(cnn)
 
-    bi_gru1 = Bidirectional(GRU(gru_output_dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(cnn)
-    bi_gru1 = BatchNormalization()(bi_gru1)
-    bi_gru2 = Bidirectional(GRU(gru_output_dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
-    bi_gru2 = BatchNormalization()(bi_gru2)
+        bi_gru1 = Bidirectional(GRU(gru_output_dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(cnn)
+        bi_gru1 = BatchNormalization()(bi_gru1)
+        bi_gru2 = Bidirectional(GRU(gru_output_dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+        bi_gru2 = BatchNormalization()(bi_gru2)
 
-    flatten = Flatten()(bi_gru2)
+        flatten = Flatten()(bi_gru2)
 
-    x = Dense(64, activation='relu', name='dense_1')(flatten)
-    x = Dropout(0.4, name='dropout_2')(x)
-    p = Dense(4, activation='softmax', name='softmax')(x)
+        x = Dense(64, activation='relu', name='dense_1')(flatten)
+        x = Dropout(0.4, name='dropout_2')(x)
+        p = Dense(4, activation='softmax', name='softmax')(x)
 
-    model = Model(inputs=[x1_in, x2_in], outputs=p)
+        model = Model(inputs=[x1_in, x2_in], outputs=p)
 
-    train_x = np.random.standard_normal((1024, 100))
+        train_x = np.random.standard_normal((1024, 100))
 
-    total_steps, warmup_steps = calc_train_steps(
-        num_example=train_x.shape[0],
-        batch_size=32,
-        epochs=10,
-        warmup_proportion=0.1,
-    )
+        total_steps, warmup_steps = calc_train_steps(
+            num_example=train_x.shape[0],
+            batch_size=32,
+            epochs=10,
+            warmup_proportion=0.1,
+        )
 
-    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
 
-    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print("BertMultiCNNBiGRU模型构建完成。。。")
 
@@ -675,51 +686,53 @@ def createSeparableCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, window_size_
 # 不提取词向量，直接用bert连接后面的模型
 def createBertSeparableCNNBiGRUModel(cnn_filter, window_size_1, window_size_2, window_size_3, debug=False):
     print(">>>开始构建BertSeparableCNNBiGRU模型。。。")
-    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
-    x1_in = Input(shape=(None,))
-    x2_in = Input(shape=(None,))
-    x = bert_model([x1_in, x2_in])
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x = bert_model([x1_in, x2_in])
 
-    cnn1 = SeparableConvolution1D(cnn_filter, window_size_1, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_0")(x)
-    cnn1 = BatchNormalization()(cnn1)
-    cnn1 = MaxPool1D(pool_size=100)(cnn1)
-    cnn2 = SeparableConvolution1D(cnn_filter, window_size_2, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(x)
-    cnn2 = BatchNormalization()(cnn2)
-    cnn2 = MaxPool1D(pool_size=100)(cnn2)
-    cnn3 = SeparableConvolution1D(cnn_filter, window_size_3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(x)
-    cnn3 = BatchNormalization()(cnn3)
-    cnn3 = MaxPool1D(pool_size=100)(cnn3)
-    cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
+        cnn1 = SeparableConvolution1D(cnn_filter, window_size_1, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_0")(x)
+        cnn1 = BatchNormalization()(cnn1)
+        cnn1 = MaxPool1D(pool_size=100)(cnn1)
+        cnn2 = SeparableConvolution1D(cnn_filter, window_size_2, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_1")(x)
+        cnn2 = BatchNormalization()(cnn2)
+        cnn2 = MaxPool1D(pool_size=100)(cnn2)
+        cnn3 = SeparableConvolution1D(cnn_filter, window_size_3, padding='same', strides=1, activation='relu', kernel_regularizer=regularizers.l1(0.00001), name="separable_conv1d_2")(x)
+        cnn3 = BatchNormalization()(cnn3)
+        cnn3 = MaxPool1D(pool_size=100)(cnn3)
+        cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
 
-    dropout = Dropout(0.2)(cnn)
-    # flatten = Flatten()(dropout)
+        dropout = Dropout(0.2)(cnn)
+        # flatten = Flatten()(dropout)
 
-    bi_gru1 = Bidirectional(GRU(128, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
-    bi_gru1 = BatchNormalization()(bi_gru1)
-    bi_gru2 = Bidirectional(GRU(256, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
-    bi_gru2 = BatchNormalization()(bi_gru2)
+        bi_gru1 = Bidirectional(GRU(128, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
+        bi_gru1 = BatchNormalization()(bi_gru1)
+        bi_gru2 = Bidirectional(GRU(256, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+        bi_gru2 = BatchNormalization()(bi_gru2)
 
-    flatten = Flatten()(bi_gru2)
+        flatten = Flatten()(bi_gru2)
 
-    dense = Dense(512, activation='relu')(flatten)
-    dense = BatchNormalization()(dense)
-    dropout = Dropout(0.2)(dense)
-    tensor_output = Dense(4, activation='softmax')(dropout)
+        dense = Dense(512, activation='relu')(flatten)
+        dense = BatchNormalization()(dense)
+        dropout = Dropout(0.2)(dense)
+        tensor_output = Dense(4, activation='softmax')(dropout)
 
-    model = Model(inputs=[x1_in, x2_in], outputs=tensor_output)
+        model = Model(inputs=[x1_in, x2_in], outputs=tensor_output)
 
-    train_x = np.random.standard_normal((1024, 100))
+        train_x = np.random.standard_normal((1024, 100))
 
-    total_steps, warmup_steps = calc_train_steps(
-        num_example=train_x.shape[0],
-        batch_size=32,
-        epochs=10,
-        warmup_proportion=0.1,
-    )
+        total_steps, warmup_steps = calc_train_steps(
+            num_example=train_x.shape[0],
+            batch_size=32,
+            epochs=10,
+            warmup_proportion=0.1,
+        )
 
-    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
 
-    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print(">>>BertSeparableCNNBiGRU模型构建结束。。。")
 
@@ -753,31 +766,33 @@ def createMLPModel(maxlen, embedding_dim, dense_dim, debug=False):
 # 不提取词向量，直接用bert连接后面的模型
 def createBertMLPModel(debug=False):
     print(">>>开始构建BertMLP模型。。。")
-    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
 
-    x1_in = Input(shape=(None,))
-    x2_in = Input(shape=(None,))
-    x = bert_model([x1_in, x2_in])
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x = bert_model([x1_in, x2_in])
 
-    x = Lambda(lambda x: x[:, 0], name='lambda_layer')(x)
-    tensor_output = Dense(4, activation='softmax')(x)
+        x = Lambda(lambda x: x[:, 0], name='lambda_layer')(x)
+        tensor_output = Dense(4, activation='softmax')(x)
 
-    model = Model(inputs=[x1_in, x2_in], outputs=tensor_output)
+        model = Model(inputs=[x1_in, x2_in], outputs=tensor_output)
 
-    '''
-    train_x = np.random.standard_normal((1024, 100))
+        '''
+        train_x = np.random.standard_normal((1024, 100))
+    
+        total_steps, warmup_steps = calc_train_steps(
+            num_example=train_x.shape[0],
+            batch_size=32,
+            epochs=10,
+            warmup_proportion=0.1,
+        )
+    
+        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+        '''
 
-    total_steps, warmup_steps = calc_train_steps(
-        num_example=train_x.shape[0],
-        batch_size=32,
-        epochs=10,
-        warmup_proportion=0.1,
-    )
-
-    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
-    '''
-
-    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print(">>>BertMLPModel模型构建结束。。。")
 
@@ -787,22 +802,24 @@ def createBertMLPModel(debug=False):
 # bert模型
 def createBert():
     print(">>>开始加载Bert模型。。。")
-    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
 
-    x1_in = Input(shape=(None,))
-    x2_in = Input(shape=(None,))
-    x = bert_model([x1_in, x2_in])
-    x = Lambda(lambda x: x[:, :], name='embeddings_layer')(x)  # 所有词向量
-    x = Lambda(lambda x: x[:, 0], name='last_layer_1')(x)  # 取出[CLS]对应的向量用来做分类
-    p = Dense(4, activation='softmax')(x)
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x = bert_model([x1_in, x2_in])
+        x = Lambda(lambda x: x[:, :], name='embeddings_layer')(x)  # 所有词向量
+        x = Lambda(lambda x: x[:, 0], name='last_layer_1')(x)  # 取出[CLS]对应的向量用来做分类
+        p = Dense(4, activation='softmax')(x)
 
-    model = Model([x1_in, x2_in], p)
+        model = Model([x1_in, x2_in], p)
 
-    model.compile(
-        loss='categorical_crossentropy',
-        optimizer=Adam(1e-5),  # 用足够小的学习率
-        metrics=['accuracy']
-    )
+        model.compile(
+            loss='categorical_crossentropy',
+            optimizer=Adam(1e-5),  # 用足够小的学习率
+            metrics=['accuracy']
+        )
     model.summary()
     print(">>>Bert模型加载结束。。。")
 

@@ -25,6 +25,7 @@ from keras.layers.merge import concatenate
 from keras.optimizers import Adam
 
 from tensorflow.keras.layers import SeparableConvolution1D
+import tensorflow as tf
 
 from keras_bert import Tokenizer, load_trained_model_from_checkpoint, AdamWarmup, calc_train_steps
 
@@ -67,7 +68,7 @@ def createCNNModel(maxlen, embedding_dim, filter, window_size, debug=False):
 
     model = Model(inputs=tensor_input, outputs=x)
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
 
     return model
@@ -75,15 +76,66 @@ def createCNNModel(maxlen, embedding_dim, filter, window_size, debug=False):
 
 # Bert+CNN模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertCNNModel(bert_model, filter, window_size):
+def createBertCNNModel(filter, window_size):
     print("开始构建Bert+CNN模型。。。")
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x = bert_model([x1_in, x2_in])
+        cnn = Conv1D(filter, window_size, name='conv')(x)
+        # cnn = BatchNormalization()(cnn)
+        cnn = MaxPool1D(name='max_pool')(cnn)
+
+        flatten = Flatten()(cnn)
+
+        x = Dense(32, activation='relu', name='dense_1')(flatten)
+        x = Dropout(0.4, name='dropout')(x)
+        p = Dense(4, activation='softmax', name='softmax')(x)
+
+        model = Model([x1_in, x2_in], p)
+
+        '''
+        train_x = np.random.standard_normal((1024, 100))
+    
+        total_steps, warmup_steps = calc_train_steps(
+            num_example=train_x.shape[0],
+            batch_size=32,
+            epochs=10,
+            warmup_proportion=0.1,
+        )
+    
+        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+        '''
+
+        model.compile(loss='categorical_crossentropy', optimizer=Adam(1e-5), metrics=['accuracy'])
+
+    model.summary()
+    print(">>>Bert+CNN模型构建结束。。。")
+
+    return model
+
+
+# Bert+MultiCNN模型
+# 不提取词向量，直接用bert连接后面的模型
+def createBertMultiCNNModel(filter1, window_size1, filter2, window_size2):
+    print("开始构建Bert+MultiCNN模型。。。")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
 
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
-    cnn = Conv1D(filter, window_size, name='conv')(x)
+
+    cnn1 = Conv1D(filter1, window_size1, name='conv')(x)
     # cnn = BatchNormalization()(cnn)
-    cnn = MaxPool1D(name='max_pool')(cnn)
+    cnn1 = MaxPool1D(name='max_pool')(cnn1)
+
+    cnn2 = Conv1D(filter2, window_size2, name='conv2')(x)
+    cnn2 = MaxPool1D(name='max_pool2')(cnn2)
+
+    cnn = concatenate([cnn1, cnn2], axis=-1)
 
     flatten = Flatten()(cnn)
 
@@ -105,7 +157,7 @@ def createBertCNNModel(bert_model, filter, window_size):
     optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
     '''
 
-    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    model.compile(loss='categorical_crossentropy', optimizer=Adam(1e-5), metrics=['accuracy'])
 
     model.summary()
     print(">>>Bert+CNN模型构建结束。。。")
@@ -133,7 +185,7 @@ def createGRUModel(maxlen, embedding_dim, dim_1, dim_2, debug=False):
 
     model = Model(inputs=tensor_input, outputs=x)
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
 
     return model
@@ -141,8 +193,10 @@ def createGRUModel(maxlen, embedding_dim, dim_1, dim_2, debug=False):
 
 # Bert+GRU模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertGRUModel(bert_model, dim_1, dim_2):
+def createBertGRUModel(dim_1, dim_2):
     print("开始构建BertGRU模型。。。")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
@@ -171,7 +225,52 @@ def createBertGRUModel(bert_model, dim_1, dim_2):
 
     optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
 
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+    print("BertGRU模型构建结束。。。")
+
+    return model
+
+
+# Bert+originGRU模型
+# 不提取词向量，直接用bert连接后面的模型
+def createBertOriginGRUModel(dim_1, dim_2):
+    print("开始构建BertGRU模型。。。")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+    x = bert_model([x1_in, x2_in])
+
+    bi_gru = GRU(dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, name="gru")(x)
+
+    '''
+    bi_gru1 = Bidirectional(GRU(dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(x)
+    bi_gru1 = BatchNormalization()(bi_gru1)
+    bi_gru2 = Bidirectional(GRU(dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
+    bi_gru2 = BatchNormalization()(bi_gru2)
+    '''
+
+    flatten = Flatten()(bi_gru)
+
+    x = Dense(64, activation='relu', name='dense_1')(flatten)
+    x = Dropout(0.4, name='dropout')(x)
+    p = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model(inputs=[x1_in, x2_in], outputs=p)
+
+    train_x = np.random.standard_normal((1024, 100))
+
+    total_steps, warmup_steps = calc_train_steps(
+        num_example=train_x.shape[0],
+        batch_size=32,
+        epochs=10,
+        warmup_proportion=0.1,
+    )
+
+    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print("BertGRU模型构建结束。。。")
 
@@ -180,7 +279,43 @@ def createBertGRUModel(bert_model, dim_1, dim_2):
 
 # Bert+LSTM模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertLSTMModel(dim1, dim2):
+def createBertLSTMModel(dim):
+    print("开始构建BertLSTM模型。。。")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+    x1_in = Input(shape=(None,))
+    x2_in = Input(shape=(None,))
+    x = bert_model([x1_in, x2_in])
+
+    lstm = LSTM(dim, return_sequences=False, name='lstm1')(x)
+
+    x = Dense(64, activation='relu', name='dense_1')(lstm)
+    x = Dropout(0.4, name='dropout')(x)
+    p = Dense(4, activation='softmax', name='softmax')(x)
+
+    model = Model(inputs=[x1_in, x2_in], outputs=p)
+    '''
+    train_x = np.random.standard_normal((1024, 100))
+
+    total_steps, warmup_steps = calc_train_steps(
+        num_example=train_x.shape[0],
+        batch_size=32,
+        epochs=10,
+        warmup_proportion=0.1,
+    )
+
+    optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+    '''
+
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+    print("BertLSTM模型构建结束。。。")
+
+    return model
+
+
+# Bert+BiLSTM模型
+# 不提取词向量，直接用bert连接后面的模型
+def createBertBiLSTMModel(dim1, dim2):
     print("开始构建BertLSTM模型。。。")
     bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
     x1_in = Input(shape=(None,))
@@ -208,7 +343,7 @@ def createBertLSTMModel(dim1, dim2):
     optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
     '''
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print("BertLSTM模型构建结束。。。")
 
@@ -231,7 +366,7 @@ def createLSTMModel(maxlen, embedding_dim, dim1, dim2, debug=False):
 
     model = Model(inputs=tensor_input, outputs=x)
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
 
     return model
@@ -264,7 +399,7 @@ def createSeparableCNNModel(maxlen, embedding_dim, debug=False):
     model = Model(inputs=tensor_input, outputs = tensor_output)
     # print(model.summary())
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
 
     # print(">>>TextCNN模型构建结束。。。")
     return model
@@ -272,8 +407,9 @@ def createSeparableCNNModel(maxlen, embedding_dim, debug=False):
 
 # Bert+SeparableCNN模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertSeparableCNNModel(bert_model):
+def createBertSeparableCNNModel():
     print(">>>开始构建BertSeparableCNN模型。。。")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
@@ -309,7 +445,7 @@ def createBertSeparableCNNModel(bert_model):
 
     optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
 
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
 
     print(model.summary())
     print(">>>BertSeparableCNN模型构建结束。。。")
@@ -343,17 +479,18 @@ def createCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size, gru_
 
     model = Model(inputs=tensor_input, outputs=x)
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
 
     return model
 
 
-# 构建单层CNN+BiGRU
 # Bert+单层CNN+BiGRU模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertCNNBiGRUModel(bert_model, cnn_filter, cnn_window_size, gru_output_dim_1, gru_output_dim_2, debug=False):
+def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim_1, gru_output_dim_2, debug=False):
     print("开始构建CNNBiGRU模型。。。")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
@@ -389,7 +526,7 @@ def createBertCNNBiGRUModel(bert_model, cnn_filter, cnn_window_size, gru_output_
 
     model = Model(inputs=[x1_in, x2_in], outputs=x)
 
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print("BertCNNBiGRU模型构建完成。。。")
 
@@ -429,7 +566,7 @@ def createMultiCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size_
 
     model = Model(inputs=tensor_input, outputs=x)
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
 
     return model
@@ -437,8 +574,10 @@ def createMultiCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size_
 
 # Bert+双层CNN+BiGRU模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertMultiCNNBiGRUModel(bert_model, cnn_filter, cnn_window_size_1, cnn_window_size_2, gru_output_dim_1, gru_output_dim_2, debug=False):
+def createBertMultiCNNBiGRUModel(cnn_filter, cnn_window_size_1, cnn_window_size_2, gru_output_dim_1, gru_output_dim_2, debug=False):
     print("开始构建BertMultiCNNBiGRU模型。。。")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
@@ -479,7 +618,7 @@ def createBertMultiCNNBiGRUModel(bert_model, cnn_filter, cnn_window_size_1, cnn_
 
     optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
 
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print("BertMultiCNNBiGRU模型构建完成。。。")
 
@@ -521,7 +660,7 @@ def createSeparableCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, window_size_
     model = Model(inputs=tensor_input, outputs=tensor_output)
     print(model.summary())
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
 
     # print(">>>TextCNNBiGRUModel模型构建结束。。。")
     return model
@@ -529,8 +668,9 @@ def createSeparableCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, window_size_
 
 # Bert+SeparableCNNBiGRU模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertSeparableCNNBiGRUModel(bert_model, cnn_filter, window_size_1, window_size_2, window_size_3, debug=False):
+def createBertSeparableCNNBiGRUModel(cnn_filter, window_size_1, window_size_2, window_size_3, debug=False):
     print(">>>开始构建BertSeparableCNNBiGRU模型。。。")
+    bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
@@ -574,7 +714,7 @@ def createBertSeparableCNNBiGRUModel(bert_model, cnn_filter, window_size_1, wind
 
     optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
 
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print(">>>BertSeparableCNNBiGRU模型构建结束。。。")
 
@@ -598,7 +738,7 @@ def createMLPModel(maxlen, embedding_dim, dense_dim, debug=False):
     model = Model(inputs=tensor_input, outputs=tensor_output)
     print(model.summary())
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
 
     print(">>>MLPModel模型构建结束。。。")
     return model
@@ -609,6 +749,7 @@ def createMLPModel(maxlen, embedding_dim, dense_dim, debug=False):
 def createBertMLPModel(debug=False):
     print(">>>开始构建BertMLP模型。。。")
     bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
@@ -618,6 +759,7 @@ def createBertMLPModel(debug=False):
 
     model = Model(inputs=[x1_in, x2_in], outputs=tensor_output)
 
+    '''
     train_x = np.random.standard_normal((1024, 100))
 
     total_steps, warmup_steps = calc_train_steps(
@@ -628,8 +770,9 @@ def createBertMLPModel(debug=False):
     )
 
     optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+    '''
 
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print(">>>BertMLPModel模型构建结束。。。")
 
@@ -669,7 +812,6 @@ def createBertCNN(filter, window_size, debug=False):
     x1_in = Input(shape=(None,))
     x2_in = Input(shape=(None,))
     x = bert_model([x1_in, x2_in])
-
     cnn = Conv1D(filter, window_size, name='conv')(x)
     cnn = MaxPool1D(name='max_pool')(cnn)
 
@@ -697,6 +839,9 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
     length_validation = len(Y_validation)
     print(">>>y's length = ", length)
 
+    # GPU数量
+    G = 2
+
     F1_scores = 0
     F1_score = 0
     if debug:
@@ -715,12 +860,12 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
         # origin_data_current_col_val = np.array(origin_data_current_col_val)
         # print(y_val)
 
-        history = model.fit(dp.generateSetForBert(X, origin_data_current_col, batch_size, tokenizer), steps_per_epoch=math.ceil(length / batch_size),
-                            epochs=epoch, batch_size=batch_size, verbose=1, validation_steps=math.ceil(length_validation / batch_size_validation),
+        history = model.fit(dp.generateSetForBert(X, origin_data_current_col, batch_size, tokenizer), steps_per_epoch=math.ceil(length / (batch_size)),
+                            epochs=epoch, batch_size=batch_size, verbose=1, validation_steps=math.ceil(length_validation / (batch_size_validation)),
                             validation_data=dp.generateSetForBert(X_validation, origin_data_current_col_val, batch_size_validation, tokenizer))
 
         # 预测验证集
-        y_val_pred = model.predict(dp.generateXSetForBert(X_validation, length_validation, batch_size_validation, tokenizer), steps=math.ceil(length_validation / batch_size_validation))
+        y_val_pred = model.predict(dp.generateXSetForBert(X_validation, length_validation, batch_size_validation, tokenizer), steps=math.ceil(length_validation / (batch_size_validation)))
 
         print("y_val_pred's length = ", len(y_val_pred))
         print("y_validation's length = ", length_validation)
