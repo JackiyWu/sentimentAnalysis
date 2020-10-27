@@ -195,7 +195,7 @@ def createGRUModel(maxlen, embedding_dim, dim_1, dim_2, debug=False):
 
 # Bert+GRU模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertGRUModel(dim_1, dim_2):
+def createBertGRUModel(dim):
     print("开始构建BertGRU模型。。。")
     strategy = tf.distribute.MirroredStrategy()
     with strategy.scope():
@@ -205,14 +205,9 @@ def createBertGRUModel(dim_1, dim_2):
         x2_in = Input(shape=(None,))
         x = bert_model([x1_in, x2_in])
 
-        bi_gru1 = Bidirectional(GRU(dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(x)
-        bi_gru1 = BatchNormalization()(bi_gru1)
-        bi_gru2 = Bidirectional(GRU(dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
-        bi_gru2 = BatchNormalization()(bi_gru2)
+        bi_gru = Bidirectional(GRU(dim, name="gru_1"))(x)
 
-        flatten = Flatten()(bi_gru2)
-
-        x = Dense(64, activation='relu', name='dense_1')(flatten)
+        x = Dense(64, activation='relu', name='dense_1')(bi_gru)
         x = Dropout(0.4, name='dropout')(x)
         p = Dense(4, activation='softmax', name='softmax')(x)
 
@@ -238,8 +233,8 @@ def createBertGRUModel(dim_1, dim_2):
 
 # Bert+originGRU模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertOriginGRUModel(dim_1, dim_2):
-    print("开始构建BertGRU模型。。。")
+def createBertOriginGRUModel(dim_1):
+    print("开始构建BertOriginGRU模型。。。")
     strategy = tf.distribute.MirroredStrategy()
     with strategy.scope():
         bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
@@ -248,18 +243,9 @@ def createBertOriginGRUModel(dim_1, dim_2):
         x2_in = Input(shape=(None,))
         x = bert_model([x1_in, x2_in])
 
-        bi_gru = GRU(dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, name="gru")(x)
+        bi_gru = GRU(dim_1, name="gru")(x)
 
-        '''
-        bi_gru1 = Bidirectional(GRU(dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(x)
-        bi_gru1 = BatchNormalization()(bi_gru1)
-        bi_gru2 = Bidirectional(GRU(dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
-        bi_gru2 = BatchNormalization()(bi_gru2)
-        '''
-
-        flatten = Flatten()(bi_gru)
-
-        x = Dense(64, activation='relu', name='dense_1')(flatten)
+        x = Dense(64, activation='relu', name='dense_1')(bi_gru)
         x = Dropout(0.4, name='dropout')(x)
         p = Dense(4, activation='softmax', name='softmax')(x)
 

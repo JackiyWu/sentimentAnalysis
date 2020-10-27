@@ -235,9 +235,7 @@ if __name__ == "__main__":
                         print("experiment_name = ", experiment_name)
                         for i in range(times):
                             model = absa_models.createBertCNNModel(cnn_filter, window_size)
-                            # model = multi_gpu_model(model, gpus=gpus)
                             absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
-                            # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
     if model_name.startswith("BertMultiCNNModel"):
         filters1 = [128]
         window_sizes1 = [6]
@@ -254,9 +252,7 @@ if __name__ == "__main__":
                                 print("experiment_name = ", experiment_name)
                                 for i in range(times):
                                     model = absa_models.createBertMultiCNNModel(cnn_filter1, window_size1, cnn_filter2, window_size2)
-                                    # model = multi_gpu_model(model, gpus=gpus)
                                     absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
-                                    # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
     elif model_name.startswith("BertSeparableCNNModel"):
         for batch_size in batch_sizes:
             for epoch in epochs:
@@ -264,37 +260,27 @@ if __name__ == "__main__":
                 print("experiment_name = ", experiment_name)
                 for i in range(times):
                     model = absa_models.createBertSeparableCNNModel()
-                    # model = absa_models.createSeparableCNNModel(MAXLEN, EMBEDDING_DIM_FINAL, DEBUG)
                     absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
-                    # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
     elif model_name.startswith("BertGRUModel"):
-        gru_output_dim_1 = [128, 256]
-        gru_output_dim_2 = [64, 128]
+        gru_output_dim_1 = [32]
         for dim_1 in gru_output_dim_1:
-            for dim_2 in gru_output_dim_2:
-                for batch_size in batch_sizes:
-                    for epoch in epochs:
-                        experiment_name += model_name + "_gru_dim1_" + str(dim_1) + "_gru_dim2_" + str(dim_2) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
-                        print("experiment_name = ", experiment_name)
-                        for i in range(times):
-                            model = absa_models.createBertGRUModel(dim_1, dim_2)
-                            # model = absa_models.createGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, dim_1, dim_2, DEBUG)
-                            # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
-                            absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
+            for batch_size in batch_sizes:
+                for epoch in epochs:
+                    experiment_name += model_name + "_gru_dim_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                    print("experiment_name = ", experiment_name)
+                    for i in range(times):
+                        model = absa_models.createBertGRUModel(dim_1)
+                        absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
     elif model_name.startswith("BertOriginGRUModel"):
-        gru_output_dim_1 = [64]
-        gru_output_dim_2 = [32]
+        gru_output_dim_1 = [10]
         for dim_1 in gru_output_dim_1:
-            for dim_2 in gru_output_dim_2:
-                for batch_size in batch_sizes:
-                    for epoch in epochs:
-                        experiment_name += model_name + "_gru_dim1_" + str(dim_1) + "_gru_dim2_" + str(dim_2) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
-                        print("experiment_name = ", experiment_name)
-                        for i in range(times):
-                            model = absa_models.createBertOriginGRUModel(dim_1, dim_2)
-                            # model = absa_models.createGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, dim_1, dim_2, DEBUG)
-                            # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
-                            absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
+            for batch_size in batch_sizes:
+                for epoch in epochs:
+                    experiment_name += model_name + "_gru_dim_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                    print("experiment_name = ", experiment_name)
+                    for i in range(times):
+                        model = absa_models.createBertOriginGRUModel(dim_1)
+                        absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
     elif model_name.startswith("BertSeparableCNNBiGRUModel"):
         filters = [200]
         window_sizes_1 = [4]
@@ -314,9 +300,7 @@ if __name__ == "__main__":
                                         print("experiment_name = ", experiment_name)
                                         for i in range(times):
                                             model = absa_models.createBertSeparableCNNBiGRUModel(cnn_filter, window_size_1, window_size_2, window_size_3)
-                                            # model = absa_models.createSeparableCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size_1, window_size_2, window_size_3, DEBUG)
                                             absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
-                                            # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
     elif model_name.startswith("BertMultiCNNBiGRUModel"):
         filters = [200]
         window_sizes_1 = [3, 4, 5]
