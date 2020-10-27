@@ -711,10 +711,18 @@ def listExtend():
     print("l1 = ", l1)
 
 
+def membership_test():
+    membership_degree_path_validation = "D:\coding\workspace\python_demo\sentimentAnalysis\\result\\membership_degree_validation.txt"
+    review_sentiment_membership_degree_validation = dp.getMembershipDegrees(membership_degree_path_validation)
+    review_sentiment_membership_degree_validation = list(review_sentiment_membership_degree_validation)
+    print("length = ", len(review_sentiment_membership_degree_validation))
+    print(review_sentiment_membership_degree_validation[10: 20])
+
+
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
 
-    listExtend()
+    membership_test()
 
     print(">>>in the end...")
 

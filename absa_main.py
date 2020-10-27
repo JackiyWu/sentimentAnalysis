@@ -166,9 +166,12 @@ if __name__ == "__main__":
     # print("cluster_centers' length = ", len(cluster_centers))
 
     # 4.从bert_model获取情感词向量sentiment_word_embeddings
-    # sentiment_words_path = config.sentiment_dictionary_dut
-    # bert_path = config.bert_path
-    # cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, DEBUG)
+    '''
+    sentiment_words_path = config.sentiment_dictionary_dut
+    bert_path = config.bert_path
+    cluster_centers_path = config.cluster_center_train_1
+    cluster_centers = dp.getClusterCentersV2(sentiment_words_path, cluster_centers_path, bert_path, DEBUG)
+    '''
     # 4.1 直接从文件中读取聚类中心向量
     # cluster_centers = dp.getClusterCenterFromFile(cluster_centers_path)
     # print("cluster_centers' length = ", len(cluster_centers))
@@ -182,7 +185,10 @@ if __name__ == "__main__":
     # 计算并保存评论文本的隶属度
     # review_sentiment_membership_degree = dp.calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_path, membership_degree_path, DEBUG)
     # 直接读取评论文本的隶属度
-    # review_sentiment_membership_degree = dp.getMembershipDegrees(membership_degree_path)
+    membership_degree_path_train = config.membership_degree_train
+    review_sentiment_membership_degree_train = dp.getMembershipDegrees(membership_degree_path_train)
+    membership_degree_path_validation = config.membership_degree_validation
+    review_sentiment_membership_degree_validation = dp.getMembershipDegrees(membership_degree_path_validation)
 
     # 7.将review_sentiment_membership_degree拼接在character_embeddings后面生成最终的词向量final_word_embeddings
     print("》》》【7】将隶属值拼接在原词向量上生成最终的词向量**********************************************************************************************************************************************************")
@@ -214,13 +220,12 @@ if __name__ == "__main__":
     # if DEBUG_ONLINE:
     #     X_train_path = X_validation_path
     #     y_train = y_validation
-    epochs = [5]
+    epochs = [3]
     batch_sizes = [120]
     times = 1  # 设置为1是为了测试看结果
     print("training times = ", times)
-    model_name = "BertGRUModel_multiGPU"
+    model_name = "FuzzyBertCNNBiGRUModel_multiGPU"
     no_fuzzy = True
-    batch_size_train = 120
     batch_size_validation = 256
 
     if model_name.startswith("BertCNNModel"):
@@ -318,9 +323,7 @@ if __name__ == "__main__":
                                     print("experiment_name = ", experiment_name)
                                     for i in range(times):
                                         model = absa_models.createBertMultiCNNBiGRUModel(cnn_filter, window_size_1, window_size_2, dim_1, dim_2)
-                                        # model = absa_models.createMultiCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size_1, window_size_2, dim_1, dim_2, DEBUG)
                                         absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
-                                        # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
     elif model_name.startswith("BertLSTMModel"):
         dims_1 = [64]
         for dim_1 in dims_1:
@@ -342,43 +345,46 @@ if __name__ == "__main__":
                         print("experiment_name = ", experiment_name)
                         for i in range(times):
                             model = absa_models.createBertBiLSTMModel(dim_1, dim_2)
-                            # model = absa_models.createLSTMModel(MAXLEN, EMBEDDING_DIM_FINAL, dim_1, dim_2, DEBUG)
                             absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
-                            # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
     elif model_name.startswith("BertMLPModel"):
         dense_dims = [64]
-        if no_fuzzy:
-            embedding_dim = EMBEDDING_DIM_CHARACTER
-        else:
-            embedding_dim = EMBEDDING_DIM_FINAL
         for dim in dense_dims:
             for batch_size in batch_sizes:
                 for epoch in epochs:
                     experiment_name += model_name + "_dim_" + str(dim) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                     print("experiment_name = ", experiment_name)
                     for i in range(times):
-                        # model = absa_models.createMLPModel(MAXLEN, embedding_dim, dim, DEBUG)
                         model = absa_models.createBertMLPModel()
-                        # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG, no_fuzzy=no_fuzzy)
                         absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
     elif model_name.startswith("BertCNNBiGRUModel"):
         filters = [200]
         window_sizes = [4, 5, 6, 7]
         gru_output_dim_1 = [64, 128, 256]
-        gru_output_dim_2 = [64]
         for cnn_filter in filters:
             for window_size in window_sizes:
                 for dim_1 in gru_output_dim_1:
-                    for dim_2 in gru_output_dim_2:
-                        for batch_size in batch_sizes:
-                            for epoch in epochs:
-                                experiment_name += model_name + "_filter_" + str(cnn_filter) + "_window_size_" + str(window_size) + "_gru_dim1_" + str(dim_1) + "_gru_dim2_" + str(dim_2) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
-                                print("experiment_name = ", experiment_name)
-                                for i in range(times):
-                                    model = absa_models.createBertCNNBiGRUModel(cnn_filter, window_size, dim_1, dim_2)
-                                    # model = absa_models.createCNNBiGRUModel(MAXLEN, EMBEDDING_DIM_FINAL, cnn_filter, window_size, dim_1, dim_2, DEBUG)
-                                    absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
-                                    # absa_models.trainModelFromFile(experiment_name, model, X_train_path, y_train, y_cols_name, X_validation_path, y_validation, model_name, epoch=epoch, batch_size=batch_size, debug=DEBUG)
+                    for batch_size in batch_sizes:
+                        for epoch in epochs:
+                            experiment_name += model_name + "_filter_" + str(cnn_filter) + "_window_size_" + str(window_size) + "_gru_dim1_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                            print("experiment_name = ", experiment_name)
+                            for i in range(times):
+                                model = absa_models.createBertCNNBiGRUModel(cnn_filter, window_size, dim_1)
+                                absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
+    elif model_name.startswith("FuzzyBertCNNBiGRUModel"):
+        filters = [128]
+        window_sizes = [6]
+        gru_output_dim_1 = [32]
+        for cnn_filter in filters:
+            for window_size in window_sizes:
+                for dim_1 in gru_output_dim_1:
+                    for batch_size in batch_sizes:
+                        for epoch in epochs:
+                            experiment_name += model_name + "_filter_" + str(cnn_filter) + "_window_size_" + str(window_size) + "_gru_dim1_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                            print("experiment_name = ", experiment_name)
+                            for i in range(times):
+                                model = absa_models.createFuzzyBertCNNBiGRUModel(cnn_filter, window_size, dim_1)
+                                absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation,
+                                                      membership_train=review_sentiment_membership_degree_train, membership_validation=review_sentiment_membership_degree_validation, debug=DEBUG)
     else:
         pass
 

@@ -60,7 +60,7 @@ def initDataForBert(path, debug=False, clean_enter=False, clean_space=False):
         data = data[:200]
 
     length = len(data)
-    # data = data[:int(length / 200)]
+    # data = data[:int(length / 3000)]
 
     # data = data[:1000]
     y = data[['location', 'service', 'price', 'environment', 'dish']]
@@ -758,6 +758,69 @@ def generateSetForBert(X_value, Y_value, batch_size, tokenizer):
                 X1 = []
                 X2 = []
                 Y = []
+
+
+# 批量产生包含隶属度的训练数据
+def generateSetForFuzzyBert(X_value, Y_value, Membership_value, batch_size, tokenizer):
+    length = len(Y_value)
+    # print("membership_value's type = ", type(Membership_value))
+
+    while True:
+        cnt = 0  # 记录当前是否够一个batch
+        X1 = []
+        X2 = []
+        X3 = []
+        Y = []
+        i = 0  # 记录Y的遍历
+        cnt_Y = 0
+        for line in X_value:
+            x1, x2 = parseLineForBert(line, tokenizer)
+            X1.append(x1)
+            X2.append(x2)
+            i += 1
+            cnt += 1
+            if cnt == batch_size or i == length:
+                # print("cnt_Y's type = ", type(cnt_Y))
+                # print("i's type = ", type(i))
+                Y = Y_value[int(cnt_Y): int(i)]
+                # print("Y = ", Y)
+                X3 = Membership_value[cnt_Y: i]
+                cnt_Y += batch_size
+
+                cnt = 0
+                yield ([np.array(X1), np.array(X2), np.array(X3)], to_categorical(Y, num_classes=4))
+                X1 = []
+                X2 = []
+                X3 = []
+                Y = []
+
+
+# 批量产生包含隶属度数据的X
+def generateXSetForFuzzyBert(X_value, y_length, Membership_value, batch_size, tokenizer):
+    while True:
+        # print("in generateXSetForBert...")
+        cnt = 0
+        X1 = []
+        X2 = []
+        X3 = []
+        i = 0
+        cnt_Y = 0
+        for line in X_value:
+            x1, x2 = parseLineForBert(line, tokenizer)
+            X1.append(x1)
+            X2.append(x2)
+            i += 1
+            cnt += 1
+            if cnt == batch_size or i == y_length:
+                X3 = Membership_value[cnt_Y: i]
+                # X3 = Membership_value[int(cnt_Y): int(i)]
+                cnt_Y += batch_size
+                cnt = 0
+
+                yield ([np.array(X1), np.array(X2), np.array(X3)])
+                X1 = []
+                X2 = []
+                X3 = []
 
 
 # 批量产生X

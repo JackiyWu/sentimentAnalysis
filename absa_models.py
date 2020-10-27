@@ -485,7 +485,7 @@ def createCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size, gru_
 
 # Bert+单层CNN+BiGRU模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim_1, gru_output_dim_2, debug=False):
+def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim, debug=False):
     print("开始构建CNNBiGRU模型。。。")
     strategy = tf.distribute.MirroredStrategy()
     with strategy.scope():
@@ -496,20 +496,14 @@ def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim_1, gru_o
         x = bert_model([x1_in, x2_in])
 
         cnn = Conv1D(cnn_filter, cnn_window_size, padding='same', strides=1, activation='relu', name='conv')(x)
-        cnn = BatchNormalization()(cnn)
+        # cnn = BatchNormalization()(cnn)
         cnn = MaxPool1D(name='max_pool')(cnn)
 
-        dropout = Dropout(0.2)(cnn)
-        # flatten = Flatten()(dropout)
+        # dropout = Dropout(0.2)(cnn)
 
-        bi_gru1 = Bidirectional(GRU(gru_output_dim_1, activation='tanh', dropout=0.5, recurrent_dropout=0.4, return_sequences=True, name="gru_0"))(dropout)
-        bi_gru1 = BatchNormalization()(bi_gru1)
-        bi_gru2 = Bidirectional(GRU(gru_output_dim_2, dropout=0.5, recurrent_dropout=0.5, name="gru_1"))(bi_gru1)
-        bi_gru2 = BatchNormalization()(bi_gru2)
+        bi_gru = Bidirectional(GRU(gru_output_dim, name="gru_1"))(cnn)
 
-        flatten = Flatten()(bi_gru2)
-
-        x = Dense(64, activation='relu', name='dense_1')(flatten)
+        x = Dense(64, activation='relu', name='dense_1')(bi_gru)
         x = Dropout(0.4, name='dropout')(x)
         x = Dense(4, activation='softmax', name='softmax')(x)
 
@@ -529,6 +523,55 @@ def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim_1, gru_o
         model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     print("BertCNNBiGRU模型构建完成。。。")
+
+    return model
+
+
+# Fuzzy+Bert+单层CNN+BiGRU模型
+# 不提取词向量，直接用bert连接后面的模型
+def createFuzzyBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim, debug=False):
+    print("开始构建FuzzyBertCNNBiGRU模型。。。")
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
+
+        x1_in = Input(shape=(None,))
+        x2_in = Input(shape=(None,))
+        x_bert = bert_model([x1_in, x2_in])
+
+        # x3_in是每个字符隶属于三个聚类中心（负向、中性、正向）的程度
+        x3_in = Input(shape=(512, 3,))
+
+        x = concatenate([x_bert, x3_in], axis=-1)
+
+        cnn = Conv1D(cnn_filter, cnn_window_size, padding='same', strides=1, activation='relu', name='conv')(x)
+        # cnn = BatchNormalization()(cnn)
+        cnn = MaxPool1D(name='max_pool')(cnn)
+
+        # dropout = Dropout(0.2)(cnn)
+
+        bi_gru = Bidirectional(GRU(gru_output_dim, name="gru_1"))(cnn)
+
+        x = Dense(64, activation='relu', name='dense_1')(bi_gru)
+        x = Dropout(0.4, name='dropout')(x)
+        x = Dense(4, activation='softmax', name='softmax')(x)
+
+        train_x = np.random.standard_normal((1024, 100))
+
+        total_steps, warmup_steps = calc_train_steps(
+            num_example=train_x.shape[0],
+            batch_size=32,
+            epochs=10,
+            warmup_proportion=0.1,
+        )
+
+        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
+
+        model = Model(inputs=[x1_in, x2_in, x3_in], outputs=x)
+
+        model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+    print(model.summary())
+    print("FuzzyBertCNNBiGRU模型构建完成。。。")
 
     return model
 
@@ -840,15 +883,12 @@ def createBertCNN(filter, window_size, debug=False):
 
 
 # 训练bert模型
-def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, debug=False):
-    print("勿扰！训练模型ing。。。in trainBert。。。")
+def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, membership_train=None, membership_validation=None, debug=False):
+    print("勿扰！训练模型ing。。。in trainBert。。。model_name = ", model_name)
 
     length = len(Y)
     length_validation = len(Y_validation)
     print(">>>y's length = ", length)
-
-    # GPU数量
-    G = 2
 
     F1_scores = 0
     F1_score = 0
@@ -867,13 +907,21 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
         origin_data_current_col_val = list(origin_data_current_col_val)
         # origin_data_current_col_val = np.array(origin_data_current_col_val)
         # print(y_val)
+        membership_train = list(membership_train)
+        membership_validation = list(membership_validation)
 
-        history = model.fit(dp.generateSetForBert(X, origin_data_current_col, batch_size, tokenizer), steps_per_epoch=math.ceil(length / (batch_size)),
-                            epochs=epoch, batch_size=batch_size, verbose=1, validation_steps=math.ceil(length_validation / (batch_size_validation)),
-                            validation_data=dp.generateSetForBert(X_validation, origin_data_current_col_val, batch_size_validation, tokenizer))
-
-        # 预测验证集
-        y_val_pred = model.predict(dp.generateXSetForBert(X_validation, length_validation, batch_size_validation, tokenizer), steps=math.ceil(length_validation / (batch_size_validation)))
+        if model_name.startswith("FuzzyBertCNNBiGRUModel"):
+            history = model.fit(dp.generateSetForFuzzyBert(X, origin_data_current_col, membership_train, batch_size, tokenizer), steps_per_epoch=math.ceil(length / (batch_size)),
+                                epochs=epoch, batch_size=batch_size, verbose=1, validation_steps=math.ceil(length_validation / (batch_size_validation)),
+                                validation_data=dp.generateSetForFuzzyBert(X_validation, origin_data_current_col_val, membership_validation, batch_size_validation, tokenizer))
+            # 预测验证集
+            y_val_pred = model.predict(dp.generateXSetForFuzzyBert(X_validation, length_validation, membership_validation, batch_size_validation, tokenizer), steps=math.ceil(length_validation / (batch_size_validation)))
+        else:
+            history = model.fit(dp.generateSetForBert(X, origin_data_current_col, batch_size, tokenizer), steps_per_epoch=math.ceil(length / (batch_size)),
+                                epochs=epoch, batch_size=batch_size, verbose=1, validation_steps=math.ceil(length_validation / (batch_size_validation)),
+                                validation_data=dp.generateSetForBert(X_validation, origin_data_current_col_val, batch_size_validation, tokenizer))
+            # 预测验证集
+            y_val_pred = model.predict(dp.generateXSetForBert(X_validation, length_validation, batch_size_validation, tokenizer), steps=math.ceil(length_validation / (batch_size_validation)))
 
         print("y_val_pred's length = ", len(y_val_pred))
         print("y_validation's length = ", length_validation)
@@ -882,8 +930,8 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
 
         # 准确率：在所有预测为正的样本中，确实为正的比例
         # 召回率：本身为正的样本中，被预测为正的比例
-        print("y_val[200] = ", list(origin_data_current_col_val)[20])
-        print("y_val_pred[200] = ", list(y_val_pred)[20])
+        print("y_val[20] = ", list(origin_data_current_col_val)[20])
+        print("y_val_pred[20] = ", list(y_val_pred)[20])
         precision, recall, fscore, support = score(origin_data_current_col_val, y_val_pred)
         print("precision = ", precision)
         print("recall = ", recall)
