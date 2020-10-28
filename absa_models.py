@@ -905,10 +905,10 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
         origin_data_current_col_val = list(origin_data_current_col_val)
         # origin_data_current_col_val = np.array(origin_data_current_col_val)
         # print(y_val)
-        membership_train = list(membership_train)
-        membership_validation = list(membership_validation)
 
         if model_name.startswith("FuzzyBertCNNBiGRUModel"):
+            membership_train = list(membership_train)
+            membership_validation = list(membership_validation)
             history = model.fit(dp.generateSetForFuzzyBert(X, origin_data_current_col, membership_train, batch_size, tokenizer), steps_per_epoch=math.ceil(length / (batch_size)),
                                 epochs=epoch, batch_size=batch_size, verbose=1, validation_steps=math.ceil(length_validation / (batch_size_validation)),
                                 validation_data=dp.generateSetForFuzzyBert(X_validation, origin_data_current_col_val, membership_validation, batch_size_validation, tokenizer))
