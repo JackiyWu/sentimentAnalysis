@@ -496,10 +496,7 @@ def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim, debug=F
         x = bert_model([x1_in, x2_in])
 
         cnn = Conv1D(cnn_filter, cnn_window_size, padding='same', strides=1, activation='relu', name='conv')(x)
-        # cnn = BatchNormalization()(cnn)
         cnn = MaxPool1D(name='max_pool')(cnn)
-
-        # dropout = Dropout(0.2)(cnn)
 
         bi_gru = Bidirectional(GRU(gru_output_dim, name="gru_1"))(cnn)
 
@@ -521,6 +518,7 @@ def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim, debug=F
         model = Model(inputs=[x1_in, x2_in], outputs=x)
 
         model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+
     print(model.summary())
     print("BertCNNBiGRU模型构建完成。。。")
 

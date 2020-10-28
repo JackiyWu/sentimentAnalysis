@@ -184,11 +184,6 @@ if __name__ == "__main__":
     # review_sentiment_membership_degree = dp.calculateMembershipDegree(cluster_centers, character_embeddings)
     # 计算并保存评论文本的隶属度
     # review_sentiment_membership_degree = dp.calculateAndSaveMembershipDegree(cluster_centers, character_embeddings_path, membership_degree_path, DEBUG)
-    # 直接读取评论文本的隶属度
-    membership_degree_path_train = config.membership_degree_train
-    review_sentiment_membership_degree_train = dp.getMembershipDegrees(membership_degree_path_train)
-    membership_degree_path_validation = config.membership_degree_validation
-    review_sentiment_membership_degree_validation = dp.getMembershipDegrees(membership_degree_path_validation)
 
     # 7.将review_sentiment_membership_degree拼接在character_embeddings后面生成最终的词向量final_word_embeddings
     print("》》》【7】将隶属值拼接在原词向量上生成最终的词向量**********************************************************************************************************************************************************")
@@ -222,16 +217,16 @@ if __name__ == "__main__":
     #     y_train = y_validation
     epochs = [3]
     batch_sizes = [120]
-    times = 1  # 设置为1是为了测试看结果
+    times = 3  # 设置为1是为了测试看结果
     print("training times = ", times)
-    model_name = "FuzzyBertCNNBiGRUModel_multiGPU"
+    model_name = "BertCNNBiGRUModel_multiGPU"
     no_fuzzy = True
-    batch_size_validation = 256
+    batch_size_validation = 512
 
     if model_name.startswith("BertCNNModel"):
-        filters = [64]
-        window_sizes = [6]
-        # window_sizes = [4, 5, 6, 7]
+        filters = [128]
+        # window_sizes = [6]
+        window_sizes = [4, 5, 6, 7]
         for cnn_filter in filters:
             for window_size in window_sizes:
                 for batch_size in batch_sizes:
@@ -357,23 +352,28 @@ if __name__ == "__main__":
                         model = absa_models.createBertMLPModel()
                         absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
     elif model_name.startswith("BertCNNBiGRUModel"):
-        filters = [200]
-        window_sizes = [4, 5, 6, 7]
-        gru_output_dim_1 = [64, 128, 256]
+        filters = [128, 256]
+        window_sizes = [6]
+        gru_output_dim_1 = [32]
         for cnn_filter in filters:
             for window_size in window_sizes:
                 for dim_1 in gru_output_dim_1:
                     for batch_size in batch_sizes:
                         for epoch in epochs:
-                            experiment_name += model_name + "_filter_" + str(cnn_filter) + "_window_size_" + str(window_size) + "_gru_dim1_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                            experiment_name += model_name + "_filter_" + str(cnn_filter) + "_window_size_" + str(window_size) + "_gru_dim_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                             print("experiment_name = ", experiment_name)
                             for i in range(times):
                                 model = absa_models.createBertCNNBiGRUModel(cnn_filter, window_size, dim_1)
                                 absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
     elif model_name.startswith("FuzzyBertCNNBiGRUModel"):
-        filters = [128]
-        window_sizes = [6]
-        gru_output_dim_1 = [32]
+        # 直接读取评论文本的隶属度
+        membership_degree_path_train = config.membership_degree_train
+        review_sentiment_membership_degree_train = dp.getMembershipDegrees(membership_degree_path_train)
+        membership_degree_path_validation = config.membership_degree_validation
+        review_sentiment_membership_degree_validation = dp.getMembershipDegrees(membership_degree_path_validation)
+        filters = [128, 256]
+        window_sizes = [5, 6]
+        gru_output_dim_1 = [32, 64]
         for cnn_filter in filters:
             for window_size in window_sizes:
                 for dim_1 in gru_output_dim_1:
