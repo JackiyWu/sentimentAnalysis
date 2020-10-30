@@ -216,7 +216,7 @@ if __name__ == "__main__":
     #     X_train_path = X_validation_path
     #     y_train = y_validation
     epochs = [3]
-    batch_sizes = [120]
+    batch_sizes = [96]
     times = 3  # 设置为1是为了测试看结果
     print("training times = ", times)
     model_name = "BertCNNBiGRUModel_multiGPU"
@@ -231,7 +231,7 @@ if __name__ == "__main__":
             for window_size in window_sizes:
                 for batch_size in batch_sizes:
                     for epoch in epochs:
-                        experiment_name += model_name + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size) + "_filter_" + str(filters) + "_windowSize_" + str(window_size)
+                        experiment_name = model_name + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size) + "_filter_" + str(filters) + "_windowSize_" + str(window_size)
                         print("experiment_name = ", experiment_name)
                         for i in range(times):
                             model = absa_models.createBertCNNModel(cnn_filter, window_size)
@@ -248,7 +248,7 @@ if __name__ == "__main__":
                     for window_size2 in window_sizes2:
                         for batch_size in batch_sizes:
                             for epoch in epochs:
-                                experiment_name += model_name + "_filter1_" + str(cnn_filter1) + "_windowSize1_" + str(window_size1) + "_filter2_" + str(cnn_filter2) + "_windowSize2_" + str(window_size2) + "_batchSize_" + str(batch_size) + "_epoch_" + str(epoch)
+                                experiment_name = model_name + "_filter1_" + str(cnn_filter1) + "_windowSize1_" + str(window_size1) + "_filter2_" + str(cnn_filter2) + "_windowSize2_" + str(window_size2) + "_batchSize_" + str(batch_size) + "_epoch_" + str(epoch)
                                 print("experiment_name = ", experiment_name)
                                 for i in range(times):
                                     model = absa_models.createBertMultiCNNModel(cnn_filter1, window_size1, cnn_filter2, window_size2)
@@ -256,7 +256,7 @@ if __name__ == "__main__":
     elif model_name.startswith("BertSeparableCNNModel"):
         for batch_size in batch_sizes:
             for epoch in epochs:
-                experiment_name += model_name + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                experiment_name = model_name + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                 print("experiment_name = ", experiment_name)
                 for i in range(times):
                     model = absa_models.createBertSeparableCNNModel()
@@ -266,7 +266,7 @@ if __name__ == "__main__":
         for dim_1 in gru_output_dim_1:
             for batch_size in batch_sizes:
                 for epoch in epochs:
-                    experiment_name += model_name + "_gru_dim_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                    experiment_name = model_name + "_gru_dim_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                     print("experiment_name = ", experiment_name)
                     for i in range(times):
                         model = absa_models.createBertGRUModel(dim_1)
@@ -276,7 +276,7 @@ if __name__ == "__main__":
         for dim_1 in gru_output_dim_1:
             for batch_size in batch_sizes:
                 for epoch in epochs:
-                    experiment_name += model_name + "_gru_dim_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                    experiment_name = model_name + "_gru_dim_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                     print("experiment_name = ", experiment_name)
                     for i in range(times):
                         model = absa_models.createBertOriginGRUModel(dim_1)
@@ -296,7 +296,7 @@ if __name__ == "__main__":
                             for dim_2 in gru_output_dim_2:
                                 for batch_size in batch_sizes:
                                     for epoch in epochs:
-                                        experiment_name += model_name + "_filter_" + str(cnn_filter) + "_window_size1_" + str(window_size_1) + "_window_size2_" + str(window_size_2) + "_window_size3_" + str(window_size_3) + "_gru_dim1_" + str(dim_1) + "_gru_dim2_" + str(dim_2) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                                        experiment_name = model_name + "_filter_" + str(cnn_filter) + "_window_size1_" + str(window_size_1) + "_window_size2_" + str(window_size_2) + "_window_size3_" + str(window_size_3) + "_gru_dim1_" + str(dim_1) + "_gru_dim2_" + str(dim_2) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                                         print("experiment_name = ", experiment_name)
                                         for i in range(times):
                                             model = absa_models.createBertSeparableCNNBiGRUModel(cnn_filter, window_size_1, window_size_2, window_size_3)
@@ -314,7 +314,7 @@ if __name__ == "__main__":
                         for dim_2 in gru_output_dim_2:
                             for batch_size in batch_sizes:
                                 for epoch in epochs:
-                                    experiment_name += model_name + "_filter_" + str(cnn_filter) + "_window_size1_" + str(window_size_1) + "_window_size2_" + str(window_size_2) + "_gru_dim1_" + str(dim_1) + "_gru_dim2_" + str(dim_2) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                                    experiment_name = model_name + "_filter_" + str(cnn_filter) + "_window_size1_" + str(window_size_1) + "_window_size2_" + str(window_size_2) + "_gru_dim1_" + str(dim_1) + "_gru_dim2_" + str(dim_2) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                                     print("experiment_name = ", experiment_name)
                                     for i in range(times):
                                         model = absa_models.createBertMultiCNNBiGRUModel(cnn_filter, window_size_1, window_size_2, dim_1, dim_2)
@@ -324,7 +324,7 @@ if __name__ == "__main__":
         for dim_1 in dims_1:
             for batch_size in batch_sizes:
                 for epoch in epochs:
-                    experiment_name += model_name + "_dim1_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                    experiment_name = model_name + "_dim1_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                     print("experiment_name = ", experiment_name)
                     for i in range(times):
                         model = absa_models.createBertLSTMModel(dim_1)
@@ -336,7 +336,7 @@ if __name__ == "__main__":
             for dim_2 in dims_2:
                 for batch_size in batch_sizes:
                     for epoch in epochs:
-                        experiment_name += model_name + "_dim1_" + str(dim_1) + "_dim2_" + str(dim_2) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                        experiment_name = model_name + "_dim1_" + str(dim_1) + "_dim2_" + str(dim_2) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                         print("experiment_name = ", experiment_name)
                         for i in range(times):
                             model = absa_models.createBertBiLSTMModel(dim_1, dim_2)
@@ -346,13 +346,13 @@ if __name__ == "__main__":
         for dim in dense_dims:
             for batch_size in batch_sizes:
                 for epoch in epochs:
-                    experiment_name += model_name + "_dim_" + str(dim) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                    experiment_name = model_name + "_dim_" + str(dim) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                     print("experiment_name = ", experiment_name)
                     for i in range(times):
                         model = absa_models.createBertMLPModel()
                         absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
     elif model_name.startswith("BertCNNBiGRUModel"):
-        filters = [128, 256]
+        filters = [256, 128]
         window_sizes = [6]
         gru_output_dim_1 = [32]
         for cnn_filter in filters:
@@ -360,9 +360,10 @@ if __name__ == "__main__":
                 for dim_1 in gru_output_dim_1:
                     for batch_size in batch_sizes:
                         for epoch in epochs:
-                            experiment_name += model_name + "_filter_" + str(cnn_filter) + "_window_size_" + str(window_size) + "_gru_dim_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                            experiment_name = model_name + "_filter_" + str(cnn_filter) + "_window_size_" + str(window_size) + "_gru_dim_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                             print("experiment_name = ", experiment_name)
                             for i in range(times):
+                                print("current times is ", i)
                                 model = absa_models.createBertCNNBiGRUModel(cnn_filter, window_size, dim_1)
                                 absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
     elif model_name.startswith("FuzzyBertCNNBiGRUModel"):
@@ -379,7 +380,7 @@ if __name__ == "__main__":
                 for dim_1 in gru_output_dim_1:
                     for batch_size in batch_sizes:
                         for epoch in epochs:
-                            experiment_name += model_name + "_filter_" + str(cnn_filter) + "_window_size_" + str(window_size) + "_gru_dim1_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
+                            experiment_name = model_name + "_filter_" + str(cnn_filter) + "_window_size_" + str(window_size) + "_gru_dim1_" + str(dim_1) + "_epoch_" + str(epoch) + "_batchSize_" + str(batch_size)
                             print("experiment_name = ", experiment_name)
                             for i in range(times):
                                 model = absa_models.createFuzzyBertCNNBiGRUModel(cnn_filter, window_size, dim_1)
