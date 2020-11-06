@@ -550,9 +550,9 @@ def createFuzzyBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim, de
 
         bi_gru = Bidirectional(GRU(gru_output_dim, name="gru_1"))(cnn)
 
-        x = Dense(64, activation='relu', name='dense_1')(bi_gru)
-        x = Dropout(0.4, name='dropout')(x)
-        x = Dense(4, activation='softmax', name='softmax')(x)
+        # x = Dense(64, activation='relu', name='dense_1')(bi_gru)
+        # x = Dropout(0.4, name='dropout')(x)
+        x = Dense(4, activation='softmax', name='softmax')(bi_gru)
 
         train_x = np.random.standard_normal((1024, 100))
 

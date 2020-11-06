@@ -215,7 +215,7 @@ if __name__ == "__main__":
     # if DEBUG_ONLINE:
     #     X_train_path = X_validation_path
     #     y_train = y_validation
-    epochs = [4]
+    epochs = [3]
     batch_sizes = [96]
     times = 2  # 设置为1是为了测试看结果
     print("training times = ", times)
@@ -371,9 +371,9 @@ if __name__ == "__main__":
         review_sentiment_membership_degree_train = dp.getMembershipDegrees(membership_degree_path_train)
         membership_degree_path_validation = config.membership_degree_validation
         review_sentiment_membership_degree_validation = dp.getMembershipDegrees(membership_degree_path_validation)
-        filters = [256, 128]
+        filters = [512, 256]
         window_sizes = [5, 6]
-        gru_output_dim_1 = [64, 32]
+        gru_output_dim_1 = [256]
         for cnn_filter in filters:
             for window_size in window_sizes:
                 for dim_1 in gru_output_dim_1:
