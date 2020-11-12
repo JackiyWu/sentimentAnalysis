@@ -219,7 +219,7 @@ if __name__ == "__main__":
     batch_sizes = [96]
     times = 2  # 设置为1是为了测试看结果
     print("training times = ", times)
-    model_name = "FuzzyBertCNNBiGRUModel_multiGPU"
+    model_name = "FuzzyBertCNNBiGRUModel_multiGPU_parameters"
     batch_size_validation = 512
 
     if model_name.startswith("BertCNNModel"):
@@ -371,9 +371,9 @@ if __name__ == "__main__":
         review_sentiment_membership_degree_train = dp.getMembershipDegrees(membership_degree_path_train)
         membership_degree_path_validation = config.membership_degree_validation
         review_sentiment_membership_degree_validation = dp.getMembershipDegrees(membership_degree_path_validation)
-        filters = [512, 256]
-        window_sizes = [5, 6]
-        gru_output_dim_1 = [256]
+        filters = [512]
+        window_sizes = [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        gru_output_dim_1 = [256, 128]
         for cnn_filter in filters:
             for window_size in window_sizes:
                 for dim_1 in gru_output_dim_1:
