@@ -216,10 +216,10 @@ if __name__ == "__main__":
     #     X_train_path = X_validation_path
     #     y_train = y_validation
     epochs = [3]
-    batch_sizes = [96]
+    batch_sizes = [112]
     times = 2  # 设置为1是为了测试看结果
     print("training times = ", times)
-    model_name = "FuzzyBertCNNBiGRUModel_multiGPU_parameters"
+    model_name = "BertOriginGRUModel_multiGPU_parameters"
     batch_size_validation = 512
 
     if model_name.startswith("BertCNNModel"):
@@ -261,7 +261,7 @@ if __name__ == "__main__":
                     model = absa_models.createBertSeparableCNNModel()
                     absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
     elif model_name.startswith("BertGRUModel"):
-        gru_output_dim_1 = [32]
+        gru_output_dim_1 = [256]
         for dim_1 in gru_output_dim_1:
             for batch_size in batch_sizes:
                 for epoch in epochs:
@@ -271,7 +271,7 @@ if __name__ == "__main__":
                         model = absa_models.createBertGRUModel(dim_1)
                         absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
     elif model_name.startswith("BertOriginGRUModel"):
-        gru_output_dim_1 = [10]
+        gru_output_dim_1 = [256]
         for dim_1 in gru_output_dim_1:
             for batch_size in batch_sizes:
                 for epoch in epochs:
@@ -372,8 +372,8 @@ if __name__ == "__main__":
         membership_degree_path_validation = config.membership_degree_validation
         review_sentiment_membership_degree_validation = dp.getMembershipDegrees(membership_degree_path_validation)
         filters = [512]
-        window_sizes = [2, 3, 4, 5, 6, 7, 8, 9, 10]
-        gru_output_dim_1 = [256, 128]
+        window_sizes = [7]
+        gru_output_dim_1 = [256]
         for cnn_filter in filters:
             for window_size in window_sizes:
                 for dim_1 in gru_output_dim_1:
