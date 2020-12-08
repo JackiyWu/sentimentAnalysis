@@ -924,12 +924,16 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
         print("y_val_pred's length = ", len(y_val_pred))
         print("y_validation's length = ", length_validation)
 
+        # print("y_val_pred: ", y_val_pred)
+        # 将验证集的预测结果存入文件
+        save_predict_result_to_csv(y_val_pred, col)
+
         y_val_pred = np.argmax(y_val_pred, axis=1)
 
         # 准确率：在所有预测为正的样本中，确实为正的比例
         # 召回率：本身为正的样本中，被预测为正的比例
-        print("y_val[20] = ", list(origin_data_current_col_val)[20])
-        print("y_val_pred[20] = ", list(y_val_pred)[20])
+        print("y_val[20] = ", list(origin_data_current_col_val)[:20])
+        print("y_val_pred[20] = ", list(y_val_pred)[:20])
         precision, recall, fscore, support = score(origin_data_current_col_val, y_val_pred)
         print("precision = ", precision)
         print("recall = ", recall)
@@ -1199,5 +1203,21 @@ def save_result_to_csv(report, f1_score, experiment_id, model_name, col_name):
     with codecs.open(path, "a", "utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(data)
+        f.close()
+
+
+# 把预测结果保存到csv
+# 0 1 2 3
+def save_predict_result_to_csv(y_val_pred, col_name):
+    print(">>>将y_val_pred存入文件...")
+    # y_val_pred是list类型？
+    print("y_val_pred's type = ", type(y_val_pred))
+
+    y_val_pred = np.array(y_val_pred)
+
+    path = "result/predict_" + col_name + ".csv"
+    with codecs.open(path, "a", "utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerows(y_val_pred)
         f.close()
 

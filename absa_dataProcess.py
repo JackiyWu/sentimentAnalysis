@@ -62,7 +62,7 @@ def initDataForBert(path, debug=False, clean_enter=False, clean_space=False):
     length = len(data)
     # data = data[:int(length / 3000)]
 
-    # data = data[:1000]
+    # data = data[:50]
     y = data[['location', 'service', 'price', 'environment', 'dish']]
     print("y = ", y.head())
 
