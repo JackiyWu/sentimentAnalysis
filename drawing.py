@@ -58,7 +58,7 @@ def read_csv(experiment_id):
 if __name__ == "__main__":
     print("Begin at drawing...")
 
-    names, y_F1, y_P, y_R = read_csv('filter')
+    names, y_F1, y_P, y_R = read_csv('gru')
     plot_test(names, y_F1, y_P, y_R)
     # print(names)
     # print(y_F1)

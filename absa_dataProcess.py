@@ -95,6 +95,20 @@ def initDataForBert(path, debug=False, clean_enter=False, clean_space=False):
     return data_content, y_cols_name, y
 
 
+# 根据餐厅名称获取数据
+def getRestaurantDataByName(name):
+    directory = "datasets/restaurant"
+    path = directory + "/" + name + ".csv"
+    data = pd.read_csv(path, header=None)
+    length = len(data)
+
+    y = []
+    y_cols_name = []
+    data_content = data[0]
+
+    return data_content, y_cols_name, y
+
+
 def initDataLabels(debug=False):
     # print("In initDataLabels function of dataProcess.py...")
     data_train = pd.read_csv(config.meituan_train_new)
@@ -731,6 +745,7 @@ def generateTrainSet(X_train, Y_train, batch_size):
 
 # 批量产生训练数据
 def generateSetForBert(X_value, Y_value, batch_size, tokenizer):
+    # print("This is generateSetForBert...")
     length = len(Y_value)
 
     while True:

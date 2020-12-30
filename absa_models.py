@@ -501,7 +501,7 @@ def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim, debug=F
         bi_gru = Bidirectional(GRU(gru_output_dim, name="gru_1"))(cnn)
 
         x = Dense(64, activation='relu', name='dense_1')(bi_gru)
-        x = Dropout(0.4, name='dropout')(x)
+        # x = Dropout(0.4, name='dropout')(x)
         x = Dense(4, activation='softmax', name='softmax')(x)
 
         train_x = np.random.standard_normal((1024, 100))
@@ -919,14 +919,24 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
                                 epochs=epoch, batch_size=batch_size, verbose=1, validation_steps=math.ceil(length_validation / (batch_size_validation)),
                                 validation_data=dp.generateSetForBert(X_validation, origin_data_current_col_val, batch_size_validation, tokenizer))
             # 预测验证集
-            y_val_pred = model.predict(dp.generateXSetForBert(X_validation, length_validation, batch_size_validation, tokenizer), steps=math.ceil(length_validation / (batch_size_validation)))
+            y_val_pred = model.predict(dp.generateXSetForBert(X_validation, length_validation, batch_size_validation, tokenizer), steps=math.ceil(length_validation / batch_size_validation))
+
+            # 预测餐厅评论数据
+            # names = ['chunla']
+            names = ['chunla', 'dingxiangyuan', 'jialide', 'jianshazui', 'jiefu', 'kuaileai', 'niuzhongniu', 'shouergong', 'xiaolongkan', 'zhenghuangqi']
+            for name in names:
+                X_restaurant, y_cols_restaurant, Y_restaurant = dp.getRestaurantDataByName(name)
+                length_restaurant = len(X_restaurant)
+                y_restaurant_pred = model.predict(dp.generateXSetForBert(X_restaurant, length_restaurant, batch_size_validation, tokenizer), steps=math.ceil(length_restaurant / batch_size_validation))
+                # 将预测结果存入文件
+                save_predict_result_to_csv(y_restaurant_pred, name + "_" + col)
 
         print("y_val_pred's length = ", len(y_val_pred))
         print("y_validation's length = ", length_validation)
 
         # print("y_val_pred: ", y_val_pred)
         # 将验证集的预测结果存入文件
-        save_predict_result_to_csv(y_val_pred, col)
+        # save_predict_result_to_csv(y_val_pred, col)
 
         y_val_pred = np.argmax(y_val_pred, axis=1)
 
@@ -1215,7 +1225,7 @@ def save_predict_result_to_csv(y_val_pred, col_name):
 
     y_val_pred = np.array(y_val_pred)
 
-    path = "result/predict_" + col_name + ".csv"
+    path = "result/predict_restaurant_" + col_name + ".csv"
     with codecs.open(path, "a", "utf-8") as f:
         writer = csv.writer(f)
         writer.writerows(y_val_pred)

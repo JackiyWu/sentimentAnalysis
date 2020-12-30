@@ -215,11 +215,14 @@ if __name__ == "__main__":
     # if DEBUG_ONLINE:
     #     X_train_path = X_validation_path
     #     y_train = y_validation
+    # epochs = [1]
     epochs = [3]
-    batch_sizes = [85]
+    # batch_sizes = [10]
+    batch_sizes = [64]
     times = 1  # 设置为1是为了测试看结果
     print("training times = ", times)
-    model_name = "FuzzyBertCNNBiGRUModel_multiGPU_parameters_predict"
+    model_name = "BertCNNBiGRUModel_multiGPU_parameters_restaurant_predict"
+    # batch_size_validation = 10
     batch_size_validation = 512
 
     if model_name.startswith("BertCNNModel"):
@@ -351,9 +354,9 @@ if __name__ == "__main__":
                         model = absa_models.createBertMLPModel()
                         absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
     elif model_name.startswith("BertCNNBiGRUModel"):
-        filters = [256, 128]
-        window_sizes = [6]
-        gru_output_dim_1 = [32]
+        filters = [512]
+        window_sizes = [4]
+        gru_output_dim_1 = [256]
         for cnn_filter in filters:
             for window_size in window_sizes:
                 for dim_1 in gru_output_dim_1:

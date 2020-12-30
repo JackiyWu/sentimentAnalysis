@@ -3,6 +3,7 @@ import os
 import codecs
 import csv
 import numpy as np
+import absa_dataProcess as dp
 
 
 # 读取文件
@@ -75,13 +76,16 @@ if __name__ == "__main__":
     file_path = "F:\Research\DataSet\\restaurant reviews\dataUSE"
     target_path = "F:\Research\DataSet\\restaurant reviews\dataUSEReviews"
 
-    readFromDictory(file_path, target_path)
+    # readFromDictory(file_path, target_path)
     '''
     test_string = "hello_world"
     print(test_string)
     test_string_split = test_string[0: test_string.rfind('_', 1)]
     print(test_string_split)
     '''
+
+    X_validation, y_cols_validation, Y_validation = dp.getRestaurantDataByName('chunla')
+    print(X_validation)
 
     print("this is the end of absa_readReview...")
 
