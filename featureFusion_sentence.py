@@ -17,6 +17,7 @@ from sklearn.utils import class_weight
 from keras.utils.np_utils import to_categorical
 import keras
 from tensorflow.keras import optimizers
+import tensorflow as tf
 
 import numpy as np
 import os
@@ -46,30 +47,36 @@ y_cols = []
 # filters格式为列表，如[64, 32]，方便后续调优
 # def create_fusion_model(fuzzy_maxlen, cnn_maxlen, dict_length, filters):
 def create_fusion_model(fuzzy_maxlen, cnn_maxlen, dict_length, filter, embedding_matrix, window_size, dropout, full_connected):
-    # define our MLP network
-    inputs_fuzzy = Input(shape=(fuzzy_maxlen,), name='input_fuzzy')  # 此处的维度512是根据语料库计算出来的，后期用变量代替
-    x_fuzzy = Dense(16, activation='linear', name='dense1_fuzzy')(inputs_fuzzy)
-    # x_mlp = Dense(4, activation='relu', name='dense2_mlp')(x_mlp)
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        # define our MLP network
+        inputs_fuzzy = Input(shape=(fuzzy_maxlen,), name='input_fuzzy')  # 此处的维度512是根据语料库计算出来的，后期用变量代替
+        x_fuzzy = Dense(16, activation='linear', name='dense1_fuzzy')(inputs_fuzzy)
+        # x_mlp = Dense(4, activation='relu', name='dense2_mlp')(x_mlp)
 
-    # define our CNN
-    inputs_cnn = Input(shape=(cnn_maxlen,), name="input_cnn")  # dict_length是词典长度，128是词向量的维度，512是每个input的长度
-    # x_cnn = Embedding(input_dim=dict_length, output_dim=128, name='embedding_cnn')(inputs_cnn)
-    x_cnn = Embedding(input_dim=dict_length, output_dim=300, name='embedding_cnn', weights=[embedding_matrix], trainable=True)(inputs_cnn)
-    x_cnn = Conv1D(filter, window_size, activation='relu', name='conv1')(x_cnn)
-    # x_cnn = BatchNormalization(axis=chanDim)(x_cnn)
-    x_cnn = MaxPool1D(name='pool1')(x_cnn)
-    x_cnn = Flatten(name='flatten')(x_cnn)
+        # define our CNN
+        inputs_cnn = Input(shape=(cnn_maxlen,), name="input_cnn")  # dict_length是词典长度，128是词向量的维度，512是每个input的长度
+        # x_cnn = Embedding(input_dim=dict_length, output_dim=128, name='embedding_cnn')(inputs_cnn)
+        x_cnn = Embedding(input_dim=dict_length, output_dim=300, name='embedding_cnn', weights=[embedding_matrix], trainable=True)(inputs_cnn)
+        x_cnn = Conv1D(filter, window_size, activation='relu', name='conv1')(x_cnn)
+        # x_cnn = BatchNormalization(axis=chanDim)(x_cnn)
+        x_cnn = MaxPool1D(name='pool1')(x_cnn)
+        x_cnn = Flatten(name='flatten')(x_cnn)
 
-    # 融合两个输入
-    x_concatenate = concatenate([x_fuzzy, x_cnn], name='fusion')
+        # 融合两个输入
+        x_concatenate = concatenate([x_fuzzy, x_cnn], name='fusion')
 
-    x = Dense(full_connected, activation='relu', name='dense3')(x_concatenate)
-    # x = Dropout(0.4, name="dropout1")(x)
-    # x = Dense(32, activation='relu', name='dense4')(x)
-    x = Dropout(dropout, name="dropout2")(x)
-    x = Dense(3, activation='softmax', name='softmax')(x)
+        x = Dense(full_connected, activation='relu', name='dense3')(x_concatenate)
+        # x = Dropout(0.4, name="dropout1")(x)
+        # x = Dense(32, activation='relu', name='dense4')(x)
+        x = Dropout(dropout, name="dropout2")(x)
+        x = Dense(3, activation='softmax', name='softmax')(x)
 
-    fusion_model = Model(inputs=[inputs_fuzzy, inputs_cnn], outputs=x, name='fusion_model')
+        fusion_model = Model(inputs=[inputs_fuzzy, inputs_cnn], outputs=x, name='fusion_model')
+
+        adam = optimizers.Adam(learning_rate=0.001)
+
+        fusion_model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
 
     # print(fusion_model.summary())
 
@@ -91,10 +98,6 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
     # print("test_x.shape = ", test_x.shape)
     # print("val_x.shape = ", val_x.shape)
     # print("y_cols = ", y_cols)
-
-    adam = optimizers.Adam(learning_rate=learning_rate)
-
-    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
 
     F1_scores = 0
     F1_score = 0
@@ -137,6 +140,9 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
         # print("val_x = ", val_x)
         y_val_pred = model.predict([val_x_fuzzy, val_x])
         # y_test_pred += model.predict([test_x_fuzzy, test_x])
+        # 把预测结果保存入文件
+        print(">>>将预测的结果存入csv文件中。。。")
+        save_predict_result_to_csv(val["review"], y_val_pred)
 
     y_val_pred = np.argmax(y_val_pred, axis=1)
 
@@ -167,6 +173,29 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
     print(">>>end of train_mlp function...")
 
     return result
+
+
+# 把预测结果保存到csv
+# 0 1 2
+def save_predict_result_to_csv(x, y_val_pred):
+    print(">>>将val和y_val存入文件...")
+    print("y_val_pred's type = ", type(y_val_pred))
+
+    y_val_pred = np.array(y_val_pred)
+    # x = np.array(x)
+
+    path = "result/sentence_result/predicts.csv"
+    with codecs.open(path, "a", "utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerows(y_val_pred)
+        f.close()
+
+    path2 = "result/sentence_result/texts.csv"
+    with codecs.open(path2, "a", "utf-8") as f2:
+        writer = csv.writer(f2)
+        for value in x:
+            writer.writerow([value])
+        f2.close()
 
 
 # 把结果保存到csv

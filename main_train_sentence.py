@@ -168,7 +168,7 @@ if __name__ == "__main__":
     epochs = [10]
     # epochs = [200, 250, 300]
     # epochs = [5, 10, 20, 50, 100, 150, 200, 250, 300]
-    batch_sizes = [128]
+    batch_sizes = [512]
     # batch_sizes = [8, 16, 32, 128, 256]
     learning_rates = [0.001]
     # learning_rates = [0.5, 0.1, 0.05, 0.01, 0.005, 0.0005, 0.0001]
@@ -198,7 +198,7 @@ if __name__ == "__main__":
                         for dropout in dropouts:
                             for balanced in balanceds:
                                 for full_connected in full_connecteds:
-                                    for i in range(20):
+                                    for i in range(1):
                                         print("i = ", i)
                                         # if epoch == 10 and batch_size == 64 and learning_rate == 0.001 and filter == 64 and window_size == 3:
                                         #     if dropout not in (0.6, 0.7):
@@ -209,7 +209,7 @@ if __name__ == "__main__":
                                                "_balanced_" + str(balanced) + "_full_connected_" + str(full_connected)
                                         print("name = ", name)
 
-                                        model_name = "cnn_new_logistics_restaurant_"
+                                        model_name = "fusion_new_logistics_restaurant_"
                                         if model_name.startswith("fusion"):
                                             fusion_model = ff_s.create_fusion_model(fuzzy_maxlen, maxlen, dict_length,
                                                                                     filter, embedding_matrix, window_size,
