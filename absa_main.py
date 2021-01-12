@@ -218,12 +218,12 @@ if __name__ == "__main__":
     # epochs = [1]
     epochs = [3]
     # batch_sizes = [10]
-    batch_sizes = [64]
-    times = 1  # 设置为1是为了测试看结果
+    batch_sizes = [80]
+    times = 10  # 设置为1是为了测试看结果
     print("training times = ", times)
-    model_name = "BertCNNBiGRUModel_multiGPU_parameters_restaurant_predict"
+    model_name = "FuzzyBertCNNBiGRUModel_multiGPU_20210111"
     # batch_size_validation = 10
-    batch_size_validation = 512
+    batch_size_validation = 256
 
     if model_name.startswith("BertCNNModel"):
         filters = [128]

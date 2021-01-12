@@ -529,7 +529,8 @@ def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim, debug=F
 # 不提取词向量，直接用bert连接后面的模型
 def createFuzzyBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim, debug=False):
     print("开始构建FuzzyBertCNNBiGRU模型。。。")
-    strategy = tf.distribute.MirroredStrategy()
+    # strategy = tf.distribute.MirroredStrategy()
+    strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
     with strategy.scope():
         bert_model = load_trained_model_from_checkpoint(config.bert_config_path, config.bert_checkpoint_path, trainable=True)
 
