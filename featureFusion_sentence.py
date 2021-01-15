@@ -122,7 +122,7 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
     # print("val_y = ", val_y)
 
     # 计算class_weight
-    cw = class_weight.compute_class_weight("balanced", np.unique(train_y), train_y)
+    # cw = class_weight.compute_class_weight("balanced", np.unique(train_y), train_y)
     # cw = class_weights[index]
 
     for i in range(folds):
@@ -142,9 +142,17 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
 
         # 预测验证集和测试集
         # print("val_x = ", val_x)
+        print("val_x_fuzzy.shape:", val_x_fuzzy.shape)
+        print("val_x.shape:", val_x.shape)
         y_val_pred = model.predict([val_x_fuzzy, val_x])
+        print("val_x_fuzzy_medical.shape:", val_x_fuzzy_medical.shape)
+        print("val_x_medical.shape:", val_x_medical.shape)
         y_val_pred_medical = model.predict([val_x_fuzzy_medical, val_x_medical])
+        print("val_x_fuzzy_financial.shape:", val_x_fuzzy_financial.shape)
+        print("val_x_financial.shape:", val_x_financial.shape)
         y_val_pred_financial = model.predict([val_x_fuzzy_financial, val_x_financial])
+        print("val_x_fuzzy_traveling.shape:", val_x_fuzzy_traveling.shape)
+        print("val_x_traveling.shape:", val_x_traveling.shape)
         y_val_pred_traveling = model.predict([val_x_fuzzy_traveling, val_x_traveling])
         # y_test_pred += model.predict([test_x_fuzzy, test_x])
         # 把预测结果保存入文件

@@ -292,12 +292,15 @@ def processDataToTexts(data, stoplist):
 
 
 # 处理数据生成训练集 验证集 测试集
-def processData(data, stoplist, dict_length, maxlen, ratios):
+def processData(data, stoplist, dict_length, maxlen, ratios, data_medical, data_financial, data_traveling):
     print(">>>in processData function...")
 
     # print(words_dict)
     # print(texts)
     texts = processDataToTexts(data, stoplist)
+    texts_medical = processDataToTexts(data_medical, stoplist)
+    texts_financial = processDataToTexts(data_financial, stoplist)
+    texts_traveling = processDataToTexts(data_traveling, stoplist)
 
     stop_data = pd.DataFrame(texts)
 
@@ -310,6 +313,12 @@ def processData(data, stoplist, dict_length, maxlen, ratios):
 
     data_w = tokenizer.texts_to_sequences(texts)
     data_T = sequence.pad_sequences(data_w, maxlen=maxlen)
+    data_w_medical = tokenizer.texts_to_sequences(texts_medical)
+    data_T_medical = sequence.pad_sequences(data_w_medical, maxlen=maxlen)
+    data_w_financial = tokenizer.texts_to_sequences(texts_financial)
+    data_T_financial = sequence.pad_sequences(data_w_financial, maxlen=maxlen)
+    data_w_traveling = tokenizer.texts_to_sequences(texts_traveling)
+    data_T_traveling = sequence.pad_sequences(data_w_traveling, maxlen=maxlen)
 
     # 数据划分，重新划分为训练集，测试集和验证集
     data_length = data_T.shape[0]
@@ -324,6 +333,10 @@ def processData(data, stoplist, dict_length, maxlen, ratios):
     dealed_val = data_T[size_train: (size_train + size_val)]
     dealed_test = data_T[(size_train + size_val):]
 
+    dealed_val_medical = data_T_medical
+    dealed_val_financial = data_T_financial
+    dealed_val_traveling = data_T_traveling
+
     global train  # 训练数据集，包括语料、标签、id、len（后期增加的）
     global val  # 验证数据集，包括语料、标签、id、len（后期增加的）
     global test  # 测试数据集，包括语料、标签、id、len（后期增加的）
@@ -334,10 +347,13 @@ def processData(data, stoplist, dict_length, maxlen, ratios):
     # print(val.shape)
     # print(test.shape)
     # print("test = ", test)
+    val_medical = data_medical
+    val_financial = data_financial
+    val_traveling = data_traveling
 
     print(">>>end of processData function...")
 
-    return dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index
+    return dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index, dealed_val_medical, dealed_val_financial, dealed_val_traveling, val_medical, val_financial, val_traveling
 
 
 # 确定maxlen

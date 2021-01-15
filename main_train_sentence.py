@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
     # 训练集 验证集 测试集 分割比例，包括两个数：训练集比例、验证集比例
     ratios = [0.7, 0.25]
-    ratios2 = [0.9, 0.1]  # 物流快递和食品餐饮之外的数据使用
+    ratios2 = [1, 0]  # 物流快递和食品餐饮之外的数据使用
 
     # 获取停用词
     stoplist = dp_s.getStopList()
@@ -155,14 +155,8 @@ if __name__ == "__main__":
     # maxlen = dp_s.calculate_maxlen(input_texts_add)
 
     # 处理输入语料，生成训练集、验证集、测试集
-    dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index = dp_s.processData(origin_data, stoplist,
-                                                                                                  dict_length, maxlen, ratios)
-    dealed_train_medical, dealed_val_medical, dealed_test_medical, train_medical, val_medical, test_medical, texts_medical, word_index_medical = dp_s.processData(origin_data_medical, stoplist,
-                                                                                                  dict_length, maxlen, ratios2)
-    dealed_train_financial, dealed_val_financial, dealed_test_financial, train_financial, val_financial, test_financial, texts_financial, word_index_financial = dp_s.processData(origin_data_financial, stoplist,
-                                                                                                  dict_length, maxlen, ratios2)
-    dealed_train_traveling, dealed_val_traveling, dealed_test_traveling, train_traveling, val_traveling, test_traveling, texts_traveling, word_index_traveling = dp_s.processData(origin_data_traveling, stoplist,
-                                                                                                  dict_length, maxlen, ratios2)
+    dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index, dealed_val_medical, dealed_val_financial, dealed_val_traveling, val_medical, val_financial, val_traveling = \
+        dp_s.processData(origin_data, stoplist, dict_length, maxlen, ratios, origin_data_medical, origin_data_financial, origin_data_traveling)
 
     # fasttext
     # dealed_train, dealed_val, dealed_test, train, val, test = fasttext.processData(input_texts_add, origin_data,
@@ -215,8 +209,8 @@ if __name__ == "__main__":
                                 for full_connected in full_connecteds:
                                     if epoch == 1 and (filter == 16 and window_size < 8):
                                         continue
-                                    if epoch == 2 and (filter < 256 or (filter == 256 and (window_size < 10))):
-                                        continue
+                                    # if epoch == 2 and (filter < 256 or (filter == 256 and (window_size < 10))):
+                                    #     continue
                                     if epoch == 3 and (filter < 512 or (filter == 512 and window_size < 10)):
                                         continue
                                     if epoch == 5 and (filter < 512 or (filter == 512 and (window_size < 3 or (window_size == 3 and dropout < 0.6)))):
@@ -230,15 +224,15 @@ if __name__ == "__main__":
                                                + "_dropout_" + str(dropout) + "_balanced_" + str(balanced) + "_full_connected_" + str(full_connected)
                                         print("name = ", name)
 
-                                        model_name = "fusion_logistics_epoch_" + str(epoch) + "_20210112_"
+                                        model_name = "fusion_logistics_epoch_" + str(epoch) + "_20210115_"
                                         if model_name.startswith("fusion"):
                                             fusion_model = ff_s.create_fusion_model(fuzzy_maxlen, maxlen, dict_length,
                                                                                     filter, embedding_matrix, window_size,
                                                                                     dropout, full_connected)
                                             ff_s.train_model(fusion_model, train, val, dealed_train_fuzzy, dealed_train, dealed_test_fuzzy, dealed_test,
                                                            dealed_val_fuzzy, dealed_val, y_cols, epoch, name, batch_size, learning_rate, balanced, model_name,
-                                                             dealed_val_fuzzy_medical, dealed_val_medical, val_medical, dealed_val_fuzzy_financial, dealed_val_financial,
-                                                             val_financial, dealed_val_fuzzy_traveling, dealed_val_traveling, val_traveling)
+                                                             dealed_train_fuzzy_medical, dealed_val_medical, val_medical, dealed_train_fuzzy_financial, dealed_val_financial,
+                                                             val_financial, dealed_train_fuzzy_traveling, dealed_val_traveling, val_traveling)
                                         elif model_name.startswith("cnn"):
                                             fusion_model = ff_s.create_cnn_model(maxlen, dict_length, filter, embedding_matrix, window_size, dropout)
                                             ff_s.train_cnn_model(fusion_model, train, val, dealed_train, dealed_test, dealed_val, epoch,
