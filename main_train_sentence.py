@@ -165,29 +165,25 @@ if __name__ == "__main__":
 
     # 生成模型-编译
     # 定义cnn的filter
-    epochs = [10]
-    # epochs = [200, 250, 300]
-    # epochs = [5, 10, 20, 50, 100, 150, 200, 250, 300]
-    batch_sizes = [512]
+    # epochs = [1]
+    epochs = [2]
+    # epochs = [5]
+    # epochs = [10]
+    batch_sizes = [64]
     # batch_sizes = [8, 16, 32, 128, 256]
     learning_rates = [0.001]
     # learning_rates = [0.5, 0.1, 0.05, 0.01, 0.005, 0.0005, 0.0001]
-    filters = [128]
-    # filters = [64, 8, 32, 256, 512]
-    window_sizes = [6]
+    # filters = [64, 128, 256, 512]  # epoch=10
+    filters = [16, 32, 64, 128, 256, 512]  # epoch=3
+    # filters = [32, 64, 128, 256, 512]
+    # window_sizes = [8, 9, 10]  # epoch=5
+    window_sizes = [3, 4, 5, 6, 7, 8, 9, 10]  # epoch=3
+    # window_sizes = [3, 4, 5, 6, 7, 8, 9, 10]
     # window_sizes = [1, 2, 4, 5, 6, 7, 8]
     # dropouts = [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.8]
-    dropouts = [0.6]
-    full_connecteds = [256]
+    dropouts = [0.3, 0.5, 0.6]
     balanceds = [True]
-
-    # baseline
-    # filter = 64
-    # learning_rate = 0.001
-    # window_size = 3
-    # epoch = 10
-    # dropout = 0.5
-    # batch_size = 64
+    full_connecteds = [16, 32, 64, 128, 256, 512]
 
     # 自动跑模型
     for epoch in epochs:
@@ -198,18 +194,24 @@ if __name__ == "__main__":
                         for dropout in dropouts:
                             for balanced in balanceds:
                                 for full_connected in full_connecteds:
-                                    for i in range(1):
+                                    if epoch == 1 and (filter == 16 and window_size < 8):
+                                        continue
+                                    if epoch == 2 and (filter < 256 or (filter == 256 and (window_size < 10))):
+                                        continue
+                                    if epoch == 3 and (filter < 512 or (filter == 512 and window_size < 10)):
+                                        continue
+                                    if epoch == 5 and (filter < 512 or (filter == 512 and (window_size < 3 or (window_size == 3 and dropout < 0.6)))):
+                                        continue
+                                    for i in range(10):
                                         print("i = ", i)
                                         # if epoch == 10 and batch_size == 64 and learning_rate == 0.001 and filter == 64 and window_size == 3:
                                         #     if dropout not in (0.6, 0.7):
                                         #         continue
-                                        name = "new_epoch_" + str(epoch) + "_batch_size_" + str(batch_size) + \
-                                               "_learningRate_" + str(learning_rate) + "_filter_" + str(filter) + \
-                                               "_window_size_" + str(window_size) + "_dropout_" + str(dropout) + \
-                                               "_balanced_" + str(balanced) + "_full_connected_" + str(full_connected)
+                                        name = "new_epoch_" + str(epoch) + "_batch_size_" + str(batch_size) + "_filter_" + str(filter) + "_windowSize_" + str(window_size) \
+                                               + "_dropout_" + str(dropout) + "_balanced_" + str(balanced) + "_full_connected_" + str(full_connected)
                                         print("name = ", name)
 
-                                        model_name = "fusion_new_logistics_restaurant_"
+                                        model_name = "fusion_logistics_epoch_" + str(epoch) + "_20210112_"
                                         if model_name.startswith("fusion"):
                                             fusion_model = ff_s.create_fusion_model(fuzzy_maxlen, maxlen, dict_length,
                                                                                     filter, embedding_matrix, window_size,

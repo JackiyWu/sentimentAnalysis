@@ -94,18 +94,21 @@ def initData3(debug=False):
 
     # 将data2的中性语料加入到data1中,0-负向，1-中性，2-正向
 
-    # data1 = data.loc[data['type'] == str("物流快递")]
-    # data = data.loc[data['type'] == str("食品餐饮")]
-    # data1 = data.loc[data['type'] == str("金融服务")]
+    data1 = data.loc[data['type'] == str("物流快递")]
+    # data2 = data.loc[data['type'] == str("食品餐饮")]
+    # data2 = data.loc[data['type'] == str("金融服务")]
     # data1 = data.loc[data['type'] == str("旅游住宿")]
     # data1 = data.loc[data['type'] == str("医疗服务")]
-    # data2 = data.loc[data['type'] != str("物流快递")]
-    # data2 = data2.loc[data['label'] == 1]
+    data2 = data.loc[data['type'] != str("物流快递")]
+    data2 = data2.loc[data['label'] == 1]
     # print("data1 = ", data1)
     # print("data2 = ", data2)
-    # data = pd.concat([data1, data2])
-    # data = data1
-    # print("data = ", data)
+
+    ratio = 0.5
+    # data1 = lower_sampling(data1, ratio)
+    # data2 = lower_sampling(data2, ratio)
+
+    data = pd.concat([data1, data2])
 
     data = shuffle(data)
 
@@ -115,6 +118,44 @@ def initData3(debug=False):
     y_cols = data.columns.values.tolist()
 
     return data, y_cols
+
+
+# ratio为保留的比例
+def lower_sampling(data, ratio):
+    neutral_data = data[data['label'] == 1]
+    negative_data = data[data['label'] == 0]
+    positive_data = data[data['label'] == 2]
+
+    neutral_length = len(neutral_data)
+    negative_length = len(negative_data)
+    positive_length = len(positive_data)
+    min_length = min(neutral_length, negative_length, positive_length)
+    print("min_length = ", min_length)
+    print("positive_length = ", positive_length)
+
+    if (neutral_length * ratio) > min_length:
+        index = np.random.randint(len(neutral_data), size=int(min(neutral_length * ratio, min_length / ratio)))
+        print("index's length = ", len(index))
+        print("neutral_data.shape = ", neutral_data.shape)
+        neutral_data = neutral_data.iloc[list(index)]
+        print("neutral_data.shape = ", neutral_data.shape)
+    if (negative_length * ratio) > min_length:
+        index = np.random.randint(len(negative_data), size=int(min(negative_length * ratio, min_length / ratio)))
+        print("negative_data.shape = ", negative_data.shape)
+        print("index's length = ", len(index))
+        negative_data = negative_data.iloc[list(index)]
+        print("negative_data.shape = ", negative_data.shape)
+    if (positive_length * ratio) > min_length:
+        index = np.random.randint(len(positive_data), size=int(min(positive_length * ratio, min_length / ratio)))
+        print("index's length = ", len(index))
+        print("positive_data.shape = ", positive_data.shape)
+        positive_data = positive_data.iloc[list(index)]
+        print("positive_data.shape = ", positive_data.shape)
+
+    final_data = pd.concat([neutral_data, negative_data, positive_data])
+    print("final_data.shape = ", final_data.shape)
+
+    return final_data
 
 
 # 输入细粒度的源数据，生成包括6个粗粒度属性的数据，存入csv

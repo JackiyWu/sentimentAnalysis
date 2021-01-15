@@ -719,10 +719,61 @@ def membership_test():
     print(review_sentiment_membership_degree_validation[10: 20])
 
 
+def lower_sample_data():
+    path = "C:\desktop\Research\DataSet\百度点石大赛\data_train.csv"
+    columns = ['id', 'type', 'comment', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+
+    print("data.shape = ", data.shape)
+    data = data.loc[data['type'] == str('金融服务')]
+
+    # print(data.head())
+
+    lower_sampling(data, 0.5)
+
+
+# ratio为保留的比例
+def lower_sampling(data, ratio):
+    neutral_data = data[data['label'] == 1]
+    negative_data = data[data['label'] == 0]
+    positive_data = data[data['label'] == 2]
+
+    neutral_length = len(neutral_data)
+    negative_length = len(negative_data)
+    positive_length = len(positive_data)
+    min_length = min(neutral_length, negative_length, positive_length)
+    print("min_length = ", min_length)
+    print("positive_length = ", positive_length)
+
+    if (neutral_length * ratio) > min_length:
+        index = np.random.randint(len(neutral_data), size=int(min(neutral_length * ratio, min_length / ratio)))
+        print("index's length = ", len(index))
+        print("neutral_data.shape = ", neutral_data.shape)
+        neutral_data = neutral_data.iloc[list(index)]
+        print("neutral_data.shape = ", neutral_data.shape)
+    if (negative_length * ratio) > min_length:
+        index = np.random.randint(len(negative_data), size=int(min(negative_length * ratio, min_length / ratio)))
+        print("negative_data.shape = ", negative_data.shape)
+        print("index's length = ", len(index))
+        negative_data = negative_data.iloc[list(index)]
+        print("negative_data.shape = ", negative_data.shape)
+    if (positive_length * ratio) > min_length:
+        index = np.random.randint(len(positive_data), size=int(min(positive_length * ratio, min_length / ratio)))
+        print("index's length = ", len(index))
+        print("positive_data.shape = ", positive_data.shape)
+        positive_data = positive_data.iloc[list(index)]
+        print("positive_data.shape = ", positive_data.shape)
+
+    final_data = pd.concat([neutral_data, negative_data, positive_data])
+    print("final_data.shape = ", final_data.shape)
+
+    return final_data
+
+
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
 
-    membership_test()
+    lower_sample_data()
 
     print(">>>in the end...")
 
