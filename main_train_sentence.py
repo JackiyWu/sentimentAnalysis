@@ -86,7 +86,8 @@ if __name__ == "__main__":
 
     # 获取输入语料
     print("》》》获取输入语料。。。")
-    origin_data, y_cols, origin_data_medical, origin_data_financial, origin_data_traveling = dp_s.initData3(DEBUG)
+    # origin_data, y_cols, origin_data_medical, origin_data_financial, origin_data_traveling = dp_s.initData3(DEBUG)
+    origin_data, y_cols = dp_s.initData3(DEBUG)
     # origin_data, y_cols = dp_s.initData2(1)
     # print("origin_data = ", origin_data)
     print("y_cols = ", y_cols)
@@ -101,9 +102,11 @@ if __name__ == "__main__":
     # 获取输入语料的文本（去标点符号和停用词后）
     print("》》》获取输入语料的文本（去标点符号和停用词后）。。。")
     input_texts = dp_s.processDataToTexts(origin_data, stoplist)
+    '''
     input_texts_medical = dp_s.processDataToTexts(origin_data_medical, stoplist)
     input_texts_financial = dp_s.processDataToTexts(origin_data_financial, stoplist)
     input_texts_traveling = dp_s.processDataToTexts(origin_data_traveling, stoplist)
+    '''
     # print("input_texts = ", input_texts)
 
     # 获取输入语料的情感向量特征
@@ -111,9 +114,11 @@ if __name__ == "__main__":
     # print("input_word_feature = ", input_word_feature)
 
     input_word_score = fsys.calculate_sentiment_score(input_texts, word_feature)
+    '''
     input_word_score_medical = fsys.calculate_sentiment_score(input_texts_medical, word_feature)
     input_word_score_financial = fsys.calculate_sentiment_score(input_texts_financial, word_feature)
     input_word_score_traveling = fsys.calculate_sentiment_score(input_texts_traveling, word_feature)
+    '''
     # print("input_word_score = ", input_word_score)
 
     # 根据情感向量特征计算得到情感隶属度特征
@@ -123,9 +128,11 @@ if __name__ == "__main__":
 
     # 根据情感得分计算三种极性的隶属度
     dealed_train_fuzzy, dealed_val_fuzzy, dealed_test_fuzzy = fsys.calculate_membership_degree_by_score(input_word_score, ratios)
+    '''
     dealed_train_fuzzy_medical, dealed_val_fuzzy_medical, dealed_test_fuzzy_medical = fsys.calculate_membership_degree_by_score(input_word_score_medical, ratios2)
     dealed_train_fuzzy_financial, dealed_val_fuzzy_financial, dealed_test_fuzzy_financial = fsys.calculate_membership_degree_by_score(input_word_score_financial, ratios2)
     dealed_train_fuzzy_traveling, dealed_val_fuzzy_traveling, dealed_test_fuzzy_traveling = fsys.calculate_membership_degree_by_score(input_word_score_traveling, ratios2)
+    '''
 
     # 根据词汇本体库的情感向量特征计算得到三类情感特征值
     # dealed_train_fuzzy, dealed_val_fuzzy, dealed_test_fuzzy = fsys.calculate_fuzzy_feature(final_sentiment_feature, ratios)
@@ -139,9 +146,11 @@ if __name__ == "__main__":
     # print("dealed_train_fuzzy's shape = ", dealed_train_fuzzy.shape)
 
     fuzzy_maxlen = fsys.calculate_input_dimension(dealed_train_fuzzy)
+    '''
     fuzzy_maxlen_medical = fsys.calculate_input_dimension(dealed_train_fuzzy_medical)
     fuzzy_maxlen_financial = fsys.calculate_input_dimension(dealed_train_fuzzy_financial)
     fuzzy_maxlen_traveling = fsys.calculate_input_dimension(dealed_train_fuzzy_traveling)
+    '''
     print("fuzzy_maxlen = ", fuzzy_maxlen)
 
     # 获取增广特征
@@ -155,8 +164,12 @@ if __name__ == "__main__":
     # maxlen = dp_s.calculate_maxlen(input_texts_add)
 
     # 处理输入语料，生成训练集、验证集、测试集
+    dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index = \
+        dp_s.processData(origin_data, stoplist, dict_length, maxlen, ratios)
+    '''
     dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index, dealed_val_medical, dealed_val_financial, dealed_val_traveling, val_medical, val_financial, val_traveling = \
         dp_s.processData(origin_data, stoplist, dict_length, maxlen, ratios, origin_data_medical, origin_data_financial, origin_data_traveling)
+    '''
 
     # fasttext
     # dealed_train, dealed_val, dealed_test, train, val, test = fasttext.processData(input_texts_add, origin_data,
@@ -230,9 +243,13 @@ if __name__ == "__main__":
                                                                                     filter, embedding_matrix, window_size,
                                                                                     dropout, full_connected)
                                             ff_s.train_model(fusion_model, train, val, dealed_train_fuzzy, dealed_train, dealed_test_fuzzy, dealed_test,
-                                                           dealed_val_fuzzy, dealed_val, y_cols, epoch, name, batch_size, learning_rate, balanced, model_name,
+                                                           dealed_val_fuzzy, dealed_val, y_cols, epoch, name, batch_size, learning_rate, balanced, model_name)
+                                            '''
+                                            ff_s.train_model(fusion_model, train, val, dealed_train_fuzzy, dealed_train, dealed_test_fuzzy, dealed_test,
+                                                             dealed_val_fuzzy, dealed_val, y_cols, epoch, name, batch_size, learning_rate, balanced, model_name,
                                                              dealed_train_fuzzy_medical, dealed_val_medical, val_medical, dealed_train_fuzzy_financial, dealed_val_financial,
                                                              val_financial, dealed_train_fuzzy_traveling, dealed_val_traveling, val_traveling)
+                                            '''
                                         elif model_name.startswith("cnn"):
                                             fusion_model = ff_s.create_cnn_model(maxlen, dict_length, filter, embedding_matrix, window_size, dropout)
                                             ff_s.train_cnn_model(fusion_model, train, val, dealed_train, dealed_test, dealed_val, epoch,
