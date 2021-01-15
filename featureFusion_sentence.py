@@ -87,7 +87,8 @@ def create_fusion_model(fuzzy_maxlen, cnn_maxlen, dict_length, filter, embedding
 # 训练模型
 # def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, test_x, val_x_fuzzy, val_x, y_cols, class_weights, epoch, debug=False, folds=1):
 def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, test_x, val_x_fuzzy, val_x, y_cols, epoch,
-                experiment_id, batch_size, learning_rate, balanced, model_name, debug=False, folds=1):
+                experiment_id, batch_size, learning_rate, balanced, model_name, val_x_fuzzy_medical, val_x_medical, val_medical,
+                val_x_fuzzy_financial, val_x_financial, val_financial, val_x_fuzzy_traveling, val_x_traveling, val_traveling, debug=False, folds=1):
     print(">>>in train_model function...")
 
     experiment_id = "fusion_model_" + experiment_id
@@ -105,6 +106,9 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
 
     train_y = train["label"]
     val_y = val["label"]
+    val_y_medical = val_medical["label"]
+    val_y_financial = val_financial["label"]
+    val_y_traveling = val_traveling["label"]
     y_val_pred = 0
     y_test_pred = 0
     #         epochs=[5,10]   , stratify=train_y
@@ -139,12 +143,18 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
         # 预测验证集和测试集
         # print("val_x = ", val_x)
         y_val_pred = model.predict([val_x_fuzzy, val_x])
+        y_val_pred_medical = model.predict([val_x_fuzzy_medical, val_x_medical])
+        y_val_pred_financial = model.predict([val_x_fuzzy_financial, val_x_financial])
+        y_val_pred_traveling = model.predict([val_x_fuzzy_traveling, val_x_traveling])
         # y_test_pred += model.predict([test_x_fuzzy, test_x])
         # 把预测结果保存入文件
         print(">>>将预测的结果存入csv文件中。。。")
         save_predict_result_to_csv(val["review"], y_val_pred)
 
     y_val_pred = np.argmax(y_val_pred, axis=1)
+    y_val_pred_medical = np.argmax(y_val_pred_medical, axis=1)
+    y_val_pred_financial = np.argmax(y_val_pred_financial, axis=1)
+    y_val_pred_traveling = np.argmax(y_val_pred_traveling, axis=1)
 
     # 准确率：在所有预测为正的样本中，确实为正的比例
     # 召回率：本身为正的样本中，被预测为正的比例
@@ -155,18 +165,30 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
     print("recall = ", recall)
     print("fscore = ", fscore)
     print("support = ", support)
+    precision_medical, recall_medical, fscore_medical, support_medical = score(val_y_medical, y_val_pred_medical)
+    precision_financial, recall_financial, fscore_financial, support_financial = score(val_y_financial, y_val_pred_financial)
+    precision_traveling, recall_traveling, fscore_traveling, support_traveling = score(val_y_traveling, y_val_pred_traveling)
 
     report = classification_report(val_y, y_val_pred, digits=4, output_dict=True)
+    report_medical = classification_report(val_y_medical, y_val_pred_medical, digits=4, output_dict=True)
+    report_financial = classification_report(val_y_financial, y_val_pred_financial, digits=4, output_dict=True)
+    report_traveling = classification_report(val_y_traveling, y_val_pred_traveling, digits=4, output_dict=True)
 
     print(report)
 
     F1_score = f1_score(y_val_pred, val_y, average='macro')
-    # F1_score = f1_score(y_val_pred, val_y, average='weighted')
     F1_scores += F1_score
+    F1_score_medical = f1_score(y_val_pred_medical, val_y_medical, average='macro')
+    F1_score_financial = f1_score(y_val_pred_financial, val_y_financial, average='macro')
+    F1_score_traveling = f1_score(y_val_pred_traveling, val_y_traveling, average='macro')
+    # F1_score = f1_score(y_val_pred, val_y, average='weighted')
 
     print(set(train["type"]), 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
 
     save_result_to_csv(report, F1_score, experiment_id, model_name)
+    save_result_to_csv(report_medical, F1_score_medical, experiment_id, model_name + "_medical_")
+    save_result_to_csv(report_financial, F1_score_financial, experiment_id, model_name + "_financial_")
+    save_result_to_csv(report_traveling, F1_score_traveling, experiment_id, model_name + "_traveling_")
 
     print("%Y-%m-%d %H:%M:%S", time.localtime())
 

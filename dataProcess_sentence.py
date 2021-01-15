@@ -95,10 +95,9 @@ def initData3(debug=False):
     # 将data2的中性语料加入到data1中,0-负向，1-中性，2-正向
 
     data1 = data.loc[data['type'] == str("物流快递")]
-    # data2 = data.loc[data['type'] == str("食品餐饮")]
-    # data2 = data.loc[data['type'] == str("金融服务")]
-    # data1 = data.loc[data['type'] == str("旅游住宿")]
-    # data1 = data.loc[data['type'] == str("医疗服务")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
     data2 = data.loc[data['type'] != str("物流快递")]
     data2 = data2.loc[data['label'] == 1]
     # print("data1 = ", data1)
@@ -110,14 +109,16 @@ def initData3(debug=False):
 
     data = pd.concat([data1, data2])
 
-    data = shuffle(data)
+    data_medical = shuffle(data_medical)
+    data_financial = shuffle(data_financial)
+    data_traveling = shuffle(data_traveling)
 
     if debug:
         data = data[:50]
 
     y_cols = data.columns.values.tolist()
 
-    return data, y_cols
+    return data, y_cols, data_medical, data_financial, data_traveling
 
 
 # ratio为保留的比例
