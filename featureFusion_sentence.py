@@ -226,6 +226,132 @@ def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, tes
     return result
 
 
+# 训练模型
+# 该模型的训练集是餐饮+物流，验证集有三个，分别是医疗 金融 旅游
+# train val_1 val_2 val_3为包含原始评论文本的数据，train_x_cnn val_x_1 val_x_2 val_x_3为确定性特征向量
+# train_x_fuzzy val_x_fuzzy_1 val_x_fuzzy_2 val_x_fuzzy_3为模糊性特征
+def train_model_2(model, train, val, val_1, val_2, val_3, train_x_fuzzy, train_x_cnn, val_x_fuzzy, val_x, val_x_fuzzy_1, val_x_1,
+                  val_x_fuzzy_2, val_x_2, val_x_fuzzy_3, val_x_3, y_cols, epoch, experiment_id,
+                  batch_size, balanced, model_name, debug=False, folds=1):
+
+    print(">>>in train_model function...")
+
+    # print(mlp_model.summary())
+    # print("检查输入数据：")
+    # print("train_x_fuzzy.shape = ", train_x_fuzzy.shape)
+    # print("test_x.shape = ", test_x.shape)
+    # print("val_x.shape = ", val_x.shape)
+    # print("y_cols = ", y_cols)
+
+    experiment_id = "fusion_model_" + experiment_id
+
+    F1_scores = 0
+    F1_score = 0
+    result = {}
+
+    train_y = train["label"]
+    val_y = val["label"]
+    val_y_1 = val_1["label"]
+    val_y_2 = val_2["label"]
+    val_y_3 = val_3["label"]
+
+    y_val_pred_1 = 0
+    y_val_pred_2 = 0
+    y_val_pred_3 = 0
+
+    print("train_x_fuzzy.shape:", train_x_fuzzy.shape)
+    print("train_x_cnn.shape:", train_x_cnn.shape)
+    print("train_y.shape:", train_y.shape)
+
+    print("val_x_fuzzy.shape:", val_x_fuzzy.shape)
+    print("val_x.shape:", val_x.shape)
+    print("val_y.shape:", val_y.shape)
+
+    print("val_x_fuzzy_1.shape:", val_x_fuzzy_1.shape)
+    print("val_x_1.shape:", val_x_1.shape)
+    print("val_y_1.shape:", val_y_1.shape)
+    print("val_x_fuzzy_2.shape:", val_x_fuzzy_2.shape)
+    print("val_x_2.shape:", val_x_2.shape)
+    print("val_y_2.shape:", val_y_2.shape)
+    print("val_x_fuzzy_3.shape:", val_x_fuzzy_3.shape)
+    print("val_x_3.shape:", val_x_3.shape)
+    print("val_y_3.shape:", val_y_3.shape)
+    # print("train_y = ", train_y)
+    # print("val_y = ", val_y)
+
+    for i in range(folds):
+        y_train_onehot = to_categorical(train_y)
+        y_val_onehot = to_categorical(val_y)
+        y_val_onehot_1 = to_categorical(val_y_1)
+        y_val_onehot_2 = to_categorical(val_y_2)
+        y_val_onehot_3 = to_categorical(val_y_3)
+
+        history = model.fit([train_x_fuzzy, train_x_cnn], y_train_onehot, epochs=epoch, verbose=2,
+                            batch_size=batch_size, validation_data=([val_x_fuzzy, val_x], y_val_onehot))
+
+        # 预测验证集和测试集
+        # print("val_x = ", val_x)
+        print("val_x_fuzzy.shape:", val_x_fuzzy.shape)
+        print("val_x.shape:", val_x.shape)
+        y_val_pred = model.predict([val_x_fuzzy, val_x])
+        print("val_x_fuzzy_medical.shape:", val_x_fuzzy_1.shape)
+        print("val_x_medical.shape:", val_x_1.shape)
+        y_val_pred_1 = model.predict([val_x_fuzzy_1, val_x_1])
+        print("val_x_fuzzy_financial.shape:", val_x_fuzzy_2.shape)
+        print("val_x_financial.shape:", val_x_2.shape)
+        y_val_pred_2 = model.predict([val_x_fuzzy_2, val_x_2])
+        print("val_x_fuzzy_traveling.shape:", val_x_fuzzy_3.shape)
+        print("val_x_traveling.shape:", val_x_3.shape)
+        y_val_pred_3 = model.predict([val_x_fuzzy_3, val_x_3])
+
+        # 把预测结果保存入文件
+        print(">>>将预测的结果存入csv文件中。。。")
+        save_predict_result_to_csv(val["review"], y_val_pred)
+
+    y_val_pred = np.argmax(y_val_pred, axis=1)
+
+    y_val_pred_1 = np.argmax(y_val_pred_1, axis=1)
+    y_val_pred_2 = np.argmax(y_val_pred_2, axis=1)
+    y_val_pred_3 = np.argmax(y_val_pred_3, axis=1)
+
+    # 准确率：在所有预测为正的样本中，确实为正的比例
+    # 召回率：本身为正的样本中，被预测为正的比例
+    # print("val_y = ", val_y)
+    # print("y_val_pred = ", list(y_val_pred))
+    precision, recall, fscore, support = score(val_y, y_val_pred)
+    print("precision = ", precision)
+    print("recall = ", recall)
+    print("fscore = ", fscore)
+    print("support = ", support)
+
+    precision_medical, recall_medical, fscore_medical, support_medical = score(val_y_1, y_val_pred_1)
+    precision_financial, recall_financial, fscore_financial, support_financial = score(val_y_2, y_val_pred_2)
+    precision_traveling, recall_traveling, fscore_traveling, support_traveling = score(val_y_3, y_val_pred_3)
+
+    report = classification_report(val_y, y_val_pred, digits=4, output_dict=True)
+
+    report_medical = classification_report(val_y_1, y_val_pred_1, digits=4, output_dict=True)
+    report_financial = classification_report(val_y_2, y_val_pred_2, digits=4, output_dict=True)
+    report_traveling = classification_report(val_y_3, y_val_pred_3, digits=4, output_dict=True)
+
+    F1_score = f1_score(y_val_pred, val_y, average='macro')
+    F1_scores += F1_score
+
+    F1_score_medical = f1_score(y_val_pred_1, val_y_1, average='macro')
+    F1_score_financial = f1_score(y_val_pred_2, val_y_2, average='macro')
+    F1_score_traveling = f1_score(y_val_pred_3, val_y_3, average='macro')
+
+    print(set(train["type"]), 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
+
+    save_result_to_csv(report, F1_score, experiment_id, model_name)
+
+    save_result_to_csv(report_medical, F1_score_medical, experiment_id, model_name + "_medical_")
+    save_result_to_csv(report_financial, F1_score_financial, experiment_id, model_name + "_financial_")
+    save_result_to_csv(report_traveling, F1_score_traveling, experiment_id, model_name + "_traveling_")
+
+    return result
+
+
 # 把预测结果保存到csv
 # 0 1 2
 def save_predict_result_to_csv(x, y_val_pred):
@@ -361,6 +487,96 @@ def train_cnn_model(model, train, val, train_x, test_x, val_x, epoch,
     y_test_pred = np.argmax(y_test_pred, axis=1)
 
     save_result_to_csv(report, F1_score, experiment_id, model_name)
+
+    print(">>>end of train_cnn_model function in featureFusion.py。。。")
+
+    return result
+
+
+# train cnn
+def train_cnn_model_2(model, train, val, val_medical, val_financial, val_traveling, train_x, val_x,
+                      val_x_medical, val_x_financial, val_x_traveling, epoch,
+                    experiment_id, batch_size, learning_rate, model_name, debug=False, folds=1):
+    print(">>>in train_cnn_model function。。。")
+
+    experiment_id = "cnn_model_" + experiment_id
+
+    # print("train = ", train)
+    # print("val = ", val)
+    # print("train_x = ", train_x)
+    print("train_x.shape = ", train_x.shape)
+    # print("test_x = ", test_x)
+    # print("val_x = ", val_x)
+
+    adam = optimizers.Adam(learning_rate=learning_rate)
+
+    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
+
+    F1_scores = 0
+    F1_score = 0
+    result = {}
+
+    train_y = train['label']
+    val_y = val['label']
+    val_y_medical = val_medical['label']
+    val_y_financial = val_financial['label']
+    val_y_traveling = val_traveling['label']
+    y_val_pred = 0
+
+    print("train_y.shape:", train_y.shape)
+    print("val_x.shape:", val_x.shape)
+    print("val_y.shape:", val_y.shape)
+
+    for i in range(folds):
+        y_train_onehot = to_categorical(train_y)
+        y_val_onehot = to_categorical(val_y)
+        # print("y_train_onehot = ", y_train_onehot)
+        # print("y_val_onehot = ", y_val_onehot)
+        history = model.fit(train_x, y_train_onehot, epochs=epoch, verbose=2,
+                            batch_size=batch_size, validation_data=(val_x, y_val_onehot))
+        # callbacks=[EarlyStopping(monitor='val_loss', min_delta=0.00001)])
+
+    # 预测验证集和测试集
+    y_val_pred = model.predict(val_x)
+    y_val_pred_medical = model.predict(val_x_medical)
+    y_val_pred_financial = model.predict(val_x_financial)
+    y_val_pred_traveling = model.predict(val_x_traveling)
+
+    y_val_pred = np.argmax(y_val_pred, axis=1)
+    y_val_pred_medical = np.argmax(y_val_pred_medical, axis=1)
+    y_val_pred_financial = np.argmax(y_val_pred_financial, axis=1)
+    y_val_pred_traveling = np.argmax(y_val_pred_traveling, axis=1)
+
+    # 准确率：在所有预测为正的样本中，确实为正的比例
+    # 召回率：本身为正的样本中，被预测为正的比例
+    # print("y_val_pred = ", list(y_val_pred))
+    precision, recall, fscore, support = score(val_y, y_val_pred)
+    print("precision = ", precision)
+    print("recall = ", recall)
+    print("fscore = ", fscore)
+    print("support = ", support)
+
+    report = classification_report(val_y, y_val_pred, digits=4, output_dict=True)
+    report_medical = classification_report(val_y_medical, y_val_pred_medical, digits=4, output_dict=True)
+    report_financial = classification_report(val_y_financial, y_val_pred_financial, digits=4, output_dict=True)
+    report_traveling = classification_report(val_y_traveling, y_val_pred_traveling, digits=4, output_dict=True)
+
+    print("report:", report)
+    print("report_medical:", report_medical)
+    print("report_financial:", report_financial)
+    print("report_traveling:", report_traveling)
+
+    F1_score = f1_score(y_val_pred, val_y, average='macro')
+    F1_score_medical = f1_score(val_y_medical, y_val_pred_medical, average='macro')
+    F1_score_financial = f1_score(val_y_financial, y_val_pred_financial, average='macro')
+    F1_score_traveling = f1_score(val_y_traveling, y_val_pred_traveling, average='macro')
+
+    print('f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
+
+    save_result_to_csv(report, F1_score, experiment_id, model_name)
+    save_result_to_csv(report_medical, F1_score_medical, experiment_id, model_name + "_medical")
+    save_result_to_csv(report_financial, F1_score_financial, experiment_id, model_name + "_financial")
+    save_result_to_csv(report_traveling, F1_score_traveling, experiment_id, model_name + "_traveling")
 
     print(">>>end of train_cnn_model function in featureFusion.py。。。")
 

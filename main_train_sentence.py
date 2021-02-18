@@ -86,7 +86,9 @@ if __name__ == "__main__":
 
     # 获取输入语料
     print("》》》获取输入语料。。。")
-    origin_data, y_cols, origin_data_medical, origin_data_financial, origin_data_traveling = dp_s.initData3(DEBUG)
+    # all_data是所有数据，未不打乱，格式与原来的一样
+    origin_data, y_cols, origin_data_medical, origin_data_financial, origin_data_traveling, all_data = dp_s.initData3(DEBUG)
+
     # origin_data, y_cols = dp_s.initData3(DEBUG)
     # origin_data, y_cols = dp_s.initData2(1)
     # print("origin_data = ", origin_data)
@@ -105,6 +107,7 @@ if __name__ == "__main__":
     input_texts_medical = dp_s.processDataToTexts(origin_data_medical, stoplist)
     input_texts_financial = dp_s.processDataToTexts(origin_data_financial, stoplist)
     input_texts_traveling = dp_s.processDataToTexts(origin_data_traveling, stoplist)
+
     '''
     '''
     # print("input_texts = ", input_texts)
@@ -128,17 +131,40 @@ if __name__ == "__main__":
 
     # 根据情感得分计算三种极性的隶属度
     dealed_train_fuzzy, dealed_val_fuzzy, dealed_test_fuzzy = fsys.calculate_membership_degree_by_score(input_word_score, ratios)
+    '''
     dealed_train_fuzzy_medical, dealed_val_fuzzy_medical, dealed_test_fuzzy_medical = fsys.calculate_membership_degree_by_score(input_word_score_medical, ratios2)
     dealed_train_fuzzy_financial, dealed_val_fuzzy_financial, dealed_test_fuzzy_financial = fsys.calculate_membership_degree_by_score(input_word_score_financial, ratios2)
     dealed_train_fuzzy_traveling, dealed_val_fuzzy_traveling, dealed_test_fuzzy_traveling = fsys.calculate_membership_degree_by_score(input_word_score_traveling, ratios2)
     '''
+    # 根据情感分数得分计算三种极性的隶属度，input_word_score作为训练集，medical_score financial_score traveling_score当做验证集
     '''
+    dealed_train_fuzzy = fsys.calculate_membership_degree_by_score_no_split(input_word_score)
+    '''
+    dealed_train_fuzzy_medical = fsys.calculate_membership_degree_by_score_no_split(input_word_score_medical)
+    dealed_train_fuzzy_financial = fsys.calculate_membership_degree_by_score_no_split(input_word_score_financial)
+    dealed_train_fuzzy_traveling = fsys.calculate_membership_degree_by_score_no_split(input_word_score_traveling)
+    # 记录length
+    dealed_train_fuzzy_length = len(dealed_train_fuzzy)
+    print("dealed_train_fuzzy_length = ", dealed_train_fuzzy_length)
+    train_length = len(origin_data)
+    print("train_length = ", train_length)
+    medical_length = len(dealed_train_fuzzy_medical)
+    print("medical_length = ", medical_length)
+    financial_length = len(dealed_train_fuzzy_financial)
+    print("fuzzy_financial_length = ", financial_length)
+    traveling_length = len(dealed_train_fuzzy_traveling)
+    print("fuzzy_traveling_length = ", traveling_length)
+
+    # 合并medical_score financial_score traveling_score当做验证集
+    dealed_train_fuzzy_concat = np.concatenate((dealed_train_fuzzy_medical, dealed_train_fuzzy_financial, dealed_train_fuzzy_traveling), axis=0)
 
     # 根据词汇本体库的情感向量特征计算得到三类情感特征值
     # dealed_train_fuzzy, dealed_val_fuzzy, dealed_test_fuzzy = fsys.calculate_fuzzy_feature(final_sentiment_feature, ratios)
+    print("origin_data.shape", origin_data.shape)
     print("dealed_train_fuzzy.shape", dealed_train_fuzzy.shape)
     print("dealed_val_fuzzy.shape", dealed_val_fuzzy.shape)
-    print("dealed_test_fuzzy.shape", dealed_test_fuzzy.shape)
+    print("dealed_train_fuzzy_traveling.shape", dealed_train_fuzzy_traveling.shape)
+    print("dealed_train_fuzzy_concat.shape", dealed_train_fuzzy_concat.shape)
     '''
     '''
 
@@ -146,10 +172,10 @@ if __name__ == "__main__":
     # print("dealed_train_fuzzy's shape = ", dealed_train_fuzzy.shape)
 
     fuzzy_maxlen = fsys.calculate_input_dimension(dealed_train_fuzzy)
+    '''
     fuzzy_maxlen_medical = fsys.calculate_input_dimension(dealed_train_fuzzy_medical)
     fuzzy_maxlen_financial = fsys.calculate_input_dimension(dealed_train_fuzzy_financial)
     fuzzy_maxlen_traveling = fsys.calculate_input_dimension(dealed_train_fuzzy_traveling)
-    '''
     '''
     print("fuzzy_maxlen = ", fuzzy_maxlen)
 
@@ -168,12 +194,17 @@ if __name__ == "__main__":
     dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index = \
         dp_s.processData(origin_data, stoplist, dict_length, maxlen, ratios)
     '''
+    '''
     dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index, dealed_val_medical, dealed_val_financial, dealed_val_traveling, val_medical, val_financial, val_traveling = \
         dp_s.processData(origin_data, stoplist, dict_length, maxlen, ratios, origin_data_medical, origin_data_financial, origin_data_traveling)
+    '''
 
-    # fasttext
-    # dealed_train, dealed_val, dealed_test, train, val, test = fasttext.processData(input_texts_add, origin_data,
-    #                                                                                maxlen, ratios)
+    # 处理输入预料，生成训练集、验证集、测试集，其中训练集即为餐饮业+物流业数据，验证集分别为医疗业、金融业、旅游业数据
+    # dealed_train是padding后的数据
+    # train是包含原始文本评论的数据
+    dealed_train, dealed_val, dealed_val_1, dealed_val_2, dealed_val_3, train, val, val_1, val_2, val_3, word_index = \
+        dp_s.processData2(all_data, stoplist, dict_length, maxlen, ratios, dealed_train_fuzzy_concat, train_length, medical_length, financial_length, traveling_length)
+
     # print("dealed_train = ", dealed_train)
     # print("train = ", train)
     # print("dealed_train = ", dealed_train)
@@ -192,16 +223,16 @@ if __name__ == "__main__":
     # 生成模型-编译
     # 定义cnn的filter
     # epochs = [1]
-    epochs = [2]
+    epochs = [1, 2, 3, 4]
     # epochs = [5]
     # epochs = [10]
-    batch_sizes = [64]
+    batch_sizes = [64, 128]
     # batch_sizes = [8, 16, 32, 128, 256]
     learning_rates = [0.001]
     # learning_rates = [0.5, 0.1, 0.05, 0.01, 0.005, 0.0005, 0.0001]
     # filters = [64, 128, 256, 512]  # epoch=10
     # filters = [16, 32, 64, 128, 256, 512]  # epoch=3
-    filters = [128]
+    filters = [128, 256]
     # window_sizes = [8, 9, 10]  # epoch=5
     window_sizes = [4]  # epoch=3
     # window_sizes = [3, 4, 5, 6, 7, 8, 9, 10]
@@ -209,7 +240,7 @@ if __name__ == "__main__":
     # dropouts = [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.8]
     dropouts = [0.6]
     balanceds = [True]
-    full_connecteds = [128]
+    full_connecteds = [128, 256]
 
     # 自动跑模型
     for epoch in epochs:
@@ -220,15 +251,15 @@ if __name__ == "__main__":
                         for dropout in dropouts:
                             for balanced in balanceds:
                                 for full_connected in full_connecteds:
-                                    if epoch == 1 and (filter == 16 and window_size < 8):
-                                        continue
+                                    # if epoch == 1 and (filter == 16 and window_size < 8):
+                                    #     continue
                                     # if epoch == 2 and (filter < 256 or (filter == 256 and (window_size < 10))):
                                     #     continue
-                                    if epoch == 3 and (filter < 512 or (filter == 512 and window_size < 10)):
-                                        continue
-                                    if epoch == 5 and (filter < 512 or (filter == 512 and (window_size < 3 or (window_size == 3 and dropout < 0.6)))):
-                                        continue
-                                    for i in range(10):
+                                    # if epoch == 3 and (filter < 512 or (filter == 512 and window_size < 10)):
+                                    #     continue
+                                    # if epoch == 5 and (filter < 512 or (filter == 512 and (window_size < 3 or (window_size == 3 and dropout < 0.6)))):
+                                    #     continue
+                                    for i in range(20):
                                         print("i = ", i)
                                         # if epoch == 10 and batch_size == 64 and learning_rate == 0.001 and filter == 64 and window_size == 3:
                                         #     if dropout not in (0.6, 0.7):
@@ -237,7 +268,7 @@ if __name__ == "__main__":
                                                + "_dropout_" + str(dropout) + "_balanced_" + str(balanced) + "_full_connected_" + str(full_connected)
                                         print("name = ", name)
 
-                                        model_name = "cnn_logistics_epoch_" + str(epoch) + "_20210115_"
+                                        model_name = "cnn_20210129_"
                                         if model_name.startswith("fusion"):
                                             fusion_model = ff_s.create_fusion_model(fuzzy_maxlen, maxlen, dict_length,
                                                                                     filter, embedding_matrix, window_size,
@@ -246,14 +277,27 @@ if __name__ == "__main__":
                                             ff_s.train_model(fusion_model, train, val, dealed_train_fuzzy, dealed_train, dealed_test_fuzzy, dealed_test,
                                                            dealed_val_fuzzy, dealed_val, y_cols, epoch, name, batch_size, learning_rate, balanced, model_name)
                                             '''
+                                            '''
                                             ff_s.train_model(fusion_model, train, val, dealed_train_fuzzy, dealed_train, dealed_test_fuzzy, dealed_test,
                                                              dealed_val_fuzzy, dealed_val, y_cols, epoch, name, batch_size, learning_rate, balanced, model_name,
                                                              dealed_train_fuzzy_medical, dealed_val_medical, val_medical, dealed_train_fuzzy_financial, dealed_val_financial,
                                                              val_financial, dealed_train_fuzzy_traveling, dealed_val_traveling, val_traveling)
+                                            '''
+                                            ff_s.train_model_2(fusion_model, train, val, val_1, val_2, val_3, dealed_train_fuzzy, dealed_train, dealed_val_fuzzy, dealed_val,
+                                                               dealed_train_fuzzy_medical, dealed_val_1, dealed_train_fuzzy_financial, dealed_val_2, dealed_train_fuzzy_traveling,
+                                                               dealed_val_3, y_cols, epoch, name, batch_size, balanced, model_name)
+
                                         elif model_name.startswith("cnn"):
                                             fusion_model = ff_s.create_cnn_model(maxlen, dict_length, filter, embedding_matrix, window_size, dropout)
+                                            '''
                                             ff_s.train_cnn_model(fusion_model, train, val, dealed_train, dealed_test, dealed_val, epoch,
                                                                  name, batch_size, learning_rate, model_name)
+                                            '''
+
+                                            ff_s.train_cnn_model_2(fusion_model, train, val, val_1, val_2, val_3, dealed_train, dealed_val, dealed_val_1,
+                                                                   dealed_val_2, dealed_val_3, epoch,
+                                                                   name, batch_size, learning_rate, model_name)
+
                                         # fusion_model = ff_s.create_cnn_model(maxlen, dict_length, filters)
                                         # fusion_model = ff_s.fasttext_model(fea_dict, maxlen)
                                         # fusion_model = ff_s.create_lstm_model(maxlen, dict_length)
