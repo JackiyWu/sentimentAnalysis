@@ -31,6 +31,7 @@ import absa_dataProcess as dp
 import codecs
 import csv
 import h5py
+import os
 
 from collections import Counter
 import config
@@ -770,10 +771,75 @@ def lower_sampling(data, ratio):
     return final_data
 
 
+def appendWriteExcel():
+    y_val_pred = [[121, 212, 23, 24], [144, 63, 24, 1], [141, 12, 3, 3], [466, 3, 4, 211]]
+    print("y_val_pred = ", y_val_pred)
+    y_val_pred = np.array(y_val_pred)
+    print("y_val_pred = ", y_val_pred)
+    path = "result/predict_chunle.csv"
+    with codecs.open(path, "a", "utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerows(y_val_pred)
+        f.close()
+
+
+def appendWriteExcelByPandas():
+    data1 = [[21, 12, 23, 24], [4, 63, 24, 1], [41, 12, 3, 3], [6, 3, 4, 11]]
+    print("data1")
+    # 为data1的每一项增加一位，表示最大的下标
+    data1 = findMaxIndex(data1)
+
+    data1 = pd.DataFrame(data1)
+    print("data1")
+    print(data1)
+    print("*" * 50)
+    data2 = [[91, 2, 2, 2], [944, 3, 24, 1], [941, 2, 3, 3], [96, 3, 4, 1]]
+    data2 = pd.DataFrame(data2)
+    print("data2 = ", data2)
+    print("*" * 50)
+    data2 = data2.values.tolist()
+    print("data2 = ", data2)
+    print("*" * 50)
+    path = "result/predict_chunle4.csv"
+
+    is_exists = os.path.exists(path)
+    if is_exists:
+        origin_file = pd.read_csv(path)
+        print(origin_file)
+        new_file = pd.concat([origin_file, data1], axis=1)
+        print("*" * 50)
+        print(new_file)
+        new_file.to_csv(path, mode='w', index=False)
+    else:
+        data1.to_csv(path, mode='w', index=False)
+
+
+# 给出列表的列表，求得每个字列表中值最大的下标，并添加到每个字列表最后
+def findMaxIndex(ll):
+    final_ll = []
+    for l in ll:
+        max_index = l.index(max(l, key=abs))
+        print(max_index, l[max_index])
+        polar = ''
+        if max_index == 0:
+            polar = 'Not Mentioned'
+        elif max_index == 1:
+            polar = 'Negative'
+        elif max_index == 2:
+            polar = 'Neutral'
+        elif max_index == 3:
+            polar = 'Positive'
+        l.extend([l[max_index], max_index, polar])
+        final_ll.append(l)
+    print("final_ll = ", final_ll)
+
+    return final_ll
+
+
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
 
-    lower_sample_data()
+    appendWriteExcelByPandas()
 
     print(">>>in the end...")
 

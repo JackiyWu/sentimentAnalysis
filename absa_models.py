@@ -8,6 +8,7 @@ import codecs
 import csv
 import math
 from itertools import chain
+import pandas as pd
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, confusion_matrix
@@ -930,7 +931,7 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
                 length_restaurant = len(X_restaurant)
                 y_restaurant_pred = model.predict(dp.generateXSetForBert(X_restaurant, length_restaurant, batch_size_validation, tokenizer), steps=math.ceil(length_restaurant / batch_size_validation))
                 # 将预测结果存入文件
-                save_predict_result_to_csv(y_restaurant_pred, name + "_" + col)
+                save_predict_result_to_csv_v2(y_restaurant_pred, name)
 
         print("y_val_pred's length = ", len(y_val_pred))
         print("y_validation's length = ", length_validation)
@@ -1219,16 +1220,53 @@ def save_result_to_csv(report, f1_score, experiment_id, model_name, col_name):
 
 # 把预测结果保存到csv
 # 0 1 2 3
-def save_predict_result_to_csv(y_val_pred, col_name):
+def save_predict_result_to_csv(y_val_pred, restaurant_name):
     print(">>>将y_val_pred存入文件...")
     # y_val_pred是list类型？
     print("y_val_pred's type = ", type(y_val_pred))
 
     y_val_pred = np.array(y_val_pred)
 
-    path = "result/predict_restaurant_" + col_name + ".csv"
+    path = "result/predict_restaurant_" + restaurant_name + ".csv"
     with codecs.open(path, "a", "utf-8") as f:
         writer = csv.writer(f)
         writer.writerows(y_val_pred)
         f.close()
+
+
+# 把预测结果保存到csv，包括类别概率、最大概率、最大概率索引、最终分类结果
+def save_predict_result_to_csv_v2(y_val_pred, restaurant_name):
+    y_val_pred = y_val_pred.tolist()
+    y_val_pred = findMaxIndex(y_val_pred)
+    y_val_pred = pd.DataFrame(y_val_pred)
+
+    path = "result/predict_restaurant_" + restaurant_name + ".csv"
+    is_exists = os.path.exists(path)
+    if is_exists:
+        origin_file = pd.read_csv(path)
+        y_val_pred = pd.concat([origin_file, y_val_pred], axis=1)
+
+    y_val_pred.to_csv(path, mode='w', index=False)
+
+
+# 给出列表的列表，求得每个字列表中值最大的下标，并添加到每个字列表最后
+def findMaxIndex(ll):
+    final_ll = []
+    for l in ll:
+        max_index = l.index(max(l, key=abs))
+        # print(max_index, l[max_index])
+        polar = ''
+        if max_index == 0:
+            polar = 'Not Mentioned'
+        elif max_index == 1:
+            polar = 'Negative'
+        elif max_index == 2:
+            polar = 'Neutral'
+        elif max_index == 3:
+            polar = 'Positive'
+        l.extend([l[max_index], max_index, polar])
+        final_ll.append(l)
+    # print("final_ll = ", final_ll)
+
+    return final_ll
 

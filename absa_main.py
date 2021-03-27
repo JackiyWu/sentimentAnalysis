@@ -219,10 +219,10 @@ if __name__ == "__main__":
     epochs = [3]
     # batch_sizes = [10]
     batch_sizes = [96]
-    times = 5  # 设置为1是为了测试看结果
+    times = 1  # 设置为1是为了测试看结果
     print("training times = ", times)
-    model_name = "FuzzyBertCNNBiGRUModel_multiGPU_20210111"
-    # batch_size_validation = 10
+    model_name = "BertCNNBiGRUModel_multiGPU_20210326"
+    # batch_size_validation = 30
     batch_size_validation = 256
 
     if model_name.startswith("BertCNNModel"):
@@ -354,7 +354,7 @@ if __name__ == "__main__":
                         model = absa_models.createBertMLPModel()
                         absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
     elif model_name.startswith("BertCNNBiGRUModel"):
-        filters = [512]
+        filters = [256]
         window_sizes = [4]
         gru_output_dim_1 = [256]
         for cnn_filter in filters:
