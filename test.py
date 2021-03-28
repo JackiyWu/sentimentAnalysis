@@ -328,7 +328,7 @@ def tokenizer_texts():
 import matplotlib.pyplot as plt
 from pylab import *
 import matplotlib.ticker as ticker
-mpl.rcParams['font.sans-serif'] = ['SimHei']
+# mpl.rcParams['font.sans-serif'] = ['SimHei']
 
 
 def plot_test(names, y_F1, y_P, y_R):
@@ -348,8 +348,8 @@ def plot_test(names, y_F1, y_P, y_R):
     plt.plot(x, y_R, marker='v', color='y', mec='y', ms=7, mfc='y', label=u'R')
     # plt.plot(x, y_ACC, marker='+', color='b', mec='b', ms=7, mfc='b', label=u'ACC')
     # plt.xlim(xmin=0)
-    plt.xlim(xmin=-0.9, xmax=7.8)
-    plt.ylim(ymin=0.1, ymax=0.956)
+    plt.xlim(xmin=-0.9, xmax=10.2)
+    plt.ylim(ymin=0.90, ymax=0.945)
     plt.legend(fontsize=17.5, loc=1)  # 让图例生效
     plt.xticks(x, names, rotation=0)
     plt.tick_params(labelsize=16)
@@ -366,9 +366,9 @@ def plot_test(names, y_F1, y_P, y_R):
 
 def read_csv(experiment_id):
     # data = pd.read_csv("C:\desktop\Research\选题相关\基于模糊系统和深度学习的在线评论情感计算\作图\\result\\result.csv")
-    data = pd.read_csv("C:\desktop\Research\选题相关\基于模糊推理系统和深度学习的在线评论情感计算\作图\\result\\new_result.csv")
+    data = pd.read_csv("C:\\Users\\wujie\\Desktop\\Backup of laboratory-202101\\Research\\papers\\paper1\\drawing\\result\\new_result - 20210121.csv")
     data = data.loc[data["experiment_id"] == experiment_id]
-    # data['aspect'] = data['aspect'].astype(int)
+    data['aspect'] = data['aspect'].astype(int)
     names = list(data['aspect'])
     print("names = ", names)
     y_F1 = list(data['macro_f1_score'])
@@ -465,6 +465,7 @@ def padding(text, maxlen):
     length = len(text)
     if length < 512:
         pass
+
 
 # 将文本截取至maxlen-2的长度
 def textsCut(input_texts, maxlen):
@@ -839,7 +840,12 @@ def findMaxIndex(ll):
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
 
+<<<<<<< HEAD
     appendWriteExcelByPandas()
+=======
+    names, y_F1, y_P, y_R = read_csv("window_size")
+    plot_test(names, y_F1, y_P, y_R)
+>>>>>>> cce6729764c66e41ad2061e2d4f30ff516f7feba
 
     print(">>>in the end...")
 

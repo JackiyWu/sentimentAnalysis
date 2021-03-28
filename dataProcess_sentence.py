@@ -91,29 +91,45 @@ def initData2(type):
 def initData3(debug=False):
     columns = ['id', 'type', 'review', 'label']
     data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData3 data's length = ", len(data))
 
     # 将data2的中性语料加入到data1中,0-负向，1-中性，2-正向
 
-    data1 = data.loc[data['type'] == str("物流快递")]
+    # data1 = data.loc[data['type'] == str("医疗服务")]
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    print("data_logistics's length = ", len(data_logistics))
     data_medical = data.loc[data['type'] == str("医疗服务")]
     data_financial = data.loc[data['type'] == str("金融服务")]
     data_traveling = data.loc[data['type'] == str("旅游住宿")]
     data2 = data.loc[data['type'] != str("物流快递")]
     data2 = data2.loc[data['label'] == 1]
+    print("data2's length = ", len(data2))
     # print("data1 = ", data1)
     # print("data2 = ", data2)
 
     ratio = 0.5
-    # data1 = lower_sampling(data1, ratio)
+    data_medical = lower_sampling(data_medical, ratio)
+    data_financial = lower_sampling(data_financial, ratio)
+    data_traveling = lower_sampling(data_traveling, ratio)
     # data2 = lower_sampling(data2, ratio)
 
-    data = pd.concat([data1, data2])
-
+    # data = pd.concat([data_logistics, data2])
+    data = pd.concat([data_logistics, data_catering, data_traveling, data_financial])
+    data = lower_sampling(data, ratio)
     data = shuffle(data)
+
+    print("data_catering's length = ", len(data))
 
     data_medical = shuffle(data_medical)
     data_financial = shuffle(data_financial)
     data_traveling = shuffle(data_traveling)
+    print("data_medical's length = ", len(data_medical))
+    print("data_financial's length = ", len(data_financial))
+    print("data_traveling's length = ", len(data_traveling))
+
+    # all_data数据是总体的，没有打乱的
+    all_data = pd.concat([data, data_financial, data_traveling, data_medical])
 
     if debug:
         data = data[:50]
@@ -121,7 +137,7 @@ def initData3(debug=False):
     y_cols = data.columns.values.tolist()
 
     # return data, y_cols
-    return data, y_cols, data_medical, data_financial, data_traveling
+    return data, y_cols, data_medical, data_financial, data_traveling, all_data
 
 
 # ratio为保留的比例
@@ -367,6 +383,67 @@ def processData(data, stoplist, dict_length, maxlen, ratios, data_medical, data_
 
     # return dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index
     return dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index, dealed_val_medical, dealed_val_financial, dealed_val_traveling, val_medical, val_financial, val_traveling
+
+
+# 处理数据生成训练集 验证集 测试集
+# 处理输入预料，生成训练集、验证集、测试集，其中训练集即为餐饮业+物流业数据，验证集分别为医疗业、金融业、旅游业数据
+def processData2(all_data, stoplist, dict_length, maxlen, ratios, dealed_train_fuzzy_concat, catering_length, medical_length, financial_length, traveling_length):
+    print(">>>in processData function...")
+
+    # all_data = np.concatenate((data, dealed_train_fuzzy_concat), axis=0)
+    print("all_data's length = ", len(all_data))
+
+    all_texts = processDataToTexts(all_data, stoplist)
+    stop_data = pd.DataFrame(all_texts)
+
+    # 利用keras的Tokenizer进行onehot，并调整未等长数组
+    tokenizer = Tokenizer(num_words=dict_length)
+    tokenizer.fit_on_texts(all_texts)
+
+    # print(words_dict)
+    # print(texts)
+
+    word_index = tokenizer.word_index
+    # print("word_index = ", word_index)
+
+    data_w = tokenizer.texts_to_sequences(all_texts)
+    data_T = sequence.pad_sequences(data_w, maxlen=maxlen)
+
+    # 数据划分，重新划分为训练集，测试集和验证集
+    data_length = data_T.shape[0]
+    print("data_length = ", data_length)
+    # if data_length != dealed_train_fuzzy_length:
+    #     print(">>>>>>>>>>出错啦！！！训练集长度有问题！！！！")
+    size_train = int(catering_length * ratios[0])
+    print("size_train's length = ", size_train)
+    print("catering_length = ", catering_length)
+
+    # 数据划分，重新划分为训练集，测试集和验证集
+    global dealed_train
+    global dealed_val
+    dealed_train = data_T[: size_train]
+    dealed_val = data_T[size_train: catering_length]
+
+    dealed_val_1 = data_T[catering_length: medical_length + catering_length]
+    dealed_val_2 = data_T[medical_length + catering_length: medical_length + catering_length + financial_length]
+    dealed_val_3 = data_T[medical_length + catering_length + financial_length:]
+    print("dealed_val_1's length = ", len(dealed_val_1))
+    print("dealed_val_2's length = ", len(dealed_val_2))
+    print("dealed_val_3's length = ", len(dealed_val_3))
+
+    train = all_data[: size_train]
+    val = all_data[size_train: catering_length]
+    print("val's length = ", len(val))
+    val_1 = all_data[catering_length: medical_length + catering_length]
+    val_2 = all_data[medical_length + catering_length: medical_length + catering_length + financial_length]
+    val_3 = all_data[medical_length + catering_length + financial_length:]
+    print("val_1's length = ", len(val_1))
+    print("val_2's length = ", len(val_2))
+    print("val_3's length = ", len(val_3))
+
+    print(">>>end of processData function...")
+
+    return dealed_train, dealed_val, dealed_val_1, dealed_val_2, dealed_val_3, train, val, val_1, val_2, val_3, word_index
 
 
 # 确定maxlen
