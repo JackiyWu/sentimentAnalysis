@@ -218,13 +218,8 @@ if __name__ == "__main__":
     # epochs = [1]
     epochs = [3]
     # batch_sizes = [10]
-<<<<<<< HEAD
     batch_sizes = [96]
     times = 1  # 设置为1是为了测试看结果
-=======
-    batch_sizes = [70]
-    times = 5  # 设置为1是为了测试看结果
->>>>>>> cce6729764c66e41ad2061e2d4f30ff516f7feba
     print("training times = ", times)
     model_name = "BertCNNBiGRUModel_multiGPU_20210326"
     # batch_size_validation = 30

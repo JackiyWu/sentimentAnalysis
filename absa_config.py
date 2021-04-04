@@ -4,6 +4,8 @@
 # 情感词典
 sentiment_dictionary_dut = "sentiVocab/DLUT.xlsx"
 sentiment_dictionary_boson = "sentiVocab/BosonNLP_sentiment_score.txt"
+sentiment_dictionary_negative = "sentiVocab/lexicon_negative"
+sentiment_dictionary_positive = "sentiVocab/lexicon_positive.txt"
 
 # 数据集
 meituan_train = "datasets/meituan/sentiment_analysis_training_set.csv"

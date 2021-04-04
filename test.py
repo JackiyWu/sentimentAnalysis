@@ -840,12 +840,9 @@ def findMaxIndex(ll):
 if __name__ == "__main__":
     print(">>>in the main function of test.py...")
 
-<<<<<<< HEAD
     appendWriteExcelByPandas()
-=======
     names, y_F1, y_P, y_R = read_csv("window_size")
     plot_test(names, y_F1, y_P, y_R)
->>>>>>> cce6729764c66e41ad2061e2d4f30ff516f7feba
 
     print(">>>in the end...")
 
