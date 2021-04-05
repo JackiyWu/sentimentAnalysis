@@ -7,6 +7,7 @@ import absa_config as config
 import numpy as np
 import codecs
 import csv
+from snownlp import SnowNLP
 
 """ 你的 APPID AK SK """
 APP_ID = '23894254'
@@ -17,9 +18,9 @@ client = AipNlp(APP_ID, API_KEY, SECRET_KEY)
 options = dict()
 options["type"] = 4
 
-restaurant_names = ["kuaileai", "niuzhongniu", "shouergong", "xiaolongkan", "zhenghuangqi"]
+# restaurant_names = ["kuaileai", "niuzhongniu", "shouergong", "xiaolongkan", "zhenghuangqi"]
 # restaurant_names = ["chunla", "dingxiangyuan", "jialide", "jianshazui", "jiefu", "kuaileai", "niuzhongniu", "shouergong", "xiaolongkan", "zhenghuangqi"]
-# restaurant_names = ["dingxiangyuan", "kuaileai", "chunla"]
+restaurant_names = ["zhenghuangqi", "xiaolongkan", "shouergong"]
 # restaurant_names = ["kuaileai", "chunla"]
 
 # 初始化情感词
@@ -39,13 +40,19 @@ def getPositiveWords():
 def readAndExtract(text):
     print(">>>正在提取词对...")
     ans = []
+    ans2 = []  # 保存摘要和观点词
     len_text = len(text)
-    # for i in range(1, len_text):
+    # for i in range(1, 20):
     for i in range(1, int(len_text)):
-        print(i, "行:", text[i])
+    #     print(i, "行:", text[i])
         try:
             res = []
+            res2 = []
+            print("current text = ", text[i])
             result_temp = client.commentTag(text[i], options)
+
+            s = SnowNLP(text[i])
+            print("SnowNLP:", s.summary())
 
             error_code = 'error_code'
             while error_code in result_temp.keys():
@@ -53,19 +60,26 @@ def readAndExtract(text):
 
             items = result_temp['items']
             for ch in items:
-                print("ch:", ch)
+                # print("ch:", ch)
                 couple = (ch['prop'], ch['adj'])
                 res.append(couple)
+                if len(ch['adj']) > 0 and len(ch['abstract']) < 30:
+                    couple2 = (ch['abstract'].replace('<span>', '').replace('</span>', '').replace('<span></span>', '').replace('\n', '').replace(',', '').replace('.', ''), ch['adj'])
+                    res2.append(couple2)
+                    print("BaiduAI:", ch['abstract'])
             ans.append(res)
-            print("*" * 50)
+            ans2.append(res2)
+            # print("*" * 50)
 
         except KeyError as e:
             print("text[", i, "]=", text[i])
             print('KeyError:'+str(e))
             print(i)
             pass
+        except Exception as e:
+            print(str(e))
 
-    return ans
+    return ans, ans2
 
 
 def filterNotNegative(ans, data, positive_words, restaurant_name):
@@ -114,6 +128,18 @@ def saveToFile(result, result_combine, restaurant_name):
     path2 = "result/aspect_viewpoint/" + restaurant_name + "_combine.txt"
     with open(path2, 'w') as file_object:
         np.savetxt(file_object, result_combine, fmt='%s', delimiter=',')
+
+
+# 将摘要写入文件
+def saveAbstractToFile(result, restaurant_name):
+    print(">>>将result写入文件...")
+    # result = np.array(result)
+    print("result = ", result)
+    path = "result/abstract/" + restaurant_name + ".csv"
+    with codecs.open(path, 'w') as f:
+        writer = csv.writer(f)
+        writer.writerows(result)
+        f.close()
 
 
 def calculateDistance(word):
@@ -169,6 +195,34 @@ def plotWordCoulds(ans_combine, restaurant_name):
     )
 
 
+def filterNotNegative2(text, ans, positive_words, restaurant_name):
+    print(">>>正在过滤非负向词对2...")
+    result = []
+
+    len_ans = len(ans)
+    for i in range(len_ans):
+        print("*" * 50)
+        print(text[i + 1])
+        temp = []
+        for couple in ans[i]:
+            couple_abstract = couple[0]
+            if len(couple) > 1:
+                couple_viewpoint = couple[1]
+                if couple_viewpoint in positive_words:
+                    print("摘要内容为正向:", couple)
+                    continue
+                else:
+                    print("摘要内容为负向:", couple)
+                temp.append(couple_abstract)
+        # print("temp = ", temp)
+        if len(temp) > 0:
+            result.append(temp)
+    # print("result = ", result)
+
+    # 保存到文件
+    saveAbstractToFile(result, restaurant_name)
+
+
 if __name__ == "__main__":
     print(">>>Begin...")
 
@@ -183,15 +237,18 @@ if __name__ == "__main__":
         text = data['reviews']
 
         # 读取评论→抽取属性-观点词对
-        ans = readAndExtract(text)
+        ans, ans2 = readAndExtract(text)
         print("ans = ", ans)
         print("*" * 50)
 
         # 计算属性与先验属性距离，属性分类→过滤掉非负向属性-观点词对
-        ans, ans_combine = filterNotNegative(ans, data, positive_words, restaurant_name)
-        print("ans = ", ans)
+        # ans, ans_combine = filterNotNegative(ans, data, positive_words, restaurant_name)
+        # print("ans = ", ans)
 
-        plotWordCoulds(ans_combine, restaurant_name)
+        # 使用情感词典，过滤掉观点为正向的摘要
+        filterNotNegative2(text, ans2, positive_words, restaurant_name)
+
+        # plotWordCoulds(ans_combine, restaurant_name)
 
     print(">>>End...")
 
