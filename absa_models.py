@@ -98,19 +98,6 @@ def createBertCNNModel(filter, window_size):
 
         model = Model([x1_in, x2_in], p)
 
-        '''
-        train_x = np.random.standard_normal((1024, 100))
-    
-        total_steps, warmup_steps = calc_train_steps(
-            num_example=train_x.shape[0],
-            batch_size=32,
-            epochs=10,
-            warmup_proportion=0.1,
-        )
-    
-        optimizer = AdamWarmup(total_steps, warmup_steps, lr=1e-3, min_lr=1e-5)
-        '''
-
         model.compile(loss='categorical_crossentropy', optimizer=Adam(1e-5), metrics=['accuracy'])
 
     model.summary()
