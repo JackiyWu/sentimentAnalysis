@@ -53,7 +53,7 @@ def createBertCNNModel(filter, window_size):
 
         x = Dense(32, activation='relu', name='dense_1')(flatten)
         x = Dropout(0.4, name='dropout')(x)
-        p = Dense(6, activation='softmax', name='softmax')(x)
+        p = Dense(4, activation='softmax', name='softmax')(x)
 
         model = Model([x1_in, x2_in], p)
 
@@ -81,7 +81,7 @@ def createBertGRUModel(dim):
 
         x = Dense(64, activation='relu', name='dense_1')(bi_gru)
         x = Dropout(0.4, name='dropout')(x)
-        p = Dense(6, activation='softmax', name='softmax')(x)
+        p = Dense(4, activation='softmax', name='softmax')(x)
 
         model = Model(inputs=[x1_in, x2_in], outputs=p)
 
@@ -111,7 +111,7 @@ def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim, debug=F
 
         x = Dense(64, activation='relu', name='dense_1')(bi_gru)
         # x = Dropout(0.4, name='dropout')(x)
-        x = Dense(6, activation='softmax', name='softmax')(x)
+        x = Dense(4, activation='softmax', name='softmax')(x)
 
         model = Model(inputs=[x1_in, x2_in], outputs=x)
 
@@ -138,7 +138,7 @@ def createBertLSTMModel(dim):
 
         x = Dense(64, activation='relu', name='dense_1')(lstm)
         x = Dropout(0.4, name='dropout')(x)
-        p = Dense(6, activation='softmax', name='softmax')(x)
+        p = Dense(4, activation='softmax', name='softmax')(x)
 
         model = Model(inputs=[x1_in, x2_in], outputs=p)
 

@@ -81,24 +81,19 @@ def produceAllData(path, file_names, DEBUG=False):
 def produceOneData(path, DEBUG=False):
     data = pd.read_csv(path, names=config.all_names, header=0, encoding="utf-8")
     if DEBUG:
-        data = data[:50]
+        data = data[:5]
 
     # 将所有评论内容为空的属性标签改为0
-    # print("替换之前")
-    # print(data[config.col_names])
     data = replaceValue(data)
-    # print("替换之后")
-    # print(data[config.col_names])
+
+    # 修改标签：1→2,5→4,0→1，目前包括1、2、3、4
+    data = replaceValue2(data)
 
     # 生成一个content
-    data["content"] = data["space"].map(str) + "。" + data["power"].map(str) + "。" + data["manipulation"].map(str) + "。" + data["consumption"].map(str) + "。" + \
-                      data["comfort"].map(str) + "。" + data["outside"].map(str) + "。" + data["inside"].map(str) + "。" + data["value"].map(str)
-    # print(data["content"].head())
-    # print("data's columns = ", data.columns.values)
-    # print("produceOneData data = ", data)
-    # print("*" * 50)
+    data["content"] = data["space"].map(str) + "。space。" + data["power"].map(str) + "。power。" + data["manipulation"].map(str) + "。manipulation。" + data["consumption"].map(str) + "。consumption。" + \
+                      data["comfort"].map(str) + "。comfort。" + data["outside"].map(str) + "。outside。" + data["inside"].map(str) + "。inside。" + data["value"].map(str) + "。value。"
     # 删除所有属性均为空的行
-    data = data.drop(index=(data.loc[(data['content'] == '0。0。0。0。0。0。0。0')].index))
+    data = data.drop(index=data.loc[(data['content'] == '0。space。0。power。0。manipulation。0。consumption。0。comfort。0。outside。0。inside。0。value。')].index)
 
     return data
 
@@ -113,6 +108,23 @@ def replaceValue(data):
     data.loc[data['outside'] == '0', ['outside_label']] = 0
     data.loc[data['inside'] == '0', ['inside_label']] = 0
     data.loc[data['value'] == '0', ['value_label']] = 0
+
+    return data
+
+
+# 修改标签：2→1,5→3,4→3,3→2
+def replaceValue2(data):
+    for col_name in config.col_names:
+        # print("*" * 50)
+        # print("1 Y = ", data[col_name])
+        data.loc[data[col_name] == 2, [col_name]] = 1
+        # print("2 Y = ", data[col_name])
+        data.loc[data[col_name] == 3, [col_name]] = 2
+        # print("3 Y = ", data[col_name])
+        data.loc[data[col_name] == 4, [col_name]] = 3
+        data.loc[data[col_name] == 5, [col_name]] = 3
+        # print("4 Y = ", data[col_name])
+        # print("*" * 50)
 
     return data
 
@@ -143,7 +155,7 @@ def generateSetForBert(X_value, Y_value, batch_size, tokenizer):
                 cnt_Y += batch_size
 
                 cnt = 0
-                yield ([np.array(X1), np.array(X2)], to_categorical(Y, num_classes=6))
+                yield ([np.array(X1), np.array(X2)], to_categorical(Y, num_classes=4))
                 X1 = []
                 X2 = []
                 Y = []

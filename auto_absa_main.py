@@ -33,10 +33,10 @@ if __name__ == "__main__":
     epochs = [3]
     batch_sizes = [80]
     batch_size_validation = 256
-    times = 3
+    times = 2
     print("training times = ", times)
 
-    model_name = "BertCNNModel"
+    model_name = "BertCNNModel_4type_add_aspect_"
 
     # 4.模型构建
     print("》》》【4】正在构建模型", "。" * 100)
@@ -63,8 +63,8 @@ if __name__ == "__main__":
                         model = auto_absa_models.createBertGRUModel(dim_1)
                         auto_absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation)
     elif model_name.startswith("BertCNNBiGRUModel"):
-        filters = [256]
-        window_sizes = [4]
+        filters = [128, 256]
+        window_sizes = [4, 5]
         gru_output_dim_1 = [256]
         for cnn_filter in filters:
             for window_size in window_sizes:
@@ -76,7 +76,7 @@ if __name__ == "__main__":
                             for i in range(times):
                                 print("current times is ", i)
                                 model = auto_absa_models.createBertCNNBiGRUModel(cnn_filter, window_size, dim_1)
-                                auto_absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
+                                auto_absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation,)
     elif model_name.startswith("BertLSTMModel"):
         dims_1 = [64]
         for dim_1 in dims_1:
@@ -86,12 +86,9 @@ if __name__ == "__main__":
                     print("experiment_name = ", experiment_name)
                     for i in range(times):
                         model = auto_absa_models.createBertLSTMModel(dim_1)
-                        auto_absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, DEBUG)
+                        auto_absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation)
     else:
         print(">>>模型名称有问题哦！！！")
-
-    # 5.模型训练
-    print("》》》【5】正在训练模型", "。" * 100)
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))
