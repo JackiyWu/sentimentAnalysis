@@ -8,6 +8,11 @@ perception_data_medium = perception_data + "Medium.csv"
 perception_data_mediumBig = perception_data + "MediumBig.csv"
 perception_data_micro = perception_data + "Micro.csv"
 perception_data_small = perception_data + "Small.csv"
+perception_data_new = perception_data + "New.csv"
+
+# 有用性数据集
+feature_data = "datasets/usefulness/"
+feature_data_titles = []
 
 # 评论属性
 all_names = ["space", "space_label", "power", "power_label", "manipulation", "manipulation_label", "consumption",

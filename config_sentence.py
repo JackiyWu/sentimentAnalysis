@@ -12,7 +12,7 @@ predict_data_path = data_path + "/predict/0611predictL3_benz.csv"
 result_data_path = data_path + "/result/0611resultL3_benz.csv"
 
 
-sentiment_dictionary = "sentiVocab/DLUT.xlsx"
+sentiment_dictionary = "sentiVocab/DLUT.xls"
 sentiment_dictionary_csv = "sentiVocab/DLUT.csv"
 
 pre_word_embedding = "config/preEmbeddings/sgns.target.word-character.char1-2.dynwin5.thr10.neg5.dim300.iter5"

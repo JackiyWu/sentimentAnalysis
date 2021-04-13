@@ -13,7 +13,7 @@ import auto_absa_config as config
 def initDataForBert(path, ratio, debug=False):
     print("In initDataForBert function of auto_absa_dataProcess.py...")
 
-    file_names = ["Big", "Medium", "MediumBig", "Micro", "Small"]
+    file_names = ["Big", "Medium", "MediumBig", "Micro", "Small", "New"]
 
     # 将所有文件内容读取出来，生成一份数据
     data = produceAllData(path, file_names, debug)
@@ -86,14 +86,23 @@ def produceOneData(path, DEBUG=False):
     # 将所有评论内容为空的属性标签改为0
     data = replaceValue(data)
 
-    # 修改标签：1→2,5→4,0→1，目前包括1、2、3、4
+    # 修改标签：2→1,3→1,4→2,5→3，目前包括1、2、3
     data = replaceValue2(data)
+
+    # 生成一个content,不带属性名称
+    # data["content"] = data["space"].map(str) + data["power"].map(str) + data["manipulation"].map(str) + data["consumption"].map(str) + \
+    #                   data["comfort"].map(str) + data["outside"].map(str) + data["inside"].map(str) + data["value"].map(str)
 
     # 生成一个content
     data["content"] = data["space"].map(str) + "。space。" + data["power"].map(str) + "。power。" + data["manipulation"].map(str) + "。manipulation。" + data["consumption"].map(str) + "。consumption。" + \
                       data["comfort"].map(str) + "。comfort。" + data["outside"].map(str) + "。outside。" + data["inside"].map(str) + "。inside。" + data["value"].map(str) + "。value。"
+
     # 删除所有属性均为空的行
     data = data.drop(index=data.loc[(data['content'] == '0。space。0。power。0。manipulation。0。consumption。0。comfort。0。outside。0。inside。0。value。')].index)
+
+    # 删除所有属性均为3的行（已经删了）
+    # data = data.drop(index=(data.loc[(data['space'] == 3) & (data['power'] == 3) & (data['manipulation'] == 3) & (data['consumption'] == 3)
+    #                              & (data['comfort'] == 3) & (data['outside'] == 3) & (data['inside'] == 3) & (data['value'] == 3)].index))
 
     return data
 
@@ -112,16 +121,16 @@ def replaceValue(data):
     return data
 
 
-# 修改标签：2→1,5→3,4→3,3→2
+# 修改标签：2→1,3→1,4→2,5→3，目前包括1、2、3
 def replaceValue2(data):
     for col_name in config.col_names:
         # print("*" * 50)
         # print("1 Y = ", data[col_name])
         data.loc[data[col_name] == 2, [col_name]] = 1
         # print("2 Y = ", data[col_name])
-        data.loc[data[col_name] == 3, [col_name]] = 2
+        data.loc[data[col_name] == 3, [col_name]] = 1
         # print("3 Y = ", data[col_name])
-        data.loc[data[col_name] == 4, [col_name]] = 3
+        data.loc[data[col_name] == 4, [col_name]] = 2
         data.loc[data[col_name] == 5, [col_name]] = 3
         # print("4 Y = ", data[col_name])
         # print("*" * 50)

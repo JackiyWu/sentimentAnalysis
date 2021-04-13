@@ -211,8 +211,8 @@ if __name__ == "__main__":
     print("dealed_train's shape = ", dealed_train.shape)
 
     # 根据预训练词向量生成embedding_matrix
-    embedding_matrix = ff_s.load_word2vec(word_index)
-    # embedding_matrix = np.zeros((len(word_index) + 1, 300))
+    # embedding_matrix = ff_s.load_word2vec(word_index)
+    embedding_matrix = np.zeros((len(word_index) + 1, 300))
     print("embedding_matrix's shape = ", embedding_matrix.shape)
 
     dict_length = min(dict_length, len(word_index) + 1)
@@ -268,8 +268,9 @@ if __name__ == "__main__":
                                                + "_dropout_" + str(dropout) + "_balanced_" + str(balanced) + "_full_connected_" + str(full_connected)
                                         print("name = ", name)
 
-                                        model_name = "cnn_20210129_"
+                                        model_name = "fusion"
                                         if model_name.startswith("fusion"):
+                                            print("fuzzy_maxlen = ", fuzzy_maxlen, ",maxlen = ", maxlen, ",dict_length = ", dict_length)
                                             fusion_model = ff_s.create_fusion_model(fuzzy_maxlen, maxlen, dict_length,
                                                                                     filter, embedding_matrix, window_size,
                                                                                     dropout, full_connected)

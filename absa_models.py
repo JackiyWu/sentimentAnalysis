@@ -473,7 +473,7 @@ def createCNNBiGRUModel(maxlen, embedding_dim, cnn_filter, cnn_window_size, gru_
 
 # Bert+单层CNN+BiGRU模型
 # 不提取词向量，直接用bert连接后面的模型
-def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim, debug=False):
+def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim, lstm_flag=False):
     print("开始构建CNNBiGRU模型。。。")
     strategy = tf.distribute.MirroredStrategy()
     with strategy.scope():
@@ -486,7 +486,10 @@ def createBertCNNBiGRUModel(cnn_filter, cnn_window_size, gru_output_dim, debug=F
         cnn = Conv1D(cnn_filter, cnn_window_size, padding='same', strides=1, activation='relu', name='conv')(x)
         cnn = MaxPool1D(name='max_pool')(cnn)
 
-        bi_gru = Bidirectional(GRU(gru_output_dim, name="gru_1"))(cnn)
+        if lstm_flag:
+            bi_gru = Bidirectional(LSTM(gru_output_dim, name="lstm_1"))(cnn)
+        else:
+            bi_gru = Bidirectional(GRU(gru_output_dim, name="gru_1"))(cnn)
 
         x = Dense(64, activation='relu', name='dense_1')(bi_gru)
         # x = Dropout(0.4, name='dropout')(x)
@@ -869,6 +872,28 @@ def createBertCNN(filter, window_size, debug=False):
     return model
 
 
+'''
+# 训练Bert模型，使用tf.data.DataSet生成的张量数据集
+def trainBertByTFDataSet(experiment_name, model, data_train, y_cols_name, data_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, membership_train=None, membership_validation=None, debug=False):
+    print("勿扰！训练模型ing。。。in trainBert。。。model_name = ", model_name)
+
+    F1_scores = 0
+    F1_score = 0
+    if debug:
+        y_cols_name = ['location']
+        batch_size_validation = batch_size
+
+    for index, col in enumerate(y_cols_name):
+        print("Current col is: ", col)
+
+        history = model.fit(data_train, steps_per_epoch=math.ceil(length / (batch_size)),
+                            epochs=epoch, batch_size=batch_size, verbose=1, validation_steps=math.ceil(length_validation / (batch_size_validation)),
+                            validation_data=data_validation)
+        # 预测验证集
+        y_val_pred = model.predict(data_validation, steps=math.ceil(length_validation / batch_size_validation))
+'''
+
+
 # 训练bert模型
 def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, membership_train=None, membership_validation=None, debug=False):
     print("勿扰！训练模型ing。。。in trainBert。。。model_name = ", model_name)
@@ -912,6 +937,7 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
 
             # 预测餐厅评论数据
             # names = ['chunla']
+            '''
             names = ['chunla', 'dingxiangyuan', 'jialide', 'jianshazui', 'jiefu', 'kuaileai', 'niuzhongniu', 'shouergong', 'xiaolongkan', 'zhenghuangqi']
             for name in names:
                 X_restaurant, y_cols_restaurant, Y_restaurant = dp.getRestaurantDataByName(name)
@@ -919,6 +945,7 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
                 y_restaurant_pred = model.predict(dp.generateXSetForBert(X_restaurant, length_restaurant, batch_size_validation, tokenizer), steps=math.ceil(length_restaurant / batch_size_validation))
                 # 将预测结果存入文件
                 save_predict_result_to_csv_v2(y_restaurant_pred, name)
+            '''
 
         print("y_val_pred's length = ", len(y_val_pred))
         print("y_validation's length = ", length_validation)

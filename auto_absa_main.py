@@ -36,13 +36,13 @@ if __name__ == "__main__":
     times = 2
     print("training times = ", times)
 
-    model_name = "BertCNNModel_4type_add_aspect_"
+    model_name = "BertGRUModel"
 
     # 4.模型构建
     print("》》》【4】正在构建模型", "。" * 100)
     if model_name.startswith("BertCNNModel"):
         filters = [128]
-        window_sizes = [4, 5, 6, 7]
+        window_sizes = [4]
         for cnn_filter in filters:
             for window_size in window_sizes:
                 for batch_size in batch_sizes:

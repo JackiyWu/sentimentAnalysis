@@ -17,6 +17,8 @@ from keras_bert import Tokenizer as bert_Tokenizer, load_trained_model_from_chec
 from keras.utils import to_categorical
 from keras.models import load_model, Model
 
+import tensorflow as tf
+
 import absa_config as config
 
 
@@ -57,10 +59,10 @@ def initDataForBert(path, debug=False, clean_enter=False, clean_space=False):
     data = pd.read_csv(path)
     # data = pd.read_csv(config.meituan_train)
     if debug:
-        data = data[:200]
+        data = data[:300]
 
     length = len(data)
-    # data = data[:int(length / 3000)]
+    data = data[:int(length * 0.6)]
 
     # data = data[:50]
     y = data[['location', 'service', 'price', 'environment', 'dish']]
@@ -773,6 +775,13 @@ def generateSetForBert(X_value, Y_value, batch_size, tokenizer):
                 X1 = []
                 X2 = []
                 Y = []
+
+
+# 使用tf.data将X Y生成张量格式
+def generateTensorData(X, Y):
+    data = tf.data.Dataset.from_tensor_slices((X, Y))
+
+    return data
 
 
 # 批量产生包含隶属度的训练数据
