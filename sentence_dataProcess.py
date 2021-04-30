@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support as s
 from sklearn.utils import shuffle
 
 # 之后将所有数据放入一个文件
-data_path = "datasets/farmer/training-4983566.csv"
+data_path = "datasets/farmer/training.csv"
 
 debug_data_length = 100
 
@@ -37,7 +37,7 @@ def readFromCSV(debug=False):
     if debug:
         data = data[:debug_data_length]
 
-    X = np.array(data["review"])
+    X = np.array(data["reviews"])
     Y = np.array(data["label"])
     # print("X's type = ", type(X))
     # print("Y's type = ", type(Y))

@@ -110,14 +110,14 @@ def load_word2vec(word_index):
 
 
 # CNN
-def createCNNModel(contents_length, dict_length, embedding_matrix):
+def createCNNModel(contents_length, dict_length, embedding_matrix, cnn_node):
     window_size = 5
 
     strategy = tf.distribute.MirroredStrategy()
     with strategy.scope():
         inputs_cnn = Input(shape=(contents_length,), name="input_cnn")  # dict_length是词典长度，128是词向量的维度，512是每个input的长度
         x_cnn = Embedding(input_dim=dict_length, output_dim=300, name='embedding_cnn', weights=[embedding_matrix], trainable=True)(inputs_cnn)
-        x_cnn = Conv1D(64, window_size, activation='relu', name='conv1')(x_cnn)
+        x_cnn = Conv1D(cnn_node, window_size, activation='relu', name='conv1')(x_cnn)
         x_cnn = MaxPool1D(name='pool1')(x_cnn)
         x_cnn = Flatten(name='flatten')(x_cnn)
 
@@ -140,7 +140,6 @@ def createCNNModel(contents_length, dict_length, embedding_matrix):
 def createLSTMModel(contents_length, dict_length, embedding_matrix, dim, bi_flag=False):
     print("contents_length = ", contents_length)
     print("dict_length = ", dict_length)
-    print("embedding_matrix = ", embedding_matrix)
     strategy = tf.distribute.MirroredStrategy()
     with strategy.scope():
         input_contents = Input(shape=(contents_length,), name="input_contents")  # dict_length是词典长度，128是词向量的维度，512是每个input的长度
@@ -169,7 +168,6 @@ def createLSTMModel(contents_length, dict_length, embedding_matrix, dim, bi_flag
 def createGRUModel(contents_length, dict_length, embedding_matrix, dim, bi_flag=False):
     print("contents_length = ", contents_length)
     print("dict_length = ", dict_length)
-    print("embedding_matrix = ", embedding_matrix)
     strategy = tf.distribute.MirroredStrategy()
     with strategy.scope():
         input_contents = Input(shape=(contents_length,), name="input_contents")  # dict_length是词典长度，128是词向量的维度，512是每个input的长度
@@ -198,13 +196,12 @@ def createGRUModel(contents_length, dict_length, embedding_matrix, dim, bi_flag=
 def createMLPModel(contents_length, dict_length, embedding_matrix, contents_node):
     print("contents_length = ", contents_length)
     print("dict_length = ", dict_length)
-    print("embedding_matrix = ", embedding_matrix)
     strategy = tf.distribute.MirroredStrategy()
     with strategy.scope():
         input_contents = Input(shape=(contents_length,), name="input_contents")  # dict_length是词典长度，128是词向量的维度，512是每个input的长度
         x_contents = Embedding(input_dim=dict_length, output_dim=300, name='embedding_contents', weights=[embedding_matrix], trainable=True)(input_contents)
         x_contents = Flatten(name='flatten')(x_contents)
-        print("x_cnn's type = ", type(x_contents))
+        # print("x_cnn's type = ", type(x_contents))
 
         x_contents = Dense(contents_node, activation='relu', name='dense3')(x_contents)
 
@@ -272,6 +269,37 @@ def createCNNBiGRUModel(contents_length, dict_length, embedding_matrix, cnn_filt
     print(model.summary())
 
     return model
+
+
+# training v2
+def trainV2Model(model_name, maxlen, dict_length, embedding_matrix, X_contents, Y, epoch, batch_size, debug=False):
+    print(">>>in trainModel function...")
+
+    print("X_contents's type = ", type(X_contents))
+    print("Y's type = ", type(Y))
+    print("X_contents's shape = ", X_contents.shape)
+    print("Y's shape = ", Y.shape)
+
+    kf = KFold(n_splits=10)
+    current_k = 0
+    for train_index, validation_index in kf.split(X_contents):
+        current_model = createMLPModel(maxlen, dict_length, embedding_matrix, 64)
+        print("正在进行第", current_k, "轮交叉验证。。。")
+        current_k += 1
+        X_contents_train, Y_train = X_contents[train_index], Y[train_index]
+        Y_train = to_categorical(Y_train)
+        X_contents_validation, Y_validation = X_contents[validation_index], Y[validation_index]
+        Y_validation_onehot = to_categorical(Y_validation)
+
+        current_model.fit(X_contents_train, Y_train, epochs=epoch, verbose=2, batch_size=batch_size,
+                          validation_data=(X_contents_validation, Y_validation_onehot))
+        predicts = current_model.predict(X_contents_validation)
+
+        predicts = np.argmax(predicts, axis=1)
+        print("predicts' type = ", type(predicts))
+
+        # 计算各种评价指标&保存结果
+        dp.calculateScore(Y_validation.tolist(), predicts, model_name, debug)
 
 
 # training

@@ -895,6 +895,7 @@ def trainBertByTFDataSet(experiment_name, model, data_train, y_cols_name, data_v
 
 
 # 训练bert模型
+# @tf.function
 def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, membership_train=None, membership_validation=None, debug=False):
     print("勿扰！训练模型ing。。。in trainBert。。。model_name = ", model_name)
 

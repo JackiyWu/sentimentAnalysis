@@ -400,7 +400,6 @@ if __name__ == "__main__":
             scores.append([calinski_score, silhouette_score, dbi_score])
             print("y_pred's length = ", len(y_pred))
 
-            '''
             # 将聚类结果与原始文本摘要ID聚合
             result = combinePredictionAndAbstract(y_pred, abstract)
             # print("result = ", result)
@@ -413,6 +412,7 @@ if __name__ == "__main__":
             # 将X保存至文件
             save_path = 'result/clustering/3D/embeddings/' + 'KMeans_' + str(cluster_number) + '_' + restaurant_name + '.txt'
             saveBertEmbeddings(embeddings, save_path)
+            '''
             '''
 
     print("scores = ", scores)

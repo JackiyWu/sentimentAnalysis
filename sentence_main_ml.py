@@ -10,7 +10,7 @@ import sentence_model as model
 import sentence_dataProcess as dp
 import auto_usefulness_dataProcess as u_dp
 
-debug = True
+debug = False
 
 '''
 使用机器学习进行情感分类
@@ -36,8 +36,8 @@ if __name__ == "__main__":
     # print("X's type = ", type(X))
     # print("Y's type = ", type(Y))
 
-    # model_names = ["svm"]
-    model_names = ["bayes", "ada", "SVM", "randomForest", "decisionTree", "logicRegression"]
+    model_names = ["svm"]
+    # model_names = ["bayes", "ada", "svm", "randomForest", "decisionTree", "logicRegression"]
     for model_name in model_names:
         print("当前模型为", model_name)
         # 交叉验证数据集
