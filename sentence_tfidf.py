@@ -12,7 +12,7 @@ import numpy as np
 jieba.load_userdict("config/filedWords")
 
 abstract_file_debug = "result/farmer/complaints/abstracts_debug.csv"
-abstract_file = "result/farmer/complaints/abstracts.csv"
+abstract_file = "result/farmer/complaints/abstracts_normal_all.csv"
 
 debug = False
 
@@ -33,6 +33,7 @@ def dataPreprocessing(texts):
     result = []
 
     for text in texts:
+        # print("text = ", text)
         text = re.sub("[\s+\.\!\/_,$%^*(+\"\'～]+|[+——！，。？?、~@#￥%……&*（）．；：】【|]+", "", str(text))
         text = text.translate(str.maketrans('', '', digits))
         text = jieba.cut(text)
@@ -47,6 +48,7 @@ def dataPreprocessing(texts):
 
 # 转为词频矩阵
 def transMatrix(corpus):
+    print("corpus = ", corpus)
     vectorizer = CountVectorizer()
     X = vectorizer.fit_transform(corpus)
     word = vectorizer.get_feature_names()
@@ -101,13 +103,15 @@ if __name__ == "__main__":
         path = abstract_file
 
     # 读取摘要csv文件
-    data = pd.read_csv(path, header=None, names=['col'])
+    data = pd.read_csv(path, header=None, names=['col', 'score'], delimiter=',')
 
     print("data = ", data.head())
     stoplist = getStopwords('config/stopwords_farmer.txt')
 
+    # print(data['col'])
+    print("*" * 100)
     data = data['col']
-    # print("data = ", data)
+    # print("data2 = ", data)
     texts = [dataPreprocessing(data.tolist())]
     # print("texts = ", texts)
 

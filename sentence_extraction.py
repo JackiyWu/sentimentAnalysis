@@ -126,7 +126,7 @@ def readAndExtract(text, threshold):
             print(str(e))
 
         for key, value in temp.items():
-            ans3.append([key, value])
+            ans3.append([i, key, value])
 
     print("ans2 = ", ans2)
 
@@ -232,9 +232,9 @@ def saveAbstractToFile2(result, debug):
     # result = np.array(result)
     print("result = ", result)
     if debug:
-        path = "result/farmer/complaints/abstracts_all_debug.csv"
+        path = "result/farmer/complaints/abstracts_normal_id_all_debug.csv"
     else:
-        path = "result/farmer/complaints/abstracts_all.csv"
+        path = "result/farmer/complaints/abstracts_normal_id_all.csv"
     # with codecs.open(path, 'w', newline='') as f:
     with open(path, 'w', newline='') as f:
         writer = csv.writer(f)
@@ -249,7 +249,7 @@ if __name__ == "__main__":
     stoplist = getStopwords('config/stopwords_farmer.txt')
     print(stoplist)
 
-    filepath = "datasets/farmer/farmer-negative.csv"
+    filepath = "datasets/farmer/normal-negative.csv"
 
     data = pd.read_csv(filepath, sep=',')
     # data = pd.read_csv(filepath, sep=',', names=['id', 'reviews'])
