@@ -6,6 +6,8 @@ import auto_absa_dataProcess as dp
 import auto_absa_models
 import auto_absa_config as config
 
+debug = False
+
 if __name__ == "__main__":
     start_time = time.time()
     print("Start time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time)))
@@ -15,7 +17,7 @@ if __name__ == "__main__":
     print("》》》【1】正在读取文件", "。" * 100)
     # dp.initDataForBert(config.perception_data)
     ratio = 0.8
-    X, y_cols, Y, X_validation, Y_validation = dp.initDataForBert(config.perception_data, ratio)
+    X, y_cols, Y, X_validation, Y_validation = dp.initDataForBert(config.perception_data, ratio, debug)
     print("X.shape = ", X.shape)
     print("Y.shape = ", Y.shape)
     print("X_validation.shape = ", X_validation.shape)
@@ -30,13 +32,16 @@ if __name__ == "__main__":
     tokenizer = auto_absa_models.get_tokenizer()
 
     # 3.模型参数设置
-    epochs = [3]
+    if debug:
+        epochs = [1]
+    else:
+        epochs = [3]
     batch_sizes = [80]
-    batch_size_validation = 256
-    times = 2
+    batch_size_validation = 600
+    times = 1
     print("training times = ", times)
 
-    model_name = "BertGRUModel"
+    model_name = "BertCNNBiGRUModel"
 
     # 4.模型构建
     print("》》》【4】正在构建模型", "。" * 100)
@@ -63,8 +68,8 @@ if __name__ == "__main__":
                         model = auto_absa_models.createBertGRUModel(dim_1)
                         auto_absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation)
     elif model_name.startswith("BertCNNBiGRUModel"):
-        filters = [128, 256]
-        window_sizes = [4, 5]
+        filters = [128]
+        window_sizes = [4]
         gru_output_dim_1 = [256]
         for cnn_filter in filters:
             for window_size in window_sizes:
@@ -76,7 +81,7 @@ if __name__ == "__main__":
                             for i in range(times):
                                 print("current times is ", i)
                                 model = auto_absa_models.createBertCNNBiGRUModel(cnn_filter, window_size, dim_1)
-                                auto_absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation,)
+                                auto_absa_models.trainBert(experiment_name, model, X, Y, y_cols, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, debug)
     elif model_name.startswith("BertLSTMModel"):
         dims_1 = [64]
         for dim_1 in dims_1:

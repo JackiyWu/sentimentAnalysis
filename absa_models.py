@@ -938,7 +938,6 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
 
             # 预测餐厅评论数据
             # names = ['chunla']
-            '''
             names = ['chunla', 'dingxiangyuan', 'jialide', 'jianshazui', 'jiefu', 'kuaileai', 'niuzhongniu', 'shouergong', 'xiaolongkan', 'zhenghuangqi']
             for name in names:
                 X_restaurant, y_cols_restaurant, Y_restaurant = dp.getRestaurantDataByName(name)
@@ -946,6 +945,7 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
                 y_restaurant_pred = model.predict(dp.generateXSetForBert(X_restaurant, length_restaurant, batch_size_validation, tokenizer), steps=math.ceil(length_restaurant / batch_size_validation))
                 # 将预测结果存入文件
                 save_predict_result_to_csv_v2(y_restaurant_pred, name)
+            '''
             '''
 
         print("y_val_pred's length = ", len(y_val_pred))

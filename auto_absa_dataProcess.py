@@ -81,7 +81,7 @@ def produceAllData(path, file_names, DEBUG=False):
 def produceOneData(path, DEBUG=False):
     data = pd.read_csv(path, names=config.all_names, header=0, encoding="utf-8")
     if DEBUG:
-        data = data[:5]
+        data = data[:1000]
 
     # 将所有评论内容为空的属性标签改为0
     data = replaceValue(data)
@@ -151,7 +151,7 @@ def generateSetForBert(X_value, Y_value, batch_size, tokenizer):
         i = 0  # 记录Y的遍历
         cnt_Y = 0
         for line in X_value:
-            x1, x2 = parseLineForBert(line, tokenizer)
+            x1, x2 = parseLineForBert(str(line), tokenizer)
             X1.append(x1)
             X2.append(x2)
             i += 1
@@ -186,7 +186,7 @@ def generateXSetForBert(X_value, y_length, batch_size, tokenizer):
         X2 = []
         i = 0
         for line in X_value:
-            x1, x2 = parseLineForBert(line, tokenizer)
+            x1, x2 = parseLineForBert(str(line), tokenizer)
             X1.append(x1)
             X2.append(x2)
             i += 1
@@ -196,3 +196,17 @@ def generateXSetForBert(X_value, y_length, batch_size, tokenizer):
                 yield ([np.array(X1), np.array(X2)])
                 X1 = []
                 X2 = []
+
+
+# 读取专家经验数据
+def readExpertData():
+    print(">>>in readExpertData function...")
+    path = "datasets/usefulness/专家经验.csv"
+    data = pd.read_csv(path)
+    # print(data.head())
+    data = data['测评文章']
+    # print("data = ", data)
+    print("expert data's length = ", len(data))
+
+    return data
+

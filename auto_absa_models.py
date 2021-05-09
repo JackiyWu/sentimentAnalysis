@@ -150,7 +150,7 @@ def createBertLSTMModel(dim):
 
 
 # 训练bert模型
-def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, membership_train=None, membership_validation=None, debug=False):
+def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validation, model_name, tokenizer, epoch, batch_size, batch_size_validation, debug=False):
     print("勿扰！训练模型ing。。。in trainBert。。。model_name = ", model_name)
 
     length = len(Y)
@@ -158,10 +158,6 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
     print(">>>y's length = ", length)
 
     F1_scores = 0
-    F1_score = 0
-    if debug:
-        y_cols_name = ['location']
-        batch_size_validation = batch_size
 
     for index, col in enumerate(y_cols_name):
         print("Current col is: ", col)
@@ -181,17 +177,17 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
         # 预测验证集
         y_val_pred = model.predict(dp.generateXSetForBert(X_validation, length_validation, batch_size_validation, tokenizer), steps=math.ceil(length_validation / batch_size_validation))
 
-        '''
-        # 预测餐厅评论数据
-        # names = ['chunla']
-        names = ['chunla', 'dingxiangyuan', 'jialide', 'jianshazui', 'jiefu', 'kuaileai', 'niuzhongniu', 'shouergong', 'xiaolongkan', 'zhenghuangqi']
-        for name in names:
-            X_restaurant, y_cols_restaurant, Y_restaurant = dp.getRestaurantDataByName(name)
-            length_restaurant = len(X_restaurant)
-            y_restaurant_pred = model.predict(dp.generateXSetForBert(X_restaurant, length_restaurant, batch_size_validation, tokenizer), steps=math.ceil(length_restaurant / batch_size_validation))
-            # 将预测结果存入文件
-            save_predict_result_to_csv_v2(y_restaurant_pred, name)
-        '''
+        # 预测专家评论数据
+        print("》》》正在预测专家评论数据。。。")
+        X_expert = dp.readExpertData()
+        length_expert = len(X_expert)
+        print("length_expert = ", length_expert)
+        y_expert_pred = model.predict(dp.generateXSetForBert(X_expert, length_expert, batch_size_validation, tokenizer), steps=math.ceil(length_expert / batch_size_validation))
+        # 将预测结果存入文件
+        print("before y_expert_pred's length = ", len(y_expert_pred))
+        y_expert_pred = np.argmax(y_expert_pred, axis=1).tolist()
+        print("after y_expert_pred's length = ", len(y_expert_pred))
+        save_expert_to_csv(y_expert_pred, debug)
 
         print("y_val_pred's length = ", len(y_val_pred))
         print("y_validation's length = ", length_validation)
@@ -221,16 +217,30 @@ def trainBert(experiment_name, model, X, Y, y_cols_name, X_validation, Y_validat
         print("%Y-%m%d %H:%M:%S", time.localtime())
 
         # 保存当前属性的结果,整体的结果根据所有属性的结果来计算
-        save_result_to_csv(report, F1_score, experiment_name, model_name, col)
+        save_result_to_csv(report, F1_score, experiment_name, model_name, col, debug)
 
     print('all F1_score:', F1_scores / len(y_cols_name))
 
     print(">>>end of train_cnn_model function in featureFusion.py。。。")
 
 
+# 将专家经验的预测结果写入文件
+def save_expert_to_csv(y_expert_pred, debug):
+    print("in save_expert_to_csv y_expert_pred's length = ", len(y_expert_pred))
+    if debug:
+        path = "result/result_yang/absa_expert_pred_debug.csv"
+    else:
+        path = "result/result_yang/absa_expert_pred.csv"
+    # 写入csv文件
+    with codecs.open(path, "a", "utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(y_expert_pred)
+        f.close()
+
+
 # 把结果保存到csv
 # report是classification_report生成的字典结果
-def save_result_to_csv(report, f1_score, experiment_id, model_name, col_name):
+def save_result_to_csv(report, f1_score, experiment_id, model_name, col_name, debug):
     accuracy = report.get("accuracy")
 
     macro_avg = report.get("macro avg")
@@ -244,7 +254,10 @@ def save_result_to_csv(report, f1_score, experiment_id, model_name, col_name):
     weighted_f1 = weighted_avg.get('f1-score')
     data = [experiment_id, col_name, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
 
-    path = "result_yang/auto_absa_" + model_name + ".csv"
+    if debug:
+        path = "result_yang/auto_absa_" + model_name + "_debug.csv"
+    else:
+        path = "result_yang/auto_absa_" + model_name + ".csv"
     with codecs.open(path, "a", "utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(data)

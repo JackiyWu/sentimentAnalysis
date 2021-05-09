@@ -9,6 +9,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 
+import pandas as pd
+
 import tensorflow as tf
 from tensorflow.keras.layers import Flatten, Input, Dense, Dropout, concatenate, Activation, LSTM, Bidirectional
 from tensorflow.keras.layers import BatchNormalization, Conv1D, Conv2D, MaxPool1D, MaxPool2D, Embedding, GlobalAveragePooling1D
@@ -199,15 +201,41 @@ def tencentWordEmbedding():
         print(embeddings_index.get(word))
 
 
+def readExpertData():
+    print(">>>in readExpertData function...")
+    path = "datasets/usefulness/专家经验.csv"
+    data = pd.read_csv(path)
+    # print(data.head())
+    data = data['测评文章']
+    # print("data = ", data)
+
+    return data
+
+
+def mergeArray():
+    np1 = np.array([1, 2, 3, 4])
+    print(np1)
+    print(np1.T)
+    np2 = np.array([11, 12, 13, 14])
+    print(np2)
+    # np3 = np.array([np1, np2])
+    # print(np3)
+
+    # print(np.append(np1, np2, np3))
+    print("*" * 50)
+    # print(np.concatenate((np1, np2), axis=0))
+    print("*" * 50)
+    # print(np.concatenate(np1, np2))
+    # print(np.concatenate((np1, np2), axis=1))
+    # list1 = [1, 2, 3, 4]
+    list2 = np2.tolist()
+    print(list2)
+
+
 if __name__ == "__main__":
     print("start of test.py...")
     # tencentWordEmbedding()
-    A = [0] * 10
-    A = [[1, 2, 3], [3, 4, 5], [5, 6, 7], [7, 8, 9]]
-    print(np.array(A).mean(axis=0))
-    print(np.array(A).mean(axis=1))
-    B = [[0] * 10] * 3
-    print(B)
+    mergeArray()
 
     print("end of test.py...")
 
