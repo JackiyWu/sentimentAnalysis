@@ -107,29 +107,28 @@ if __name__ == "__main__":
                                                  "_fullConnected_" + str(full_connect)
                                     print("exp_name = ", exp_name)
                                     model_name = "CNN"
-                                    for i in range(3):
-                                        if model_name == 'CNN':
-                                            model_name = 'CNN_' + field
-                                            model = ff_s.create_cnn_model(maxlen, dict_length, cnn_filter, embedding_matrix, window_size, dropout)
-                                        elif model_name == 'LSTM':
-                                            model_name = 'LSTM_' + field
-                                            model = ff_s.create_lstm_model(maxlen, dict_length, embedding_matrix, dropout)
-                                        elif model_name == "GRU":
-                                            model_name = "GRU_" + field
-                                            model = ff_s.create_gru_model(maxlen, dict_length, embedding_matrix, dropout)
-                                        elif model_name == "CNNBiLSTM":
-                                            model_name = 'CNNBiLSTM_' + field
-                                            dim = 64
-                                            model = ff_s.create_cnn_bilstm_model(maxlen, dict_length, cnn_filter, embedding_matrix, window_size, dropout, dim)
-                                        elif model_name == "CNNBiGRU":
-                                            model_name = 'CNNBiGRU_' + field
-                                            dim = 128
-                                            model = ff_s.create_cnn_bigru_model(maxlen, dict_length, cnn_filter, embedding_matrix, window_size, dropout, dim)
-                                        else:
-                                            pass
-                                        if not model_name.startswith("fuzzy"):
-                                            # ff_s.train_all_model(model, train, val, dealed_train, dealed_val, epoch, exp_name, batch_size, model_name)
-                                            ff_s.train_all_model_cross_validation(model, origin_data, dealed_data, epoch, exp_name, batch_size, model_name)
+                                    if model_name == 'CNN':
+                                        model_name = 'CNN_' + field
+                                        model = ff_s.create_cnn_model(maxlen, dict_length, cnn_filter, embedding_matrix, window_size, dropout)
+                                    elif model_name == 'LSTM':
+                                        model_name = 'LSTM_' + field
+                                        model = ff_s.create_lstm_model(maxlen, dict_length, embedding_matrix, dropout)
+                                    elif model_name == "GRU":
+                                        model_name = "GRU_" + field
+                                        model = ff_s.create_gru_model(maxlen, dict_length, embedding_matrix, dropout)
+                                    elif model_name == "CNNBiLSTM":
+                                        model_name = 'CNNBiLSTM_' + field
+                                        dim = 64
+                                        model = ff_s.create_cnn_bilstm_model(maxlen, dict_length, cnn_filter, embedding_matrix, window_size, dropout, dim)
+                                    elif model_name == "CNNBiGRU":
+                                        model_name = 'CNNBiGRU_' + field
+                                        dim = 128
+                                        model = ff_s.create_cnn_bigru_model(maxlen, dict_length, cnn_filter, embedding_matrix, window_size, dropout, dim)
+                                    else:
+                                        pass
+                                    if not model_name.startswith("fuzzy"):
+                                        # ff_s.train_all_model(model, train, val, dealed_train, dealed_val, epoch, exp_name, batch_size, model_name)
+                                        ff_s.train_all_model_cross_validation(model, origin_data, dealed_data, epoch, exp_name, batch_size, model_name)
 
 print(">>>This is the end of main_train_sentence_new.py...")
 
