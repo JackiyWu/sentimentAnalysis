@@ -87,6 +87,196 @@ def initData2(type):
     return data, y_cols
 
 
+# 接收1个参数，debug
+# 生成所有领域数据构成的数据集
+# field id:物流-0，餐饮-1，医疗-2，金融-3，旅游-4
+def initDataForFive(sampling, debug=False):
+    print(">>>in the function of initDataForFive...")
+
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData4 data's length = ", len(data))
+
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+
+    y_cols = data.columns.values.tolist()
+    all_data = pd.concat([data_logistics, data_catering, data_medical, data_financial, data_traveling])
+    data = pd.concat([data_logistics, data_catering, data_medical, data_financial, data_traveling])
+    all_data = shuffle(all_data)
+
+    # 是否下采样
+    if sampling:
+        ratio = 0.5
+        all_data = lower_sampling(all_data, ratio)
+
+    data = shuffle(data)
+    field = "allFields"
+
+    return data, y_cols, all_data, field
+
+
+# 接收四个参数
+def initDataForThree(id1, id2, id3, sampling):
+    print(">>>in the function of initDataForThree...")
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData4 data's length = ", len(data))
+
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+
+    y_cols = data.columns.values.tolist()
+
+    dict_names = {0: 'logistics', 1: 'catering', 2: 'medical', 3: 'financial', 4: 'traveling'}
+    dict_datas = {0: data_logistics, 1: data_catering, 2: data_medical, 3: data_financial, 4: data_traveling}
+    data_1 = dict_datas.get(id1)
+    data_2 = dict_datas.get(id2)
+    data_3 = dict_datas.get(id3)
+    name_1 = dict_names.get(id1)
+    name_2 = dict_names.get(id2)
+    name_3 = dict_names.get(id3)
+    all_data = pd.concat([data_1, data_2, data_3])
+
+    # 是否下采样
+    if sampling:
+        ratio = 0.5
+        all_data = lower_sampling(all_data, ratio)
+
+    all_data = shuffle(all_data)
+    field = name_1 + name_2 + name_3
+    data = all_data
+
+    return data, y_cols, all_data, field
+
+
+# 接收三个参数，debug和ids
+# field id:物流-0，餐饮-1，医疗-2，金融-3，旅游-4
+def initDataForTwo(id1, id2, sampling, debug=False):
+    print(">>>in the function of initDataForTwo...")
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData4 data's length = ", len(data))
+
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+
+    y_cols = data.columns.values.tolist()
+
+    dict_names = {0: 'logistics', 1: 'catering', 2: 'medical', 3: 'financial', 4: 'traveling'}
+    dict_datas = {0: data_logistics, 1: data_catering, 2: data_medical, 3: data_financial, 4: data_traveling}
+    data_1 = dict_datas.get(id1)
+    data_2 = dict_datas.get(id2)
+    name_1 = dict_names.get(id1)
+    name_2 = dict_names.get(id2)
+    all_data = pd.concat([data_1, data_2])
+
+    # 是否下采样
+    if sampling:
+        ratio = 0.5
+        all_data = lower_sampling(all_data, ratio)
+
+    all_data = shuffle(all_data)
+    field = name_1 + name_2
+    data = all_data
+
+    return data, y_cols, all_data, field
+
+
+# 接收两个参数，debug和排除的领域数据
+# field id:物流-0，餐饮-1，医疗-2，金融-3，旅游-4
+def initDataForFour(field_id, sampling, debug=False):
+    print(">>>in the function of initDataForFour...")
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData4 data's length = ", len(data))
+
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+
+    y_cols = data.columns.values.tolist()
+
+    dict_names = {0: 'logistics', 1: 'catering', 2: 'medical', 3: 'financial', 4: 'traveling'}
+    dict_datas = {0: data_logistics, 1: data_catering, 2: data_medical, 3: data_financial, 4: data_traveling}
+    field = ""
+    temp = []
+    for i in range(5):
+        if i == field_id:
+            continue
+        field += dict_names.get(i)
+        temp.append(dict_datas.get(i))
+    all_data = pd.concat(temp)
+
+    # 下采样
+    if sampling:
+        ratio = 0.5
+        all_data = lower_sampling(all_data, ratio)
+
+    all_data = shuffle(all_data)
+    data = all_data
+
+    return data, y_cols, all_data, field
+
+
+# 接收两个参数，debug和数据集id（单个数据集）
+# field id:物流-0，餐饮-1，医疗-2，金融-3，旅游-4
+def initDataForOne(field_id, debug=False):
+    print(">>>in the function of initDataForOne...")
+
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData4 data's length = ", len(data))
+
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+
+    y_cols = data.columns.values.tolist()
+    if field_id == 0:
+        field = "logistics"
+        data = data_logistics
+        all_data = pd.concat([data_logistics, data_catering, data_medical, data_financial, data_traveling])
+    elif field_id == 1:
+        field = "catering"
+        data = data_catering
+        all_data = pd.concat([data_catering, data_logistics, data_medical, data_financial, data_traveling])
+    elif field_id == 2:
+        field = "medical"
+        data = data_medical
+        all_data = pd.concat([data_medical, data_logistics, data_catering, data_financial, data_traveling])
+    elif field_id == 3:
+        field = "financial"
+        data = data_financial
+        all_data = pd.concat([data_financial, data_logistics, data_catering, data_medical, data_traveling])
+    elif field_id == 4:
+        field = "traveling"
+        data = data_traveling
+        all_data = pd.concat([data_traveling, data_logistics, data_catering, data_medical, data_financial])
+
+    data = shuffle(data)
+
+    return data, y_cols, all_data, field
+
+
 # 接收两个入参，将第二个领域的中性语料放入第一个里面，升采样
 def initData3(debug=False):
     columns = ['id', 'type', 'review', 'label']
@@ -109,14 +299,14 @@ def initData3(debug=False):
     # print("data2 = ", data2)
 
     ratio = 0.5
-    data_medical = lower_sampling(data_medical, ratio)
-    data_financial = lower_sampling(data_financial, ratio)
-    data_traveling = lower_sampling(data_traveling, ratio)
+    # data_medical = lower_sampling(data_medical, ratio)
+    # data_financial = lower_sampling(data_financial, ratio)
+    # data_traveling = lower_sampling(data_traveling, ratio)
     # data2 = lower_sampling(data2, ratio)
 
     # data = pd.concat([data_logistics, data2])
     data = pd.concat([data_logistics, data_catering, data_traveling, data_financial])
-    data = lower_sampling(data, ratio)
+    # data = lower_sampling(data, ratio)
     data = shuffle(data)
 
     print("data_catering's length = ", len(data))
@@ -131,8 +321,8 @@ def initData3(debug=False):
     # all_data数据是总体的，没有打乱的
     all_data = pd.concat([data, data_financial, data_traveling, data_medical])
 
-    if debug:
-        data = data[:50]
+    # if debug:
+    #     data = data[:50]
 
     y_cols = data.columns.values.tolist()
 
@@ -142,6 +332,7 @@ def initData3(debug=False):
 
 # ratio为保留的比例
 def lower_sampling(data, ratio):
+    print(">>>in lower_sampling function...")
     neutral_data = data[data['label'] == 1]
     negative_data = data[data['label'] == 0]
     positive_data = data[data['label'] == 2]
@@ -175,6 +366,7 @@ def lower_sampling(data, ratio):
     final_data = pd.concat([neutral_data, negative_data, positive_data])
     print("final_data.shape = ", final_data.shape)
 
+    print(">>>end of lower_sampling function...")
     return final_data
 
 
@@ -385,10 +577,49 @@ def processData(data, stoplist, dict_length, maxlen, ratios, data_medical, data_
     return dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index, dealed_val_medical, dealed_val_financial, dealed_val_traveling, val_medical, val_financial, val_traveling
 
 
+# 处理数据生成训练集 验证集
+def processData3(origin_data, stoplist, dict_length, maxlen, ratios):
+    print(">>>in processData3 function...")
+    print("all_data's length = ", len(origin_data))
+
+    all_texts = processDataToTexts(origin_data, stoplist)
+    stop_data = pd.DataFrame(all_texts)
+
+    # 利用keras的Tokenizer进行onehot，并调整未等长数组
+    tokenizer = Tokenizer(num_words=dict_length)
+    tokenizer.fit_on_texts(all_texts)
+
+    word_index = tokenizer.word_index
+
+    data_w = tokenizer.texts_to_sequences(all_texts)
+    data_T = sequence.pad_sequences(data_w, maxlen=maxlen)
+
+    # 数据划分，重新划分为训练集，测试集和验证集
+    data_length = data_T.shape[0]
+    print("data_length = ", data_length)
+
+    size_train = int(data_length * ratios[0])
+    print("size_train's length = ", size_train)
+
+    # 数据划分，重新划分为训练集，测试集和验证集
+    global dealed_train
+    global dealed_val
+    dealed_train = data_T[: size_train]
+    dealed_val = data_T[size_train:]
+
+    train = origin_data[: size_train]
+    val = origin_data[size_train:]
+    print("val's length = ", len(val))
+
+    print(">>>end of processData function...")
+
+    return dealed_train, dealed_val, train, val, word_index, data_T
+
+
 # 处理数据生成训练集 验证集 测试集
 # 处理输入预料，生成训练集、验证集、测试集，其中训练集即为餐饮业+物流业数据，验证集分别为医疗业、金融业、旅游业数据
 def processData2(all_data, stoplist, dict_length, maxlen, ratios, dealed_train_fuzzy_concat, catering_length, medical_length, financial_length, traveling_length):
-    print(">>>in processData function...")
+    print(">>>in processData2 function...")
 
     # all_data = np.concatenate((data, dealed_train_fuzzy_concat), axis=0)
     print("all_data's length = ", len(all_data))
@@ -430,6 +661,8 @@ def processData2(all_data, stoplist, dict_length, maxlen, ratios, dealed_train_f
     print("dealed_val_1's length = ", len(dealed_val_1))
     print("dealed_val_2's length = ", len(dealed_val_2))
     print("dealed_val_3's length = ", len(dealed_val_3))
+    print("data_T's length = ", len(data_T))
+    print("medical_length + catering_length + financial_length's length = ", medical_length + catering_length + financial_length)
 
     train = all_data[: size_train]
     val = all_data[size_train: catering_length]

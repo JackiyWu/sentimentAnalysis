@@ -87,7 +87,8 @@ if __name__ == "__main__":
     # 获取输入语料
     print("》》》获取输入语料。。。")
     # all_data是所有数据，未不打乱，格式与原来的一样
-    origin_data, y_cols, origin_data_medical, origin_data_financial, origin_data_traveling, all_data = dp_s.initData3(DEBUG)
+    # origin_data, y_cols, origin_data_medical, origin_data_financial, origin_data_traveling, all_data = dp_s.initData3(DEBUG)
+    origin_data, y_cols, all_data = dp_s.initData4(1, DEBUG)
 
     # origin_data, y_cols = dp_s.initData3(DEBUG)
     # origin_data, y_cols = dp_s.initData2(1)
@@ -104,12 +105,12 @@ if __name__ == "__main__":
     # 获取输入语料的文本（去标点符号和停用词后）
     print("》》》获取输入语料的文本（去标点符号和停用词后）。。。")
     input_texts = dp_s.processDataToTexts(origin_data, stoplist)
+    '''
+    '''
     input_texts_medical = dp_s.processDataToTexts(origin_data_medical, stoplist)
     input_texts_financial = dp_s.processDataToTexts(origin_data_financial, stoplist)
     input_texts_traveling = dp_s.processDataToTexts(origin_data_traveling, stoplist)
 
-    '''
-    '''
     # print("input_texts = ", input_texts)
 
     # 获取输入语料的情感向量特征
@@ -117,11 +118,11 @@ if __name__ == "__main__":
     # print("input_word_feature = ", input_word_feature)
 
     input_word_score = fsys.calculate_sentiment_score(input_texts, word_feature)
+    '''
+    '''
     input_word_score_medical = fsys.calculate_sentiment_score(input_texts_medical, word_feature)
     input_word_score_financial = fsys.calculate_sentiment_score(input_texts_financial, word_feature)
     input_word_score_traveling = fsys.calculate_sentiment_score(input_texts_traveling, word_feature)
-    '''
-    '''
     # print("input_word_score = ", input_word_score)
 
     # 根据情感向量特征计算得到情感隶属度特征
@@ -132,13 +133,15 @@ if __name__ == "__main__":
     # 根据情感得分计算三种极性的隶属度
     dealed_train_fuzzy, dealed_val_fuzzy, dealed_test_fuzzy = fsys.calculate_membership_degree_by_score(input_word_score, ratios)
     '''
+    '''
     dealed_train_fuzzy_medical, dealed_val_fuzzy_medical, dealed_test_fuzzy_medical = fsys.calculate_membership_degree_by_score(input_word_score_medical, ratios2)
     dealed_train_fuzzy_financial, dealed_val_fuzzy_financial, dealed_test_fuzzy_financial = fsys.calculate_membership_degree_by_score(input_word_score_financial, ratios2)
     dealed_train_fuzzy_traveling, dealed_val_fuzzy_traveling, dealed_test_fuzzy_traveling = fsys.calculate_membership_degree_by_score(input_word_score_traveling, ratios2)
-    '''
     # 根据情感分数得分计算三种极性的隶属度，input_word_score作为训练集，medical_score financial_score traveling_score当做验证集
     '''
     dealed_train_fuzzy = fsys.calculate_membership_degree_by_score_no_split(input_word_score)
+    '''
+    '''
     '''
     dealed_train_fuzzy_medical = fsys.calculate_membership_degree_by_score_no_split(input_word_score_medical)
     dealed_train_fuzzy_financial = fsys.calculate_membership_degree_by_score_no_split(input_word_score_financial)
@@ -148,6 +151,8 @@ if __name__ == "__main__":
     print("dealed_train_fuzzy_length = ", dealed_train_fuzzy_length)
     train_length = len(origin_data)
     print("train_length = ", train_length)
+    '''
+    '''
     medical_length = len(dealed_train_fuzzy_medical)
     print("medical_length = ", medical_length)
     financial_length = len(dealed_train_fuzzy_financial)
@@ -211,8 +216,10 @@ if __name__ == "__main__":
     print("dealed_train's shape = ", dealed_train.shape)
 
     # 根据预训练词向量生成embedding_matrix
-    # embedding_matrix = ff_s.load_word2vec(word_index)
-    embedding_matrix = np.zeros((len(word_index) + 1, 300))
+    if DEBUG:
+        embedding_matrix = np.zeros((len(word_index) + 1, 300))
+    else:
+        embedding_matrix = ff_s.load_word2vec(word_index)
     print("embedding_matrix's shape = ", embedding_matrix.shape)
 
     dict_length = min(dict_length, len(word_index) + 1)
@@ -223,10 +230,10 @@ if __name__ == "__main__":
     # 生成模型-编译
     # 定义cnn的filter
     # epochs = [1]
-    epochs = [1, 2, 3, 4]
+    epochs = [2, 3, 4]
     # epochs = [5]
     # epochs = [10]
-    batch_sizes = [64, 128]
+    batch_sizes = [128]
     # batch_sizes = [8, 16, 32, 128, 256]
     learning_rates = [0.001]
     # learning_rates = [0.5, 0.1, 0.05, 0.01, 0.005, 0.0005, 0.0001]
@@ -268,7 +275,7 @@ if __name__ == "__main__":
                                                + "_dropout_" + str(dropout) + "_balanced_" + str(balanced) + "_full_connected_" + str(full_connected)
                                         print("name = ", name)
 
-                                        model_name = "fusion"
+                                        model_name = "cnn"
                                         if model_name.startswith("fusion"):
                                             print("fuzzy_maxlen = ", fuzzy_maxlen, ",maxlen = ", maxlen, ",dict_length = ", dict_length)
                                             fusion_model = ff_s.create_fusion_model(fuzzy_maxlen, maxlen, dict_length,

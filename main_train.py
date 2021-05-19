@@ -10,7 +10,6 @@ from sklearn.utils import class_weight
 import KMeansCluster as KMC
 import fuzzySystem as fsys
 import featureFusion as ff
-import fuzzySentiment as fsent
 import test
 import dataProcess as dp
 import fasttext
