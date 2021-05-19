@@ -12,13 +12,15 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support as s
 from sklearn.utils import shuffle
 
 # 之后将所有数据放入一个文件
-data_path = "datasets/farmer/training.csv"
+data_path = "datasets/farmer/training_corn_apple.csv"
+# data_path = "datasets/farmer/training_corn_apple.csv"
+data_path_debug = "datasets/farmer/training_debug.csv"
 
 debug_data_length = 100
 
 # 结果保存路径
-result_path = "result/farmer/complaints/sentence_sentiment.csv"
-result_path_debug = "result/farmer/complaints/sentence_sentiment_debug.csv"
+result_path = "result/farmer/complaints/sentence_sentiment_corn_apple.csv"
+result_path_debug = "result/farmer/complaints/sentence_sentiment_farmer_debug.csv"
 
 stoplist = pd.read_csv('config/stopwords.txt').values
 
@@ -45,10 +47,22 @@ def readFromCSV(debug=False):
     return data, X, Y
 
 
+# 从文件中读取数据，保存tag
+def readFromCSV2(debug=False):
+    if debug:
+        path = data_path_debug
+    else:
+        path = data_path
+    data = pd.read_csv(path)
+    data = shuffle(data)
+
+    return data
+
+
 # 使用腾讯词向量表示X
 def sentence2vector(X, debug):
     if debug:
-        return [[0] * 300] * debug_data_length
+        return [[0] * 300] * len(X)
 
     f = open(pre_word_embedding, "r", encoding="utf-8")
     length, dimension = f.readline().split()  # 预训练词向量的单词数和词向量维度

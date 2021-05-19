@@ -24,20 +24,45 @@ if __name__ == "__main__":
 
     # 1.读取评论文本内容+预处理
     print("》》》开始读取文本数据。。。")
-    origin_data, X, Y = dp.readFromCSV(debug)
-    print("X's length = ", len(X))
-    print("Y's length = ", len(Y))
+    # origin_data, X, Y = dp.readFromCSV(debug)
+    origin_data = dp.readFromCSV2(debug)
+    # print("X's length = ", len(X))
+    # print("Y's length = ", len(Y))
     # print("Y = ", Y.tolist())
-    X = X.tolist()
+    # X = X.tolist()
+    print("*" * 150)
+    reviews = origin_data["reviews"]
+    label = origin_data["label"]
 
     # 读取腾讯词向量+向量化表示X
-    X = np.array(dp.sentence2vector(X, False))
+    X_contents = np.array(dp.sentence2vector(np.array(reviews), debug))
+    print("X_contents' type = ", type(X_contents))
+    print("X_contents' shape = ", X_contents.shape)
+    origin_data['padding'] = X_contents.tolist()
+    print("*" * 150)
 
     # print("X's type = ", type(X))
     # print("Y's type = ", type(Y))
 
-    model_names = ["svm"]
-    # model_names = ["bayes", "ada", "svm", "randomForest", "decisionTree", "logicRegression"]
+    training = origin_data.loc[origin_data['tag'] == 'training']
+    # print("training['padding']'s type = ", type(training['padding']))
+    X = np.array(list(training['padding']))
+    Y = np.array(list(training['label']))
+    training_corn = origin_data.loc[origin_data['tag'] == 'corn']
+    X_contents_corn = np.array(list(training_corn['padding']))
+    Y_corn = np.array(list(training_corn['label']))
+    training_apple = origin_data.loc[origin_data['tag'] == 'apple']
+    X_contents_apple = np.array(list(training_apple['padding']))
+    Y_apple = np.array(list(training_apple['label']))
+
+    print("X's type = ", type(X))
+    # print("X_contents = ", X_contents)
+    print("Y's type = ", type(Y))
+    print("X's shape = ", X.shape)
+    print("Y's shape = ", Y.shape)
+
+    # model_names = ["svm"]
+    model_names = ["bayes", "ada", "svm", "randomForest", "decisionTree", "logicRegression"]
     for model_name in model_names:
         print("当前模型为", model_name)
         # 交叉验证数据集
@@ -60,19 +85,25 @@ if __name__ == "__main__":
                 current_model = model.svmModel()
             elif model_name.startswith("logic"):
                 current_model = model.logicRegressionModel()
-            elif model_name.startswith("decisionTree"):
+            elif model_name.startswith("decision"):
                 current_model = model.decisionTreeModel()
             elif model_name.startswith("random"):
                 current_model = model.randomForestModel()
 
             current_model.fit(X_train, Y_train)
 
-            # 4.预测结果
-            print("》》》开始预测结果。。。")
-            predicts = current_model.predict(X_validation)
+        # 4.预测结果
+        # corn
+        print("》》》开始预测结果。。。")
+        predicts_corn = current_model.predict(X_contents_corn)
+        # 5.计算各种评价指标&保存结果
+        dp.calculateScore(Y_corn, predicts_corn, 'corn_' + model_name, debug)
 
-            # 5.计算各种评价指标&保存结果
-            dp.calculateScore(Y_validation, predicts, model_name, debug)
+        # apple
+        print("》》》开始预测结果。。。")
+        predicts_apple = current_model.predict(X_contents_apple)
+        # 5.计算各种评价指标&保存结果
+        dp.calculateScore(Y_apple, predicts_apple, 'apple_' + model_name, debug)
 
     end_time = time.time()
     print("End time : ",  time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)))

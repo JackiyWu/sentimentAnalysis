@@ -142,6 +142,7 @@ def contentsPadding(contents):
     data_w = tokenizer.texts_to_sequences(contents)
 
     maxlen = calculate_maxlen(contents)
+    # X的顺序不会变化
     data_T = sequence.pad_sequences(data_w, maxlen=maxlen)
 
     return data_T, word_index, maxlen

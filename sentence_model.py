@@ -111,7 +111,7 @@ def load_word2vec(word_index):
 
 # CNN
 def createCNNModel(contents_length, dict_length, embedding_matrix, cnn_node):
-    window_size = 5
+    window_size = 4
 
     strategy = tf.distribute.MirroredStrategy()
     with strategy.scope():
@@ -303,10 +303,24 @@ def trainV2Model(model_name, maxlen, dict_length, embedding_matrix, X_contents, 
 
 
 # training
-def trainModel(model_name, current_model, X_contents, Y, epoch, batch_size, debug=False):
+# def trainModel(model_name, current_model, X_contents, Y, epoch, batch_size, debug=False):
+def trainModel(model_name, current_model, origin_data, epoch, batch_size, debug=False):
     print(">>>in trainModel function...")
+    training = origin_data.loc[origin_data['tag'] == 'training']
+    # print("training['padding']'s type = ", type(training['padding']))
+    X_contents = np.array(list(origin_data['padding']))
+    # X_contents = np.array(list(training['padding']))
+    Y = np.array(list(origin_data['label']))
+    # Y = np.array(list(training['label']))
+    training_corn = origin_data.loc[origin_data['tag'] == 'corn']
+    X_contents_corn = np.array(list(training_corn['padding']))
+    Y_corn = np.array(list(training_corn['label']))
+    training_apple = origin_data.loc[origin_data['tag'] == 'apple']
+    X_contents_apple = np.array(list(training_apple['padding']))
+    Y_apple = np.array(list(training_apple['label']))
 
     print("X_contents's type = ", type(X_contents))
+    # print("X_contents = ", X_contents)
     print("Y's type = ", type(Y))
     print("X_contents's shape = ", X_contents.shape)
     print("Y's shape = ", Y.shape)
@@ -323,11 +337,64 @@ def trainModel(model_name, current_model, X_contents, Y, epoch, batch_size, debu
 
         current_model.fit(X_contents_train, Y_train, epochs=epoch, verbose=2, batch_size=batch_size,
                           validation_data=(X_contents_validation, Y_validation_onehot))
-        predicts = current_model.predict(X_contents_validation)
 
-        predicts = np.argmax(predicts, axis=1)
-        print("predicts' type = ", type(predicts))
-
+        # corn
+        predicts_corn = current_model.predict(X_contents_corn)
+        predicts_corn = np.argmax(predicts_corn, axis=1)
+        print("predicts_corn' type = ", type(predicts_corn))
         # 计算各种评价指标&保存结果
-        dp.calculateScore(Y_validation.tolist(), predicts, model_name, debug)
+        dp.calculateScore(Y_corn.tolist(), predicts_corn, 'corn_' + model_name, debug)
+
+        # apple
+        predicts_apple = current_model.predict(X_contents_apple)
+        predicts_apple = np.argmax(predicts_apple, axis=1)
+        print("predicts_apple' type = ", type(predicts_apple))
+        # 计算各种评价指标&保存结果
+        dp.calculateScore(Y_apple.tolist(), predicts_apple, 'apple_' + model_name, debug)
+
+
+# training
+def trainModelV1(model_name, current_model, X_contents, Y, epoch, batch_size, debug=False):
+    print(">>>in trainModel function...")
+
+    print("X_contents's type = ", type(X_contents))
+    # print("X_contents = ", X_contents)
+    print("Y's type = ", type(Y))
+    print("X_contents's shape = ", X_contents.shape)
+    print("Y's shape = ", Y.shape)
+
+    kf = KFold(n_splits=10)
+    current_k = 0
+    for train_index, validation_index in kf.split(X_contents):
+        print("正在进行第", current_k, "轮交叉验证。。。")
+        current_k += 1
+        X_contents_train, Y_train = X_contents[train_index], Y[train_index]
+        Y_train = to_categorical(Y_train)
+        X_contents_validation, Y_validation = X_contents[validation_index], Y[validation_index]
+        Y_validation_onehot = to_categorical(Y_validation)
+
+        current_model.fit(X_contents_train, Y_train, epochs=epoch, verbose=2, batch_size=batch_size,
+                          validation_data=(X_contents_validation, Y_validation_onehot))
+
+        predicts = current_model.predict(X_contents_validation)
+        predicts = np.argmax(predicts, axis=1)
+        print("predicts_corn' type = ", type(predicts))
+        # 计算各种评价指标&保存结果
+        dp.calculateScore(Y_validation, predicts, model_name, debug)
+
+        '''
+        # corn
+        predicts_corn = current_model.predict(X_contents_corn)
+        predicts_corn = np.argmax(predicts_corn, axis=1)
+        print("predicts_corn' type = ", type(predicts_corn))
+        # 计算各种评价指标&保存结果
+        dp.calculateScore(Y_corn.tolist(), predicts_corn, 'corn_' + model_name, debug)
+
+        # apple
+        predicts_apple = current_model.predict(X_contents_apple)
+        predicts_apple = np.argmax(predicts_apple, axis=1)
+        print("predicts_apple' type = ", type(predicts_apple))
+        # 计算各种评价指标&保存结果
+        dp.calculateScore(Y_apple.tolist(), predicts_apple, 'apple_' + model_name, debug)
+        '''
 

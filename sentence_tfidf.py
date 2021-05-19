@@ -12,7 +12,7 @@ import numpy as np
 jieba.load_userdict("config/filedWords")
 
 abstract_file_debug = "result/farmer/complaints/abstracts_debug.csv"
-abstract_file = "result/farmer/complaints/abstracts_normal_all.csv"
+abstract_file = "result\\farmer\complaints\location\\negative/abstracts_farmer_corn_yunnan.csv"
 
 debug = False
 

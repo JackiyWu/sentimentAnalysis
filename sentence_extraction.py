@@ -227,14 +227,14 @@ def getStopwords(path):
 
 
 # 将摘要写入文件
-def saveAbstractToFile2(result, debug):
+def saveAbstractToFile2(result, debug, location, product):
     print(">>>将result写入文件...")
     # result = np.array(result)
     print("result = ", result)
     if debug:
-        path = "result/farmer/complaints/abstracts_normal_id_all_debug.csv"
+        path = "result/farmer/complaints/abstracts_normal_apple_id_all_debug.csv"
     else:
-        path = "result/farmer/complaints/abstracts_normal_id_all.csv"
+        path = "result/farmer/complaints/location/abstracts_farmer_" + product + "_" + location + ".csv"
     # with codecs.open(path, 'w', newline='') as f:
     with open(path, 'w', newline='') as f:
         writer = csv.writer(f)
@@ -248,35 +248,40 @@ if __name__ == "__main__":
     print("读取停用词表")
     stoplist = getStopwords('config/stopwords_farmer.txt')
     print(stoplist)
+    locations = ['henan', 'qingyang', 'shanxi', 'chaganhu', 'chuxiong', 'yunnan']
+    for location in locations:
+        if location in ['henan', 'qingyang', 'shanxi']:
+            product = "apple"
+        else:
+            product = "corn"
+        filepath = "datasets/farmer/location/farmer-" + product + "-" + location + ".csv"
 
-    filepath = "datasets/farmer/normal-negative.csv"
+        data = pd.read_csv(filepath, sep=',')
+        # data = pd.read_csv(filepath, sep=',', names=['id', 'reviews'])
+        if debug:
+            data = data[:8]
+        text = data['reviews']
+        # print("text = ", text.tolist())
+        print("text's length = ", len(text))
 
-    data = pd.read_csv(filepath, sep=',')
-    # data = pd.read_csv(filepath, sep=',', names=['id', 'reviews'])
-    if debug:
-        data = data[:8]
-    text = data['reviews']
-    # print("text = ", text.tolist())
-    print("text's length = ", len(text))
+        # 读取评论→抽取属性-观点词对
+        threshold = 0.4
+        ans, ans2, ans3 = readAndExtract(text, threshold)
+        # print("ans = ", ans)
+        print("ans3 = ", ans3)
+        print("ans2's length = ", len(ans2))
+        print("*" * 50)
 
-    # 读取评论→抽取属性-观点词对
-    threshold = 0.4
-    ans, ans2, ans3 = readAndExtract(text, threshold)
-    # print("ans = ", ans)
-    print("ans3 = ", ans3)
-    print("ans2's length = ", len(ans2))
-    print("*" * 50)
+        print("total_number = ", total_number)
 
-    print("total_number = ", total_number)
+        # 对摘要文本进行处理，去停用词
+        ans2 = processAbstracts(ans2)
 
-    # 对摘要文本进行处理，去停用词
-    ans2 = processAbstracts(ans2)
+        # 保存ans2
+        # saveAbstractToFile(ans2, debug)
 
-    # 保存ans2
-    # saveAbstractToFile(ans2, debug)
-
-    # 保存ans3
-    saveAbstractToFile2(ans3, debug)
+        # 保存ans3
+        saveAbstractToFile2(ans3, debug, location, product)
 
     print(">>>End...")
 
