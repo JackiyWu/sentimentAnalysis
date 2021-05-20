@@ -14,6 +14,7 @@ from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_sc
 from sklearn.metrics import precision_recall_fscore_support as score
 from sklearn.metrics import classification_report
 from sklearn.utils import class_weight
+from sklearn.model_selection import KFold
 from keras.utils.np_utils import to_categorical
 import keras
 from tensorflow.keras import optimizers
@@ -25,6 +26,7 @@ from sklearn.model_selection import train_test_split
 import time
 import codecs
 import csv
+import sys
 
 # import dataProcess as dp
 import config_sentence
@@ -391,7 +393,7 @@ def save_result_to_csv(report, f1_score, experiment_id, model_name):
     weighted_f1 = weighted_avg.get('f1-score')
     data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
 
-    path = "result/sentence-202105/sampling/" + model_name + ".csv"
+    path = "result/sentence-202105/crossValidation/" + model_name + ".csv"
     with codecs.open(path, "a", "utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(data)
@@ -441,7 +443,7 @@ def create_cnn_bigru_model(cnn_maxlen, dict_length, filter, embedding_matrix, wi
         x_cnn = MaxPool1D(name='pool')(x_cnn)
         bi_gru = Bidirectional(GRU(dim, name="lstm_1"))(x_cnn)
 
-        x = Dense(64, activation='relu', name='dense_1')(bi_gru)
+        x = Dense(32, activation='relu', name='dense_1')(bi_gru)
         # x = Dropout(0.4, name='dropout')(x)
         x = Dense(3, activation='softmax', name='softmax')(x)
 
@@ -463,13 +465,15 @@ def create_cnn_bilstm_model(cnn_maxlen, dict_length, filter, embedding_matrix, w
         x_cnn = Conv1D(filter, window_size, activation='relu', name='conv')(x_cnn)
         # x_cnn = BatchNormalization(axis=chanDim)(x_cnn)
         x_cnn = MaxPool1D(name='pool')(x_cnn)
-        bi_gru = Bidirectional(LSTM(dim, name="lstm_1"))(x_cnn)
 
-        x = Dense(64, activation='relu', name='dense_1')(bi_gru)
-        # x = Dropout(0.4, name='dropout')(x)
-        x = Dense(3, activation='softmax', name='softmax')(x)
+        # x_lstm = Bidirectional(LSTM(64, return_sequences=True))(x_cnn)
+        x_lstm = Bidirectional(LSTM(64, return_sequences=False))(x_cnn)
+        # x_lstm = LSTM(64)(embedding)
+        x_lstm = Dense(32, activation='relu', name='FC1')(x_lstm)
+        x_lstm = Dropout(dropout)(x_lstm)
+        x_lstm = Dense(3, activation='softmax', name='FC2')(x_lstm)
 
-        model = Model(inputs=inputs_cnn, outputs=x)
+        model = Model(inputs=inputs_cnn, outputs=x_lstm)
 
         model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
 
@@ -544,6 +548,60 @@ def train_cnn_model(model, train, val, train_x, test_x, val_x, epoch,
     save_result_to_csv(report, F1_score, experiment_id, model_name)
 
     print(">>>end of train_cnn_model function in featureFusion.py。。。")
+
+    return result
+
+
+# 通用的模型训练函数
+def train_all_model_cross_validation(model, data, dealed_data, epoch, experiment_id, batch_size, model_name):
+    print(">>>in train_all_model_cross_validation function。。。")
+
+    experiment_id = model_name + "_" + experiment_id
+
+    print("dealed_train.shape = ", dealed_data.shape)
+    result = {}
+
+    if len(dealed_data) != len(data):
+        print("dealed_data data长度不一致！！！出错辣！！！")
+        sys.exit(-1)
+
+    y = data['label']
+
+    kf = KFold(n_splits=10)
+    current_k = 0
+    for train_index, validation_index in kf.split(data):
+        print("正在进行第", current_k, "轮交叉验证...")
+        current_k += 1
+        train_x = dealed_data[train_index]
+        train_y = y[train_index]
+        train_y_onehot = to_categorical(train_y)
+        val_x = dealed_data[validation_index]
+        val_y = y[validation_index]
+        val_y_onehot = to_categorical(val_y)
+        model.fit(train_x, train_y_onehot, epochs=epoch, verbose=2, batch_size=batch_size, validation_data=(val_x, val_y_onehot))
+        y_val_pred = model.predict(val_x)
+        y_val_pred = np.argmax(y_val_pred, axis=1)
+
+        # 准确率：在所有预测为正的样本中，确实为正的比例
+        # 召回率：本身为正的样本中，被预测为正的比例
+        # print("y_val_pred = ", list(y_val_pred))
+        precision, recall, fscore, support = score(val_y, y_val_pred)
+        print("precision = ", precision)
+        print("recall = ", recall)
+        print("fscore = ", fscore)
+        print("support = ", support)
+
+        report = classification_report(val_y, y_val_pred, digits=4, output_dict=True)
+
+        print("report:", report)
+
+        F1_score = f1_score(y_val_pred, val_y, average='macro')
+
+        print('f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
+
+        save_result_to_csv(report, F1_score, experiment_id, model_name)
+
+    print(">>>end of train_all_model_cross_validation function in featureFusion_sentence.py。。。")
 
     return result
 
@@ -819,6 +877,33 @@ def create_lstm_model(maxlen, dict_length, embedding_matrix, dropout):
         x_lstm = Dense(3, activation='softmax', name='FC2')(x_lstm)
 
         model = Model(inputs=inputs_lstm, outputs=x_lstm, name='lstm_model')
+
+        print(model.summary())
+
+        adam = optimizers.Adam(learning_rate=0.001)
+
+        model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
+
+    return model
+
+
+# gru模型
+def create_gru_model(maxlen, dict_length, embedding_matrix, dropout):
+    print("开始构建GRU模型。。。")
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        inputs_gru = Input(shape=(maxlen,), name='inputs_lstm')
+
+        # embedding = Embedding(input_dim=dict_length, output_dim=200, name='embedding_cnn')(inputs_lstm)
+        embedding = Embedding(input_dim=dict_length, output_dim=300, name='embedding_cnn', weights=[embedding_matrix], trainable=True)(inputs_gru)
+
+        bi_gru = Bidirectional(GRU(128, name="gru_1"))(embedding)
+        # x_lstm = LSTM(64)(embedding)
+        x_gru = Dense(32, activation='relu', name='FC1')(bi_gru)
+        x_gru = Dropout(dropout)(x_gru)
+        x_gru = Dense(3, activation='softmax', name='FC2')(x_gru)
+
+        model = Model(inputs=inputs_gru, outputs=x_gru, name='gru_model')
 
         print(model.summary())
 

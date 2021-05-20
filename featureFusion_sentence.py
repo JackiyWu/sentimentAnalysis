@@ -46,6 +46,33 @@ y_cols = []
 
 
 # 创建融合模型
+def create_fusion_model_new(cnn_maxlen, dict_length, filter, embedding_matrix, window_size, dropout, full_connected):
+    strategy = tf.distribute.MirroredStrategy()
+    with strategy.scope():
+        inputs_determinacy_0 = Input(shape=(cnn_maxlen,), name="input_cnn")  # dict_length是词典长度，128是词向量的维度，512是每个input的长度
+        inputs_determinacy = Embedding(input_dim=dict_length, output_dim=300, name='embedding_cnn', weights=[embedding_matrix], trainable=True)(inputs_determinacy_0)
+        inputs_fuzzy = Input(shape=(cnn_maxlen, 3,), name='input_fuzzy')  # 此处的维度512是根据语料库计算出来的，后期用变量代替
+        inputs = concatenate([inputs_determinacy, inputs_fuzzy], axis=-1)
+        x_cnn = Conv1D(filter, window_size, activation='relu', name='conv1')(inputs)
+        x_cnn = MaxPool1D(name='pool1')(x_cnn)
+        x_cnn = Flatten(name='flatten')(x_cnn)
+
+        x = Dense(full_connected, activation='relu', name='dense3')(x_cnn)
+        x = Dropout(dropout, name="dropout2")(x)
+        x = Dense(3, activation='softmax', name='softmax')(x)
+
+        fusion_model = Model(inputs=[inputs_determinacy_0, inputs_fuzzy], outputs=x, name='fusion_model')
+
+        adam = optimizers.Adam(learning_rate=0.001)
+
+        fusion_model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
+
+    print(fusion_model.summary())
+
+    return fusion_model
+
+
+# 创建融合模型
 # filters格式为列表，如[64, 32]，方便后续调优
 # def create_fusion_model(fuzzy_maxlen, cnn_maxlen, dict_length, filters):
 def create_fusion_model(fuzzy_maxlen, cnn_maxlen, dict_length, filter, embedding_matrix, window_size, dropout, full_connected):

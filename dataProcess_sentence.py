@@ -107,14 +107,15 @@ def initDataForFive(sampling, debug=False):
     y_cols = data.columns.values.tolist()
     all_data = pd.concat([data_logistics, data_catering, data_medical, data_financial, data_traveling])
     data = pd.concat([data_logistics, data_catering, data_medical, data_financial, data_traveling])
+    '''
     all_data = shuffle(all_data)
-
     # 是否下采样
     if sampling:
         ratio = 0.5
         all_data = lower_sampling(all_data, ratio)
 
     data = shuffle(data)
+    '''
     field = "allFields"
 
     return data, y_cols, all_data, field

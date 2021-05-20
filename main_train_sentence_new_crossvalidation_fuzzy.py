@@ -30,7 +30,7 @@ dict_length = 150000  # 词典的长度，后期可以测试？？
 embedding_dim = 128  # 词嵌入的维度，后期可以测试？？
 embeddings = []  # 词嵌入，后期可以使用预训练词向量??
 
-DEBUG = False
+DEBUG = True
 
 if __name__ == "__main__":
     print(">>>begin in main_train.py ...")
@@ -49,12 +49,13 @@ if __name__ == "__main__":
     # for ids in ids_two:  # 针对两个数据集
     for id in ids:  # 针对一个数据集、四个数据集、五个数据集
         dict_length = 150000
+        # 此处不进行下采样和shuffle
         sampling = True
-        # origin_data, y_cols, all_data, field = dp_s.initDataForOne(id, DEBUG)
+        origin_data, y_cols, all_data, field = dp_s.initDataForOne(id, DEBUG)
         # origin_data, y_cols, all_data, field = dp_s.initDataForTwo(ids[0], ids[1], sampling, DEBUG)
         # origin_data, y_cols, all_data, field = dp_s.initDataForThree(ids[0], ids[1], ids[2], sampling)
         # origin_data, y_cols, all_data, field = dp_s.initDataForFour(id, sampling, DEBUG)
-        origin_data, y_cols, all_data, field = dp_s.initDataForFive(sampling, DEBUG)
+        # origin_data, y_cols, all_data, field = dp_s.initDataForFive(sampling, DEBUG)
         # 训练集 验证集 测试集 分割比例，包括两个数：训练集比例、验证集比例
         ratios = [0.7, 0.29]
         # 获取停用词
@@ -62,6 +63,18 @@ if __name__ == "__main__":
         # 获取输入语料的文本（去标点符号和停用词后）
         print("》》》获取输入语料的文本（去标点符号和停用词后）。。。")
         input_texts = dp_s.processDataToTexts(origin_data, stoplist)
+
+        # 获取模糊特征
+        input_word_score = fsys.calculate_sentiment_score(input_texts, word_feature)
+        # 根据情感得分计算三种极性的隶属度
+        dealed_fuzzy = fsys.calculate_membership_degree_by_score_no_split(input_word_score)
+        dealed_fuzzy_length = len(dealed_fuzzy)
+        print("dealed_fuzzy_length = ", dealed_fuzzy_length)
+        fuzzy_maxlen = fsys.calculate_input_dimension(dealed_fuzzy)
+        print("fuzzy_maxlen = ", fuzzy_maxlen)
+
+        # 合并确定性特征和模糊性特征
+
 
         train_length = len(origin_data)
         print("train_length = ", train_length)
@@ -75,6 +88,7 @@ if __name__ == "__main__":
         print("maxlen = ", maxlen)
 
         dealed_train, dealed_val, train, val, word_index, dealed_data = dp_s.processData3(origin_data, stoplist, dict_length, maxlen, ratios)
+        print("dealed_data's type = ", type(dealed_data))
 
         if DEBUG:
             embedding_matrix = np.zeros((len(word_index) + 1, 300))
@@ -108,7 +122,7 @@ if __name__ == "__main__":
                                                  "_cnnFilter_" + str(cnn_filter) + "_windowSize_" + str(window_size) + \
                                                  "_fullConnected_" + str(full_connect)
                                     print("exp_name = ", exp_name)
-                                    model_name = "CNNBiLSTM"
+                                    model_name = "Fusion"
                                     if model_name == 'CNN':
                                         model_name = 'CNN_' + field
                                         model = ff_s.create_cnn_model(maxlen, dict_length, cnn_filter, embedding_matrix, window_size, dropout)
@@ -126,11 +140,16 @@ if __name__ == "__main__":
                                         model_name = 'CNNBiGRU_' + field
                                         dim = 128
                                         model = ff_s.create_cnn_bigru_model(maxlen, dict_length, cnn_filter, embedding_matrix, window_size, dropout, dim)
+                                    elif model_name == "Fusion":
+                                        model_name = "Fusion_" + field
+                                        model = ff_s.create_fusion_model_new(maxlen, dict_length, cnn_filter, embedding_matrix, window_size, dropout, full_connect)
                                     else:
                                         pass
                                     if not model_name.startswith("fuzzy"):
                                         # ff_s.train_all_model(model, train, val, dealed_train, dealed_val, epoch, exp_name, batch_size, model_name)
                                         ff_s.train_all_model_cross_validation(model, origin_data, dealed_data, epoch, exp_name, batch_size, model_name)
+                                    else:
+                                        print("训练结束。。")
 
 print(">>>This is the end of main_train_sentence_new.py...")
 
