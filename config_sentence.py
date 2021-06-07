@@ -16,6 +16,8 @@ sentiment_dictionary = "sentiVocab/DLUT.xls"
 sentiment_dictionary_csv = "sentiVocab/DLUT.csv"
 
 pre_word_embedding = "config/preEmbeddings/sgns.target.word-character.char1-2.dynwin5.thr10.neg5.dim300.iter5"
+pre_word_embedding_2 = "config/preEmbeddings/sgns.target.word-word.dynwin5.thr10.neg5.dim300.iter5"
+pre_word_embedding_3 = "config/preEmbeddings/sgns.wiki.word"
 
 # 百度点石数据集
 baidu_sentiment = "datasets/baidu/data_train.csv"

@@ -16,8 +16,12 @@ from tensorflow.keras.layers import Flatten, Input, Dense, Dropout, concatenate,
 from tensorflow.keras.layers import BatchNormalization, Conv1D, Conv2D, MaxPool1D, MaxPool2D, Embedding, GlobalAveragePooling1D
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras import optimizers
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing import sequence
 
 import numpy as np
+import codecs
+import csv
 
 pre_word_embedding = "config/preEmbeddings/sgns.target.word-character.char1-2.dynwin5.thr10.neg5.dim300.iter5"
 
@@ -232,10 +236,140 @@ def mergeArray():
     print(list2)
 
 
+def numpyTest():
+    ll = []
+    ll.append([1, 2, 3])
+    ll.append([3, 2, 1])
+    ll.append([1, 1, 3])
+    ll.append([11, 11, 31])
+    print(ll)
+    print("*" * 100)
+    ll = np.array(ll)
+    print(ll)
+    print("*" * 100)
+    ll2 = []
+    ll2.append([[1, 2, 3]] * 5)
+    ll2.append([[3, 2, 1]] * 5)
+    ll2.append([[1, 1, 3]] * 5)
+    ll2.append([[11, 11, 31]] * 5)
+    print(ll2)
+    print("*" * 100)
+    ll2 = np.array(ll2)
+    print(ll2)
+    print("*" * 100)
+    print("ll2.shape = ", ll2.shape)
+    print("ll.shape = ", ll.shape)
+    print("*" * 100)
+    print(ll2[:, 0])
+    ll3 = ll2[:, 0]
+    ll3_0 = str(ll3[0])
+    print(ll3_0)
+
+
+def tokenTest():
+    # texts = [['我 是 中国 人'], ['他 是 美国 人'], ['我们 都 有 一个 梦想']]
+    texts = [['我', '是', '中国', '人'], ['他', '是', '美国', '人'], ['我们', '都', '有', '一个', '梦想']]
+
+    # 利用keras的Tokenizer进行onehot，并调整未等长数组
+    tokenizer = Tokenizer(num_words=12)
+    tokenizer.fit_on_texts(texts)
+
+    word_index = tokenizer.word_index
+    print(word_index)
+
+    data_w = tokenizer.texts_to_sequences(texts)
+    data_T = sequence.pad_sequences(data_w, maxlen=5)
+
+    print("data_w = ", data_w)
+    print("data_T = ", data_T)
+
+    testWords = [['我', '有', '美国', '梦想']]
+    test_w = tokenizer.texts_to_sequences(testWords)
+    data_T = sequence.pad_sequences(test_w, maxlen=5)
+    print("test_w = ", test_w)
+    print("data_T = ", data_T)
+
+
+# ratio为保留的比例
+def lower_sampling(data, ratio):
+    print(">>>in lower_sampling function...")
+    neutral_data = data[data['label'] == 1]
+    negative_data = data[data['label'] == 0]
+    positive_data = data[data['label'] == 2]
+
+    neutral_length = len(neutral_data)
+    negative_length = len(negative_data)
+    positive_length = len(positive_data)
+    min_length = min(neutral_length, negative_length, positive_length)
+    print("min_length = ", min_length)
+    print("positive_length = ", positive_length)
+
+    if (neutral_length * ratio) > min_length:
+        index = np.random.randint(len(neutral_data), size=int(min(neutral_length * ratio, min_length / ratio)))
+        print("index's length = ", len(index))
+        print("neutral_data.shape = ", neutral_data.shape)
+        neutral_data = neutral_data.iloc[list(index)]
+        print("neutral_data.shape = ", neutral_data.shape)
+    if (negative_length * ratio) > min_length:
+        index = np.random.randint(len(negative_data), size=int(min(negative_length * ratio, min_length / ratio)))
+        print("negative_data.shape = ", negative_data.shape)
+        print("index's length = ", len(index))
+        negative_data = negative_data.iloc[list(index)]
+        print("negative_data.shape = ", negative_data.shape)
+    if (positive_length * ratio) > min_length:
+        index = np.random.randint(len(positive_data), size=int(min(positive_length * ratio, min_length / ratio)))
+        print("index's length = ", len(index))
+        print("positive_data.shape = ", positive_data.shape)
+        positive_data = positive_data.iloc[list(index)]
+        print("positive_data.shape = ", positive_data.shape)
+
+    final_data = pd.concat([neutral_data, negative_data, positive_data])
+    print("final_data.shape = ", final_data.shape)
+    print("三种情感极性的数据集长度为。。。")
+    print("负向：", len(negative_data))
+    print("中性：", len(neutral_data))
+    print("正向：", len(positive_data))
+
+    print(">>>end of lower_sampling function...")
+    return final_data
+
+
+# 读取文件并保存
+def readAndSave():
+    print(">>>in the function of initDataForFour...")
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData4 data's length = ", len(data))
+
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+
+    all_data = pd.concat([data_logistics, data_catering, data_medical, data_traveling])
+
+    # 下采样
+    ratio = 0.5
+    all_data = lower_sampling(all_data, ratio)
+    print("all_data's type = ", type(all_data))
+    path = "datasets/baidu/data_train_sampling.csv"
+    all_data.to_csv(path, index=False)
+    '''
+    with codecs.open(path, "w", "utf-8") as f:
+        writer = csv.writer(f)
+        for line in all_data:
+            print("line:", line)
+            writer
+            f.close()
+    '''
+
+
 if __name__ == "__main__":
     print("start of test.py...")
     # tencentWordEmbedding()
-    mergeArray()
+    readAndSave()
 
     print("end of test.py...")
 

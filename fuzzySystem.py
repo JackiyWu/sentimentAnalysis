@@ -377,7 +377,7 @@ def calculate_membership_degree_by_score(input_word_score, ratios):
 
 
 # 根据情感分数，计算三种极性的隶属度
-def calculate_membership_degree_by_score_no_split(input_word_score):
+def calculate_membership_degree_by_score_no_split(input_word_score, maxlen):
     final_sentiment_feature = []
     for score in input_word_score:
         negative_score = score[0]
@@ -408,7 +408,7 @@ def calculate_membership_degree_by_score_no_split(input_word_score):
 
         # print("[negative, neutral, positive] = ", [negative, neutral, positive])
 
-        final_sentiment_feature.append([negative, neutral, positive])
+        final_sentiment_feature.append([[negative, neutral, positive]] * maxlen)
 
     final_sentiment_feature = np.array(final_sentiment_feature)
 

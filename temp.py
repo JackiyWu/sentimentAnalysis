@@ -1,35 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-
-from tensorflow.keras.layers import Flatten, Input, Dense, Dropout, concatenate, Activation, LSTM, Bidirectional, GRU
-from tensorflow.keras.layers import BatchNormalization, Conv1D, Conv2D, MaxPool1D, MaxPool2D, Embedding, GlobalAveragePooling1D
-from tensorflow.keras import Model, Sequential
-from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.utils import plot_model
-
+import jieba
+import re
+import csv
+from collections import Counter
+import codecs
+import pandas as pd
+from tensorflow.keras.preprocessing import sequence
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Embedding
+from tensorflow.keras.layers import Dropout
+from tensorflow.keras.layers import GlobalAveragePooling1D, GlobalMaxPooling1D, Conv1D, MaxPooling1D
+from tensorflow.keras.preprocessing.text import Tokenizer
+import tensorflow as tf
+import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, confusion_matrix
-from sklearn.metrics import precision_recall_fscore_support as score
-from sklearn.metrics import classification_report
-from sklearn.utils import class_weight
-from sklearn.model_selection import KFold
 from keras.utils.np_utils import to_categorical
 import keras
-from tensorflow.keras import optimizers
-import tensorflow as tf
-
-import numpy as np
-import os
-from sklearn.model_selection import train_test_split
-import time
-import codecs
-import csv
-import sys
-
-# import dataProcess as dp
-import config_sentence
+from sklearn.utils import shuffle
+import KMeansCluster as KMC
+import fuzzySystem as fsys
+from tensorflow.keras.models import load_model
+from sklearn.metrics import precision_recall_fscore_support as score
+from sklearn.metrics import classification_report
 
 
 '''
@@ -45,928 +41,889 @@ y_cols = []
 '''
 
 
-# 创建融合模型
-# filters格式为列表，如[64, 32]，方便后续调优
-# def create_fusion_model(fuzzy_maxlen, cnn_maxlen, dict_length, filters):
-def create_fusion_model(fuzzy_maxlen, cnn_maxlen, dict_length, filter, embedding_matrix, window_size, dropout, full_connected):
-    strategy = tf.distribute.MirroredStrategy()
-    with strategy.scope():
-        # define our MLP network
-        inputs_fuzzy = Input(shape=(fuzzy_maxlen,), name='input_fuzzy')  # 此处的维度512是根据语料库计算出来的，后期用变量代替
-        x_fuzzy = Dense(16, activation='linear', name='dense1_fuzzy')(inputs_fuzzy)
-        # x_mlp = Dense(4, activation='relu', name='dense2_mlp')(x_mlp)
+# 读取数据
+def initData():
+    print("in initData function of dataProcess_sentence.py...")
+    data = pd.read_csv("data2/ChnSentiCorp_htl_all.csv")
+    # data = data[:10]
+    # print("data shuffle before = ", data)
 
-        # define our CNN
-        inputs_cnn = Input(shape=(cnn_maxlen,), name="input_cnn")  # dict_length是词典长度，128是词向量的维度，512是每个input的长度
-        # x_cnn = Embedding(input_dim=dict_length, output_dim=128, name='embedding_cnn')(inputs_cnn)
-        x_cnn = Embedding(input_dim=dict_length, output_dim=300, name='embedding_cnn', weights=[embedding_matrix], trainable=True)(inputs_cnn)
-        x_cnn = Conv1D(filter, window_size, activation='relu', name='conv1')(x_cnn)
-        # x_cnn = BatchNormalization(axis=chanDim)(x_cnn)
-        x_cnn = MaxPool1D(name='pool1')(x_cnn)
-        x_cnn = Flatten(name='flatten')(x_cnn)
+    # 打乱顺序
+    data = shuffle(data)
+    # print("data shuffle after = ", data)
 
-        # 融合两个输入
-        x_concatenate = concatenate([x_fuzzy, x_cnn], name='fusion')
+    # data = data[6000:]
 
-        x = Dense(full_connected, activation='relu', name='dense3')(x_concatenate)
-        # x = Dropout(0.4, name="dropout1")(x)
-        # x = Dense(32, activation='relu', name='dense4')(x)
-        x = Dropout(dropout, name="dropout2")(x)
-        x = Dense(3, activation='softmax', name='softmax')(x)
+    # y_cols = data.columns.values.tolist()[2:22]
+    y_cols = data.columns.values.tolist()
+    print(y_cols)
+    print("end of initData function in dataProcess.py...")
+    # print("data'type = ", type(data))
 
-        fusion_model = Model(inputs=[inputs_fuzzy, inputs_cnn], outputs=x, name='fusion_model')
-
-        adam = optimizers.Adam(learning_rate=0.001)
-
-        fusion_model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
-
-    print(fusion_model.summary())
-
-    # return our model
-    return fusion_model
+    return data, y_cols
 
 
-# 训练模型
-'''
-def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, test_x, val_x_fuzzy, val_x, y_cols, epoch,
-                experiment_id, batch_size, learning_rate, balanced, model_name, debug=False, folds=1):
-'''
-def train_model(model, train, val, train_x_fuzzy, train_x_cnn, test_x_fuzzy, test_x, val_x_fuzzy, val_x, y_cols, epoch,
-                experiment_id, batch_size, learning_rate, balanced, model_name, val_x_fuzzy_medical, val_x_medical, val_medical,
-                val_x_fuzzy_financial, val_x_financial, val_financial, val_x_fuzzy_traveling, val_x_traveling, val_traveling, debug=False, folds=1):
-    print(">>>in train_model function...")
+# 处理百度点石数据集，1-物流快递，2-医疗服务，3-旅游住宿，4-金融服务，5-食品餐饮
+def initData2(type):
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("C:\desktop\Research\DataSet\百度点石大赛\data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    if type == 1:
+        data = data.loc[data['type'] == str('物流快递')]
+    elif type == 2:
+        data = data.loc[data['type'] == str('医疗服务')]
+    elif type == 3:
+        data = data.loc[data['type'] == str('旅游住宿')]
+    elif type == 4:
+        data = data.loc[data['type'] == str('金融服务')]
+    else:
+        data = data.loc[data['type'] == str('食品餐饮')]
 
-    experiment_id = "fusion_model_" + experiment_id
+    y_cols = data.columns.values.tolist()
 
-    # print(mlp_model.summary())
-    # print("检查输入数据：")
-    # print("train_x_fuzzy.shape = ", train_x_fuzzy.shape)
-    # print("test_x.shape = ", test_x.shape)
-    # print("val_x.shape = ", val_x.shape)
-    # print("y_cols = ", y_cols)
+    data = shuffle(data)
 
-    F1_scores = 0
-    F1_score = 0
-    result = {}
+    # data = data[:10]
 
-    train_y = train["label"]
-    val_y = val["label"]
-    val_y_medical = val_medical["label"]
-    val_y_financial = val_financial["label"]
-    val_y_traveling = val_traveling["label"]
+    return data, y_cols
+
+
+# 接收1个参数，debug
+# 生成所有领域数据构成的数据集
+# field id:物流-0，餐饮-1，医疗-2，金融-3，旅游-4
+def initDataForFive(sampling, debug=False):
+    print(">>>in the function of initDataForFive...")
+
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData4 data's length = ", len(data))
+
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+
+    # 对所有数据下采样
+    ratio = 0.5
+    if sampling:
+        data_logistics = lower_sampling(data_logistics, ratio)
+        data_catering = lower_sampling(data_catering, ratio)
+        data_medical = lower_sampling(data_medical, ratio)
+        data_financial = lower_sampling(data_financial, ratio)
+        data_traveling = lower_sampling(data_traveling, ratio)
+
+    y_cols = data.columns.values.tolist()
+    all_data = pd.concat([data_logistics, data_catering, data_medical, data_financial, data_traveling])
+    data = pd.concat([data_logistics, data_catering, data_medical, data_financial, data_traveling])
+    all_data = shuffle(all_data)
+
     '''
-    '''
-    y_val_pred = 0
-    y_test_pred = 0
-    #         epochs=[5,10]   , stratify=train_y
-    print("train_x_fuzzy.shape:", train_x_fuzzy.shape)
-    print("train_x_cnn.shape:", train_x_cnn.shape)
-
-    print("train_y.shape:", train_y.shape)
-    print("val_x.shape:", val_x.shape)
-    print("val_y.shape:", val_y.shape)
-    # print("train_y = ", train_y)
-    # print("val_y = ", val_y)
-
-    # 计算class_weight
-    # cw = class_weight.compute_class_weight("balanced", np.unique(train_y), train_y)
-    # cw = class_weights[index]
-
-    for i in range(folds):
-        y_train_onehot = to_categorical(train_y)
-        y_val_onehot = to_categorical(val_y)
-        # print("y_train_onehot's shape = ", y_train_onehot.shape)
-        # print("y_val_onehot's shape = ", y_val_onehot.shape)
-        # print("train_x_cnn = ", train_x_cnn)
-        # print("train_x_cnn's shape = ", train_x_cnn.shape)
-        if balanced:
-            history = model.fit([train_x_fuzzy, train_x_cnn], y_train_onehot, epochs=epoch, verbose=2,
-                                batch_size=batch_size, validation_data=([val_x_fuzzy, val_x], y_val_onehot))
-            # class_weight=cw)
-        else:
-            history = model.fit([train_x_fuzzy, train_x_cnn], y_train_onehot, epochs=epoch, verbose=2,
-                                batch_size=batch_size, validation_data=([val_x_fuzzy, val_x], y_val_onehot))
-
-        # 预测验证集和测试集
-        # print("val_x = ", val_x)
-        print("val_x_fuzzy.shape:", val_x_fuzzy.shape)
-        print("val_x.shape:", val_x.shape)
-        y_val_pred = model.predict([val_x_fuzzy, val_x])
-        print("val_x_fuzzy_medical.shape:", val_x_fuzzy_medical.shape)
-        print("val_x_medical.shape:", val_x_medical.shape)
-        y_val_pred_medical = model.predict([val_x_fuzzy_medical, val_x_medical])
-        print("val_x_fuzzy_financial.shape:", val_x_fuzzy_financial.shape)
-        print("val_x_financial.shape:", val_x_financial.shape)
-        y_val_pred_financial = model.predict([val_x_fuzzy_financial, val_x_financial])
-        print("val_x_fuzzy_traveling.shape:", val_x_fuzzy_traveling.shape)
-        print("val_x_traveling.shape:", val_x_traveling.shape)
-        y_val_pred_traveling = model.predict([val_x_fuzzy_traveling, val_x_traveling])
-        '''
-        '''
-        # y_test_pred += model.predict([test_x_fuzzy, test_x])
-        # 把预测结果保存入文件
-        print(">>>将预测的结果存入csv文件中。。。")
-        save_predict_result_to_csv(val["review"], y_val_pred)
-
-    y_val_pred = np.argmax(y_val_pred, axis=1)
-
-    y_val_pred_medical = np.argmax(y_val_pred_medical, axis=1)
-    y_val_pred_financial = np.argmax(y_val_pred_financial, axis=1)
-    y_val_pred_traveling = np.argmax(y_val_pred_traveling, axis=1)
-    '''
+    # 是否下采样
+    if sampling:
+        ratio = 0.5
+        all_data = lower_sampling(all_data, ratio)
     '''
 
-    # 准确率：在所有预测为正的样本中，确实为正的比例
-    # 召回率：本身为正的样本中，被预测为正的比例
-    # print("val_y = ", val_y)
-    # print("y_val_pred = ", list(y_val_pred))
-    precision, recall, fscore, support = score(val_y, y_val_pred)
-    print("precision = ", precision)
-    print("recall = ", recall)
-    print("fscore = ", fscore)
-    print("support = ", support)
-    precision_medical, recall_medical, fscore_medical, support_medical = score(val_y_medical, y_val_pred_medical)
-    precision_financial, recall_financial, fscore_financial, support_financial = score(val_y_financial, y_val_pred_financial)
-    precision_traveling, recall_traveling, fscore_traveling, support_traveling = score(val_y_traveling, y_val_pred_traveling)
-    '''
-    '''
-
-    report = classification_report(val_y, y_val_pred, digits=4, output_dict=True)
-
-    report_medical = classification_report(val_y_medical, y_val_pred_medical, digits=4, output_dict=True)
-    report_financial = classification_report(val_y_financial, y_val_pred_financial, digits=4, output_dict=True)
-    report_traveling = classification_report(val_y_traveling, y_val_pred_traveling, digits=4, output_dict=True)
-    '''
-    '''
-
-    print(report)
-
-    F1_score = f1_score(y_val_pred, val_y, average='macro')
-    F1_scores += F1_score
-
-    F1_score_medical = f1_score(y_val_pred_medical, val_y_medical, average='macro')
-    F1_score_financial = f1_score(y_val_pred_financial, val_y_financial, average='macro')
-    F1_score_traveling = f1_score(y_val_pred_traveling, val_y_traveling, average='macro')
-    # F1_score = f1_score(y_val_pred, val_y, average='weighted')
-    '''
-    '''
-
-    print(set(train["type"]), 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
-
-    save_result_to_csv(report, F1_score, experiment_id, model_name)
-
-    save_result_to_csv(report_medical, F1_score_medical, experiment_id, model_name + "_medical_")
-    save_result_to_csv(report_financial, F1_score_financial, experiment_id, model_name + "_financial_")
-    save_result_to_csv(report_traveling, F1_score_traveling, experiment_id, model_name + "_traveling_")
-    '''
-    '''
-
-    print("%Y-%m-%d %H:%M:%S", time.localtime())
-
-    print(">>>end of train_mlp function...")
-
-    return result
-
-
-# 训练模型
-# 该模型的训练集是餐饮+物流，验证集有三个，分别是医疗 金融 旅游
-# train val_1 val_2 val_3为包含原始评论文本的数据，train_x_cnn val_x_1 val_x_2 val_x_3为确定性特征向量
-# train_x_fuzzy val_x_fuzzy_1 val_x_fuzzy_2 val_x_fuzzy_3为模糊性特征
-def train_model_2(model, train, val, val_1, val_2, val_3, train_x_fuzzy, train_x_cnn, val_x_fuzzy, val_x, val_x_fuzzy_1, val_x_1,
-                  val_x_fuzzy_2, val_x_2, val_x_fuzzy_3, val_x_3, y_cols, epoch, experiment_id,
-                  batch_size, balanced, model_name, debug=False, folds=1):
-
-    print(">>>in train_model function...")
-
-    # print(mlp_model.summary())
-    # print("检查输入数据：")
-    # print("train_x_fuzzy.shape = ", train_x_fuzzy.shape)
-    # print("test_x.shape = ", test_x.shape)
-    # print("val_x.shape = ", val_x.shape)
-    # print("y_cols = ", y_cols)
-
-    experiment_id = "fusion_model_" + experiment_id
-
-    F1_scores = 0
-    F1_score = 0
-    result = {}
-
-    train_y = train["label"]
-    val_y = val["label"]
-    val_y_1 = val_1["label"]
-    val_y_2 = val_2["label"]
-    val_y_3 = val_3["label"]
-
-    y_val_pred_1 = 0
-    y_val_pred_2 = 0
-    y_val_pred_3 = 0
-
-    print("train_x_fuzzy.shape:", train_x_fuzzy.shape)
-    print("train_x_cnn.shape:", train_x_cnn.shape)
-    print("train_y.shape:", train_y.shape)
-
-    print("val_x_fuzzy.shape:", val_x_fuzzy.shape)
-    print("val_x.shape:", val_x.shape)
-    print("val_y.shape:", val_y.shape)
-
-    print("val_x_fuzzy_1.shape:", val_x_fuzzy_1.shape)
-    print("val_x_1.shape:", val_x_1.shape)
-    print("val_y_1.shape:", val_y_1.shape)
-    print("val_x_fuzzy_2.shape:", val_x_fuzzy_2.shape)
-    print("val_x_2.shape:", val_x_2.shape)
-    print("val_y_2.shape:", val_y_2.shape)
-    print("val_x_fuzzy_3.shape:", val_x_fuzzy_3.shape)
-    print("val_x_3.shape:", val_x_3.shape)
-    print("val_y_3.shape:", val_y_3.shape)
-    # print("train_y = ", train_y)
-    # print("val_y = ", val_y)
-
-    for i in range(folds):
-        y_train_onehot = to_categorical(train_y)
-        y_val_onehot = to_categorical(val_y)
-        y_val_onehot_1 = to_categorical(val_y_1)
-        y_val_onehot_2 = to_categorical(val_y_2)
-        y_val_onehot_3 = to_categorical(val_y_3)
-
-        history = model.fit([train_x_fuzzy, train_x_cnn], y_train_onehot, epochs=epoch, verbose=2,
-                            batch_size=batch_size, validation_data=([val_x_fuzzy, val_x], y_val_onehot))
-
-        # 预测验证集和测试集
-        # print("val_x = ", val_x)
-        print("val_x_fuzzy.shape:", val_x_fuzzy.shape)
-        print("val_x.shape:", val_x.shape)
-        y_val_pred = model.predict([val_x_fuzzy, val_x])
-        print("val_x_fuzzy_medical.shape:", val_x_fuzzy_1.shape)
-        print("val_x_medical.shape:", val_x_1.shape)
-        y_val_pred_1 = model.predict([val_x_fuzzy_1, val_x_1])
-        print("val_x_fuzzy_financial.shape:", val_x_fuzzy_2.shape)
-        print("val_x_financial.shape:", val_x_2.shape)
-        y_val_pred_2 = model.predict([val_x_fuzzy_2, val_x_2])
-        print("val_x_fuzzy_traveling.shape:", val_x_fuzzy_3.shape)
-        print("val_x_traveling.shape:", val_x_3.shape)
-        y_val_pred_3 = model.predict([val_x_fuzzy_3, val_x_3])
-
-        # 把预测结果保存入文件
-        print(">>>将预测的结果存入csv文件中。。。")
-        save_predict_result_to_csv(val["review"], y_val_pred)
-
-    y_val_pred = np.argmax(y_val_pred, axis=1)
-
-    y_val_pred_1 = np.argmax(y_val_pred_1, axis=1)
-    y_val_pred_2 = np.argmax(y_val_pred_2, axis=1)
-    y_val_pred_3 = np.argmax(y_val_pred_3, axis=1)
-
-    # 准确率：在所有预测为正的样本中，确实为正的比例
-    # 召回率：本身为正的样本中，被预测为正的比例
-    # print("val_y = ", val_y)
-    # print("y_val_pred = ", list(y_val_pred))
-    precision, recall, fscore, support = score(val_y, y_val_pred)
-    print("precision = ", precision)
-    print("recall = ", recall)
-    print("fscore = ", fscore)
-    print("support = ", support)
-
-    precision_medical, recall_medical, fscore_medical, support_medical = score(val_y_1, y_val_pred_1)
-    precision_financial, recall_financial, fscore_financial, support_financial = score(val_y_2, y_val_pred_2)
-    precision_traveling, recall_traveling, fscore_traveling, support_traveling = score(val_y_3, y_val_pred_3)
-
-    report = classification_report(val_y, y_val_pred, digits=4, output_dict=True)
-
-    report_medical = classification_report(val_y_1, y_val_pred_1, digits=4, output_dict=True)
-    report_financial = classification_report(val_y_2, y_val_pred_2, digits=4, output_dict=True)
-    report_traveling = classification_report(val_y_3, y_val_pred_3, digits=4, output_dict=True)
-
-    F1_score = f1_score(y_val_pred, val_y, average='macro')
-    F1_scores += F1_score
-
-    F1_score_medical = f1_score(y_val_pred_1, val_y_1, average='macro')
-    F1_score_financial = f1_score(y_val_pred_2, val_y_2, average='macro')
-    F1_score_traveling = f1_score(y_val_pred_3, val_y_3, average='macro')
-
-    print(set(train["type"]), 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
-
-    save_result_to_csv(report, F1_score, experiment_id, model_name)
-
-    save_result_to_csv(report_medical, F1_score_medical, experiment_id, model_name + "_medical_")
-    save_result_to_csv(report_financial, F1_score_financial, experiment_id, model_name + "_financial_")
-    save_result_to_csv(report_traveling, F1_score_traveling, experiment_id, model_name + "_traveling_")
-
-    return result
-
-
-# 把预测结果保存到csv
-# 0 1 2
-def save_predict_result_to_csv(x, y_val_pred):
-    print(">>>将val和y_val存入文件...")
-    print("y_val_pred's type = ", type(y_val_pred))
-
-    y_val_pred = np.array(y_val_pred)
-    # x = np.array(x)
-
-    path = "result/sentence_result/predicts.csv"
-    with codecs.open(path, "a", "utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerows(y_val_pred)
-        f.close()
-
-    path2 = "result/sentence_result/texts.csv"
-    with codecs.open(path2, "a", "utf-8") as f2:
-        writer = csv.writer(f2)
-        for value in x:
-            writer.writerow([value])
-        f2.close()
-
-
-# 把结果保存到csv
-# report是classification_report生成的字典结果
-def save_result_to_csv(report, f1_score, experiment_id, model_name):
-    accuracy = report.get("accuracy")
-
-    macro_avg = report.get("macro avg")
-    macro_precision = macro_avg.get("precision")
-    macro_recall = macro_avg.get("recall")
-    macro_f1 = macro_avg.get('f1-score')
-
-    weighted_avg = report.get("weighted avg")
-    weighted_precision = weighted_avg.get("precision")
-    weighted_recall = weighted_avg.get("recall")
-    weighted_f1 = weighted_avg.get('f1-score')
-    data = [experiment_id, weighted_precision, weighted_recall, weighted_f1, macro_precision, macro_recall, macro_f1, f1_score, accuracy]
-
-    path = "result/sentence-202105/crossValidation/" + model_name + ".csv"
-    with codecs.open(path, "a", "utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(data)
-        f.close()
-
-
-# cnn
-# def create_cnn_model(cnn_maxlen, dict_length, filters, embedding_matrix):
-def create_cnn_model(cnn_maxlen, dict_length, filter, embedding_matrix, window_size, dropout):
-    print("开始构建CNN模型。。。")
-    strategy = tf.distribute.MirroredStrategy()
-    with strategy.scope():
-        inputs_cnn = Input(shape=(cnn_maxlen,), name="input_cnn")  # dict_length是词典长度，300是词向量的维度，512是每个input的长度
-        x_cnn = Embedding(input_dim=dict_length, output_dim=300, name='embedding_cnn', weights=[embedding_matrix], trainable=True)(inputs_cnn)
-        # x_cnn = Embedding(input_dim=dict_length, output_dim=200, name='embedding_cnn')(inputs_cnn)
-        x_cnn = Conv1D(filter, window_size, activation='relu', name='conv')(x_cnn)
-        # x_cnn = BatchNormalization(axis=chanDim)(x_cnn)
-        x_cnn = MaxPool1D(name='pool')(x_cnn)
-        x_cnn = Flatten(name='flatten')(x_cnn)
-
-        x = Dense(32, activation='relu', name='dense3')(x_cnn)
-        x = Dropout(dropout, name="dropout1")(x)
-        x = Dense(3, activation='softmax', name='softmax')(x)
-
-        cnn_model = Model(inputs=inputs_cnn, outputs=x, name='cnn_model')
-
-        print(cnn_model.summary())
-
-        adam = optimizers.Adam(learning_rate=0.001)
-
-        cnn_model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
-
-    # return our model
-    return cnn_model
-
-
-# CNN-BiGRU
-def create_cnn_bigru_model(cnn_maxlen, dict_length, filter, embedding_matrix, window_size, dropout, dim):
-    print("开始构建cnn_bigru模型。。。")
-    strategy = tf.distribute.MirroredStrategy()
-    with strategy.scope():
-        inputs_cnn = Input(shape=(cnn_maxlen,), name="input_cnn")  # dict_length是词典长度，300是词向量的维度，512是每个input的长度
-        x_cnn = Embedding(input_dim=dict_length, output_dim=300, name='embedding_cnn', weights=[embedding_matrix], trainable=True)(inputs_cnn)
-        # x_cnn = Embedding(input_dim=dict_length, output_dim=200, name='embedding_cnn')(inputs_cnn)
-        x_cnn = Conv1D(filter, window_size, activation='relu', name='conv')(x_cnn)
-        # x_cnn = BatchNormalization(axis=chanDim)(x_cnn)
-        x_cnn = MaxPool1D(name='pool')(x_cnn)
-        bi_gru = Bidirectional(GRU(dim, name="lstm_1"))(x_cnn)
-
-        x = Dense(32, activation='relu', name='dense_1')(bi_gru)
-        # x = Dropout(0.4, name='dropout')(x)
-        x = Dense(3, activation='softmax', name='softmax')(x)
-
-        model = Model(inputs=inputs_cnn, outputs=x)
-
-        model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
-
-    return model
-
-
-# CNN-BiLSTM
-def create_cnn_bilstm_model(cnn_maxlen, dict_length, filter, embedding_matrix, window_size, dropout, dim):
-    print("开始构建cnn_bilstm模型。。。")
-    strategy = tf.distribute.MirroredStrategy()
-    with strategy.scope():
-        inputs_cnn = Input(shape=(cnn_maxlen,), name="input_cnn")  # dict_length是词典长度，300是词向量的维度，512是每个input的长度
-        x_cnn = Embedding(input_dim=dict_length, output_dim=300, name='embedding_cnn', weights=[embedding_matrix], trainable=True)(inputs_cnn)
-        # x_cnn = Embedding(input_dim=dict_length, output_dim=200, name='embedding_cnn')(inputs_cnn)
-        x_cnn = Conv1D(filter, window_size, activation='relu', name='conv')(x_cnn)
-        # x_cnn = BatchNormalization(axis=chanDim)(x_cnn)
-        x_cnn = MaxPool1D(name='pool')(x_cnn)
-
-        # x_lstm = Bidirectional(LSTM(64, return_sequences=True))(x_cnn)
-        x_lstm = Bidirectional(LSTM(64, return_sequences=False))(x_cnn)
-        # x_lstm = LSTM(64)(embedding)
-        x_lstm = Dense(32, activation='relu', name='FC1')(x_lstm)
-        x_lstm = Dropout(dropout)(x_lstm)
-        x_lstm = Dense(3, activation='softmax', name='FC2')(x_lstm)
-
-        model = Model(inputs=inputs_cnn, outputs=x_lstm)
-
-        model.compile(optimizer=Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
-
-    return model
-
-
-# train cnn
-def train_cnn_model(model, train, val, train_x, test_x, val_x, epoch,
-                    experiment_id, batch_size, learning_rate, model_name, debug=False, folds=1):
-    print(">>>in train_cnn_model function。。。")
-
-    experiment_id = "cnn_model_" + experiment_id
-
-    # print("train = ", train)
-    # print("val = ", val)
-    # print("train_x = ", train_x)
-    print("train_x.shape = ", train_x.shape)
-    # print("test_x = ", test_x)
-    # print("val_x = ", val_x)
-
-    adam = optimizers.Adam(learning_rate=learning_rate)
-
-    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
-
-    F1_scores = 0
-    F1_score = 0
-    result = {}
-
-    train_y = train['label']
-    val_y = val['label']
-    y_val_pred = 0
-    y_test_pred = 0
+    data = shuffle(data)
+    field = "allFields"
+
+    dict_names = {0: 'logistics', 1: 'catering', 2: 'medical', 3: 'financial', 4: 'traveling'}
+    dict_datas = {0: data_logistics, 1: data_catering, 2: data_medical, 3: data_financial, 4: data_traveling}
+
+    # 生成测试数据集
+    data_test = []
+    data_test_names = []
+    for i in range(5):
+        # if i not in [id1, id2, id3]:
+        data_test.append(dict_datas.get(i))
+        data_test_names.append(dict_names.get(i))
+
+    return data, y_cols, all_data, field, data_test, data_test_names
+
+
+# 生成分领域数据
+def initDataForField():
+    print(">>>in the function of initDataForField...")
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData4 data's length = ", len(data))
+
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+
+    y_logistics = data_logistics['label']
+    y_catering = data_catering['label']
+    y_medical = data_medical['label']
+    y_financial = data_financial['label']
+    y_traveling = data_traveling['label']
+
+    return data, data_logistics, data_catering, data_medical, data_financial, data_traveling, y_logistics, y_catering, y_medical, y_financial, y_traveling
+
+
+# 接收四个参数
+def initDataForThree(id1, id2, id3, sampling, debug=False):
+    print(">>>in the function of initDataForThree...")
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData4 data's length = ", len(data))
+
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+
+    y_cols = data.columns.values.tolist()
+
+    dict_names = {0: 'logistics', 1: 'catering', 2: 'medical', 3: 'financial', 4: 'traveling'}
+    dict_datas = {0: data_logistics, 1: data_catering, 2: data_medical, 3: data_financial, 4: data_traveling}
+    data_1 = dict_datas.get(id1)
+    data_2 = dict_datas.get(id2)
+    data_3 = dict_datas.get(id3)
+    name_1 = dict_names.get(id1)
+    name_2 = dict_names.get(id2)
+    name_3 = dict_names.get(id3)
+    all_data = pd.concat([data_1, data_2, data_3])
+
+    # 是否下采样
+    if sampling:
+        ratio = 0.5
+        all_data = lower_sampling(all_data, ratio)
+
+    all_data = shuffle(all_data)
+    field = name_1 + name_2 + name_3
+    if debug:
+        all_data = all_data[:50]
+    data = all_data
+
+    # 生成测试数据集
+    data_test = []
+    data_test_names = []
+    for i in range(5):
+        # if i not in [id1, id2, id3]:
+        data_test.append(dict_datas.get(i))
+        data_test_names.append(dict_names.get(i))
+
+    return data, y_cols, all_data, field, data_test, data_test_names
+
+
+# 生成指定数据集的padding
+def generatePadding(tokenizer, stoplist, maxlen, data_test):
+    print(">>>in generatePadding function...")
+    data_test_T = []
+    for data in data_test:
+        all_texts = processDataToTexts(data, stoplist)
+
+        data_w = tokenizer.texts_to_sequences(all_texts)
+        data_T = sequence.pad_sequences(data_w, maxlen=maxlen)
+        data_test_T.append(data_T)
+
+    return data_test_T
+
 
-    print("train_y.shape:", train_y.shape)
-    print("val_x.shape:", val_x.shape)
-    print("val_y.shape:", val_y.shape)
+# 接收三个参数，debug和ids
+# field id:物流-0，餐饮-1，医疗-2，金融-3，旅游-4
+def initDataForTwo(id1, id2, sampling, debug=False):
+    print(">>>in the function of initDataForTwo...")
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData4 data's length = ", len(data))
+
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+
+    y_cols = data.columns.values.tolist()
+
+    dict_names = {0: 'logistics', 1: 'catering', 2: 'medical', 3: 'financial', 4: 'traveling'}
+    dict_datas = {0: data_logistics, 1: data_catering, 2: data_medical, 3: data_financial, 4: data_traveling}
+    data_1 = dict_datas.get(id1)
+    data_2 = dict_datas.get(id2)
+    name_1 = dict_names.get(id1)
+    name_2 = dict_names.get(id2)
+    all_data = pd.concat([data_1, data_2])
+
+    # 是否下采样
+    if sampling:
+        ratio = 0.5
+        all_data = lower_sampling(all_data, ratio)
+
+    all_data = shuffle(all_data)
+    field = name_1 + name_2
+    if debug:
+        all_data = all_data[:100]
+    data = all_data
+
+    return data, y_cols, all_data, field
+
+
+# 接收两个参数，debug和排除的领域数据
+# field id:物流-0，餐饮-1，医疗-2，金融-3，旅游-4
+def initDataForFour(field_id, sampling, debug=False):
+    print(">>>in the function of initDataForFour...")
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData4 data's length = ", len(data))
+
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+
+    y_cols = data.columns.values.tolist()
+
+    dict_names = {0: 'logistics', 1: 'catering', 2: 'medical', 3: 'financial', 4: 'traveling'}
+    dict_datas = {0: data_logistics, 1: data_catering, 2: data_medical, 3: data_financial, 4: data_traveling}
+    field = ""
+    temp = []
+    for i in range(5):
+        if i == field_id:
+            continue
+        field += dict_names.get(i)
+        temp.append(dict_datas.get(i))
+    all_data = pd.concat(temp)
+
+    # 下采样
+    if sampling:
+        ratio = 0.5
+        all_data = lower_sampling(all_data, ratio)
+
+    all_data = shuffle(all_data)
+    data = all_data
+
+    # 生成测试数据集
+    data_test = []
+    data_test_names = []
+    for i in range(5):
+        # if i not in [id1, id2, id3]:
+        data_test.append(dict_datas.get(i))
+        data_test_names.append(dict_names.get(i))
+
+    return data, y_cols, all_data, field, data_test, data_test_names
+
+
+# 接收两个参数，debug和数据集id（单个数据集）
+# field id:物流-0，餐饮-1，医疗-2，金融-3，旅游-4
+def initDataForOne(field_id, debug=False):
+    print(">>>in the function of initDataForOne...")
+
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData4 data's length = ", len(data))
+
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+
+    y_cols = data.columns.values.tolist()
+    if field_id == 0:
+        field = "logistics"
+        data = data_logistics
+        all_data = pd.concat([data_logistics, data_catering, data_medical, data_financial, data_traveling])
+    elif field_id == 1:
+        field = "catering"
+        data = data_catering
+        all_data = pd.concat([data_catering, data_logistics, data_medical, data_financial, data_traveling])
+    elif field_id == 2:
+        field = "medical"
+        data = data_medical
+        all_data = pd.concat([data_medical, data_logistics, data_catering, data_financial, data_traveling])
+    elif field_id == 3:
+        field = "financial"
+        data = data_financial
+        all_data = pd.concat([data_financial, data_logistics, data_catering, data_medical, data_traveling])
+    elif field_id == 4:
+        field = "traveling"
+        data = data_traveling
+        all_data = pd.concat([data_traveling, data_logistics, data_catering, data_medical, data_financial])
+
+    data = shuffle(data)
+
+    return data, y_cols, all_data, field
+
+
+# 接收两个入参，将第二个领域的中性语料放入第一个里面，升采样
+def initData3(debug=False):
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData3 data's length = ", len(data))
+
+    # 将data2的中性语料加入到data1中,0-负向，1-中性，2-正向
+
+    # data1 = data.loc[data['type'] == str("医疗服务")]
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+    data2 = data.loc[data['type'] != str("物流快递")]
+    data2 = data2.loc[data['label'] == 1]
+    print("data2's length = ", len(data2))
+    # print("data1 = ", data1)
+    # print("data2 = ", data2)
+
+    ratio = 0.5
+    # data_medical = lower_sampling(data_medical, ratio)
+    # data_financial = lower_sampling(data_financial, ratio)
+    # data_traveling = lower_sampling(data_traveling, ratio)
+    # data2 = lower_sampling(data2, ratio)
+
+    # data = pd.concat([data_logistics, data2])
+    data = pd.concat([data_logistics, data_catering, data_traveling, data_financial])
+    # data = lower_sampling(data, ratio)
+    data = shuffle(data)
+
+    print("data_catering's length = ", len(data))
+
+    data_medical = shuffle(data_medical)
+    data_financial = shuffle(data_financial)
+    data_traveling = shuffle(data_traveling)
+    print("data_medical's length = ", len(data_medical))
+    print("data_financial's length = ", len(data_financial))
+    print("data_traveling's length = ", len(data_traveling))
+
+    # all_data数据是总体的，没有打乱的
+    all_data = pd.concat([data, data_financial, data_traveling, data_medical])
+
+    # if debug:
+    #     data = data[:50]
+
+    y_cols = data.columns.values.tolist()
+
+    # return data, y_cols
+    return data, y_cols, data_medical, data_financial, data_traveling, all_data
+
+
+# ratio为保留的比例
+def lower_sampling(data, ratio):
+    print(">>>in lower_sampling function...")
+    neutral_data = data[data['label'] == 1]
+    negative_data = data[data['label'] == 0]
+    positive_data = data[data['label'] == 2]
+
+    neutral_length = len(neutral_data)
+    negative_length = len(negative_data)
+    positive_length = len(positive_data)
+    min_length = min(neutral_length, negative_length, positive_length)
+    print("min_length = ", min_length)
+    print("positive_length = ", positive_length)
+
+    if (neutral_length * ratio) > min_length:
+        index = np.random.randint(len(neutral_data), size=int(min(neutral_length * ratio, min_length / ratio)))
+        print("index's length = ", len(index))
+        print("neutral_data.shape = ", neutral_data.shape)
+        neutral_data = neutral_data.iloc[list(index)]
+        print("neutral_data.shape = ", neutral_data.shape)
+    if (negative_length * ratio) > min_length:
+        index = np.random.randint(len(negative_data), size=int(min(negative_length * ratio, min_length / ratio)))
+        print("negative_data.shape = ", negative_data.shape)
+        print("index's length = ", len(index))
+        negative_data = negative_data.iloc[list(index)]
+        print("negative_data.shape = ", negative_data.shape)
+    if (positive_length * ratio) > min_length:
+        index = np.random.randint(len(positive_data), size=int(min(positive_length * ratio, min_length / ratio)))
+        print("index's length = ", len(index))
+        print("positive_data.shape = ", positive_data.shape)
+        positive_data = positive_data.iloc[list(index)]
+        print("positive_data.shape = ", positive_data.shape)
+
+    final_data = pd.concat([neutral_data, negative_data, positive_data])
+    print("final_data.shape = ", final_data.shape)
+
+    print(">>>end of lower_sampling function...")
+    return final_data
+
+
+# 输入细粒度的源数据，生成包括6个粗粒度属性的数据，存入csv
+# origin_data的2-21列是分细粒度属性的标签列。2-4：位置location，5-8：服务service，9-11：价格price，12-15：环境environment，16-18：菜品dish，19-21：其他others
+# 计算规则：①
+def processDataToTarget(origin_data):
+    print("in processDataToTarget function of dataProcess.py...")
+    # header = ["id", "content", "location", "service", "price", "environment", "dish"]
+    header = ["id", "content", "location", "service", "price", "environment", "dish", "others"]
 
-    for i in range(folds):
-        y_train_onehot = to_categorical(train_y)
-        y_val_onehot = to_categorical(val_y)
-        # print("y_train_onehot = ", y_train_onehot)
-        # print("y_val_onehot = ", y_val_onehot)
-        history = model.fit(train_x, y_train_onehot, epochs=epoch, verbose=2,
-                            batch_size=batch_size, validation_data=(val_x, y_val_onehot))
-        # callbacks=[EarlyStopping(monitor='val_loss', min_delta=0.00001)])
-
-    # 预测验证集和测试集
-    y_val_pred = model.predict(val_x)
-    y_test_pred += model.predict(test_x)
-
-    y_val_pred = np.argmax(y_val_pred, axis=1)
-
-    # 准确率：在所有预测为正的样本中，确实为正的比例
-    # 召回率：本身为正的样本中，被预测为正的比例
-    # print("y_val_pred = ", list(y_val_pred))
-    precision, recall, fscore, support = score(val_y, y_val_pred)
-    print("precision = ", precision)
-    print("recall = ", recall)
-    print("fscore = ", fscore)
-    print("support = ", support)
-
-    report = classification_report(val_y, y_val_pred, digits=4, output_dict=True)
-
-    print(report)
-
-    F1_score = f1_score(y_val_pred, val_y, average='macro')
-    # F1_score = f1_score(y_val_pred, val_y, average='weighted')
-
-    print('f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
-    y_test_pred = np.argmax(y_test_pred, axis=1)
-
-    save_result_to_csv(report, F1_score, experiment_id, model_name)
-
-    print(">>>end of train_cnn_model function in featureFusion.py。。。")
-
-    return result
-
-
-# 通用的模型训练函数
-def train_all_model_cross_validation(model, data, dealed_data, epoch, experiment_id, batch_size, model_name):
-    print(">>>in train_all_model_cross_validation function。。。")
-
-    experiment_id = model_name + "_" + experiment_id
-
-    print("dealed_train.shape = ", dealed_data.shape)
-    result = {}
-
-    if len(dealed_data) != len(data):
-        print("dealed_data data长度不一致！！！出错辣！！！")
-        sys.exit(-1)
-
-    y = data['label']
-
-    kf = KFold(n_splits=10)
-    current_k = 0
-    for train_index, validation_index in kf.split(data):
-        print("正在进行第", current_k, "轮交叉验证...")
-        current_k += 1
-        train_x = dealed_data[train_index]
-        train_y = y[train_index]
-        train_y_onehot = to_categorical(train_y)
-        val_x = dealed_data[validation_index]
-        val_y = y[validation_index]
-        val_y_onehot = to_categorical(val_y)
-        model.fit(train_x, train_y_onehot, epochs=epoch, verbose=2, batch_size=batch_size, validation_data=(val_x, val_y_onehot))
-        y_val_pred = model.predict(val_x)
-        y_val_pred = np.argmax(y_val_pred, axis=1)
-
-        # 准确率：在所有预测为正的样本中，确实为正的比例
-        # 召回率：本身为正的样本中，被预测为正的比例
-        # print("y_val_pred = ", list(y_val_pred))
-        precision, recall, fscore, support = score(val_y, y_val_pred)
-        print("precision = ", precision)
-        print("recall = ", recall)
-        print("fscore = ", fscore)
-        print("support = ", support)
-
-        report = classification_report(val_y, y_val_pred, digits=4, output_dict=True)
-
-        print("report:", report)
-
-        F1_score = f1_score(y_val_pred, val_y, average='macro')
-
-        print('f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
-
-        save_result_to_csv(report, F1_score, experiment_id, model_name)
-
-    print(">>>end of train_all_model_cross_validation function in featureFusion_sentence.py。。。")
-
-    return result
-
-
-# 通用的模型训练函数
-def train_all_model(model, train, val, train_x, val_x, epoch, experiment_id, batch_size, model_name):
-    print(">>>in train_all_model function。。。")
-
-    experiment_id = model_name + "_" + experiment_id
-
-    print("train_x.shape = ", train_x.shape)
-    result = {}
-
-    train_y = train['label']
-    val_y = val['label']
-
-    print("train_y.shape:", train_y.shape)
-    print("val_x.shape:", val_x.shape)
-    print("val_y.shape:", val_y.shape)
-
-    y_train_onehot = to_categorical(train_y)
-    y_val_onehot = to_categorical(val_y)
-    history = model.fit(train_x, y_train_onehot, epochs=epoch, verbose=2,
-                        batch_size=batch_size, validation_data=(val_x, y_val_onehot))
-
-    # 预测验证集和测试集
-    y_val_pred = model.predict(val_x)
-    y_val_pred = np.argmax(y_val_pred, axis=1)
-
-    # 准确率：在所有预测为正的样本中，确实为正的比例
-    # 召回率：本身为正的样本中，被预测为正的比例
-    # print("y_val_pred = ", list(y_val_pred))
-    precision, recall, fscore, support = score(val_y, y_val_pred)
-    print("precision = ", precision)
-    print("recall = ", recall)
-    print("fscore = ", fscore)
-    print("support = ", support)
-
-    report = classification_report(val_y, y_val_pred, digits=4, output_dict=True)
-
-    print("report:", report)
-
-    F1_score = f1_score(y_val_pred, val_y, average='macro')
-
-    print('f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
-
-    save_result_to_csv(report, F1_score, experiment_id, model_name)
-
-    print(">>>end of train_all_model function in featureFusion_sentence.py。。。")
-
-    return result
-
-
-# train cnn
-def train_cnn_model_2(model, train, val, val_medical, val_financial, val_traveling, train_x, val_x,
-                      val_x_medical, val_x_financial, val_x_traveling, epoch,
-                      experiment_id, batch_size, learning_rate, model_name, debug=False, folds=1):
-    print(">>>in train_cnn_model function。。。")
-
-    experiment_id = "cnn_model_" + experiment_id
-
-    # print("train = ", train)
-    # print("val = ", val)
-    # print("train_x = ", train_x)
-    print("train_x.shape = ", train_x.shape)
-    # print("test_x = ", test_x)
-    # print("val_x = ", val_x)
-
-    adam = optimizers.Adam(learning_rate=learning_rate)
-
-    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
-
-    F1_scores = 0
-    F1_score = 0
-    result = {}
-
-    train_y = train['label']
-    val_y = val['label']
-    val_y_medical = val_medical['label']
-    val_y_financial = val_financial['label']
-    val_y_traveling = val_traveling['label']
-    y_val_pred = 0
-
-    print("train_y.shape:", train_y.shape)
-    print("val_x.shape:", val_x.shape)
-    print("val_y.shape:", val_y.shape)
-
-    for i in range(folds):
-        y_train_onehot = to_categorical(train_y)
-        y_val_onehot = to_categorical(val_y)
-        # print("y_train_onehot = ", y_train_onehot)
-        # print("y_val_onehot = ", y_val_onehot)
-        history = model.fit(train_x, y_train_onehot, epochs=epoch, verbose=2,
-                            batch_size=batch_size, validation_data=(val_x, y_val_onehot))
-        # callbacks=[EarlyStopping(monitor='val_loss', min_delta=0.00001)])
-
-    # 预测验证集和测试集
-    y_val_pred = model.predict(val_x)
-    y_val_pred_medical = model.predict(val_x_medical)
-    y_val_pred_financial = model.predict(val_x_financial)
-    y_val_pred_traveling = model.predict(val_x_traveling)
-
-    y_val_pred = np.argmax(y_val_pred, axis=1)
-    y_val_pred_medical = np.argmax(y_val_pred_medical, axis=1)
-    y_val_pred_financial = np.argmax(y_val_pred_financial, axis=1)
-    y_val_pred_traveling = np.argmax(y_val_pred_traveling, axis=1)
-
-    # 准确率：在所有预测为正的样本中，确实为正的比例
-    # 召回率：本身为正的样本中，被预测为正的比例
-    # print("y_val_pred = ", list(y_val_pred))
-    precision, recall, fscore, support = score(val_y, y_val_pred)
-    print("precision = ", precision)
-    print("recall = ", recall)
-    print("fscore = ", fscore)
-    print("support = ", support)
-
-    report = classification_report(val_y, y_val_pred, digits=4, output_dict=True)
-    report_medical = classification_report(val_y_medical, y_val_pred_medical, digits=4, output_dict=True)
-    report_financial = classification_report(val_y_financial, y_val_pred_financial, digits=4, output_dict=True)
-    report_traveling = classification_report(val_y_traveling, y_val_pred_traveling, digits=4, output_dict=True)
-
-    print("report:", report)
-    print("report_medical:", report_medical)
-    print("report_financial:", report_financial)
-    print("report_traveling:", report_traveling)
-
-    F1_score = f1_score(y_val_pred, val_y, average='macro')
-    F1_score_medical = f1_score(val_y_medical, y_val_pred_medical, average='macro')
-    F1_score_financial = f1_score(val_y_financial, y_val_pred_financial, average='macro')
-    F1_score_traveling = f1_score(val_y_traveling, y_val_pred_traveling, average='macro')
-
-    print('f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
-
-    save_result_to_csv(report, F1_score, experiment_id, model_name)
-    save_result_to_csv(report_medical, F1_score_medical, experiment_id, model_name + "_medical")
-    save_result_to_csv(report_financial, F1_score_financial, experiment_id, model_name + "_financial")
-    save_result_to_csv(report_traveling, F1_score_traveling, experiment_id, model_name + "_traveling")
-
-    print(">>>end of train_cnn_model function in featureFusion.py。。。")
-
-    return result
-
-
-# 生成预训练词向量,size-
-def load_word2vec(word_index):
-    print(">>>in load_word2vec function of featureFusion.py...")
-    print("word_index's lengh = ", len(word_index))
-    f = open(config_sentence.pre_word_embedding, "r", encoding="utf-8")
-    length, dimension = f.readline().split()  # 预训练词向量的单词数和词向量维度
-    dimension = int(dimension)
-    print("length = ", length, ", dimension = ", dimension)
-
-    # 创建词向量索引字典
-    embeddings_index = {}
-
-    print(">>>读取预训练词向量ing。。。")
-
-    for line in f:
-        # print("line = ", line)
-        values = line.split()
-        word = values[0]
-        coefs = np.asarray(values[1:], dtype="float32")
-        embeddings_index[word] = coefs
-        # print(word, ":", coefs)
-    f.close()
-
-    # 构建词向量矩阵，预训练的词向量中没有出现的词用0向量表示
-    # 创建一个0矩阵，这个向量矩阵的大小为（词汇表的长度+1，词向量维度）
-    embedding_matrix = np.zeros((len(word_index) + 1, dimension))
-    # 遍历词汇表中的每一项
-    for word, i in word_index.items():
-        # 在词向量索引字典中查询单词word的词向量
-        embedding_vector = embeddings_index.get(word)
-        # print("embedding_vector = ", embedding_vector)
-        # 判断查询结果，如果查询结果不为空,用该向量替换0向量矩阵中下标为i的那个向量
-        if embedding_vector is not None:
-            embedding_matrix[i] = embedding_vector
-
-    # print("embedding_matrix = ", embedding_matrix)
-    print(">>>end of load_word2vec function in featureFusion.py...")
-
-    return embedding_matrix
-
-
-# fasttext model
-def fasttext_model(fea_dict, maxlen):
-    inputs_fasttext = Input(shape=(maxlen,), name='fasttext_input')
-    x_fasttext = Embedding(input_dim=len(fea_dict), output_dim=200, name='embedding_fasttext')(inputs_fasttext)
-    x_fasttext = GlobalAveragePooling1D(name='GlobalAveragePooling1D_fasttext')(x_fasttext)
-    x_fasttext = Dropout(0.3)(x_fasttext)
-    x_fasttext = Dense(3, activation='softmax', name='softmax')(x_fasttext)
-
-    model = Model(inputs=inputs_fasttext, outputs=x_fasttext, name='fasttext_model')
-
-    print(model.summary())
-
-    return model
-
-
-# train fasttext model
-def train_fasttext_model(model, train, val, train_x, test_x, val_x, epoch, debug=False, folds=1):
-    print(">>>in train_fasttext_model function。。。")
-
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['acc'])
-
-    F1_scores = 0
-    F1_score = 0
-    result = {}
-
-    train_y = train["label"]
-    val_y = val["label"]
-    y_val_pred = 0
-    y_test_pred = 0
-
-    print("train_y.shape:", train_y.shape)
-    print("val_x.shape:", val_x.shape)
-    print("val_y.shape:", val_y.shape)
-
-    for i in range(folds):
-        y_train_onehot = to_categorical(train_y)
-        y_val_onehot = to_categorical(val_y)
-        print("train_x.shape = ", train_x.shape)
-        print("y_train_onehot.shape = ", y_train_onehot.shape)
-        print("val_x.shape = ", val_x.shape)
-        print("y_val_onehot.shape = ", y_val_onehot.shape)
-        history = model.fit(train_x, y_train_onehot, epochs=epoch,
-                            batch_size=64, validation_data=(val_x, y_val_onehot))
-
-        # 预测验证集和测试集
-        y_val_pred = model.predict(val_x)
-        y_test_pred += model.predict(test_x)
-
-    y_val_pred = np.argmax(y_val_pred, axis=1)
-
-    # 准确率：在所有预测为正的样本中，确实为正的比例
-    # 召回率：本身为正的样本中，被预测为正的比例
-    # print("y_val_pred = ", list(y_val_pred))
-    precision, recall, fscore, support = score(val_y, y_val_pred)
-    print("precision = ", precision)
-    print("recall = ", recall)
-    print("fscore = ", fscore)
-    print("support = ", support)
-
-    print(classification_report(val_y, y_val_pred, digits=4))
-
-    F1_score = f1_score(y_val_pred, val_y, average='weighted')
-    F1_scores += F1_score
-
-    print('f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
-    y_test_pred = np.argmax(y_test_pred, axis=1)
-    print("result:", result)
-
-    print(">>>end of train_fasttext_model function in featureFusion.py。。。")
-
-    return result
-
-
-# lstm模型
-def create_lstm_model(maxlen, dict_length, embedding_matrix, dropout):
-    print("开始构建LSTM模型。。。")
-    strategy = tf.distribute.MirroredStrategy()
-    with strategy.scope():
-        inputs_lstm = Input(shape=(maxlen,), name='inputs_lstm')
-
-        # embedding = Embedding(input_dim=dict_length, output_dim=200, name='embedding_cnn')(inputs_lstm)
-        embedding = Embedding(input_dim=dict_length, output_dim=300, name='embedding_cnn', weights=[embedding_matrix], trainable=True)(inputs_lstm)
-
-        x_lstm = Bidirectional(LSTM(32, return_sequences=True))(embedding)
-        x_lstm = Bidirectional(LSTM(16, return_sequences=False))(x_lstm)
-        # x_lstm = LSTM(64)(embedding)
-        x_lstm = Dense(32, activation='relu', name='FC1')(x_lstm)
-        x_lstm = Dropout(dropout)(x_lstm)
-        x_lstm = Dense(3, activation='softmax', name='FC2')(x_lstm)
-
-        model = Model(inputs=inputs_lstm, outputs=x_lstm, name='lstm_model')
-
-        print(model.summary())
-
-        adam = optimizers.Adam(learning_rate=0.001)
-
-        model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
-
-    return model
-
-
-# gru模型
-def create_gru_model(maxlen, dict_length, embedding_matrix, dropout):
-    print("开始构建GRU模型。。。")
-    strategy = tf.distribute.MirroredStrategy()
-    with strategy.scope():
-        inputs_gru = Input(shape=(maxlen,), name='inputs_lstm')
-
-        # embedding = Embedding(input_dim=dict_length, output_dim=200, name='embedding_cnn')(inputs_lstm)
-        embedding = Embedding(input_dim=dict_length, output_dim=300, name='embedding_cnn', weights=[embedding_matrix], trainable=True)(inputs_gru)
-
-        bi_gru = Bidirectional(GRU(128, name="gru_1"))(embedding)
-        # x_lstm = LSTM(64)(embedding)
-        x_gru = Dense(32, activation='relu', name='FC1')(bi_gru)
-        x_gru = Dropout(dropout)(x_gru)
-        x_gru = Dense(3, activation='softmax', name='FC2')(x_gru)
-
-        model = Model(inputs=inputs_gru, outputs=x_gru, name='gru_model')
-
-        print(model.summary())
-
-        adam = optimizers.Adam(learning_rate=0.001)
-
-        model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
-
-    return model
-
-
-# 全连接神经网络，测试情感向量
-def fnn_model(input_shape, input_shape2):
-    # define our MLP network
-    inputs_fnn = Input(shape=(input_shape,), name='input_fnn')  # 此处的维度512是根据语料库计算出来的，后期用变量代替
-    x_fnn = Dense(4, activation='relu', name='dense1_fnn')(inputs_fnn)
-    x_fnn = Dense(2, activation='linear', name='dense2_fnn')(x_fnn)
-
-    # x = Dense(2, activation='softmax', name='softmax')(x_fnn)
-
-    inputs_fnn2 = Input(shape=(input_shape2,), name='input_fnn2')  # 此处的维度512是根据语料库计算出来的，后期用变量代替
-    x_fnn2 = Dense(4, activation='relu', name='dense1_fnn2')(inputs_fnn2)
-    x_fnn2 = Dense(3, activation='linear', name='dense2_fnn2')(x_fnn2)
-
-    # 融合两个输入
-    x_concatenate = concatenate([x_fnn, x_fnn2], name='fusion')
-
-    x = Dense(32, activation='relu', name='dense3')(x_concatenate)
-    x = Dropout(0.5, name="dropout1")(x)
-    x = Dense(2, activation='softmax', name='softmax')(x)
-
-    fusion_model = Model(inputs=[inputs_fnn, inputs_fnn2], outputs=x, name='fusion_model')
-
-    print(fusion_model.summary())
-
-    # return our model
-    return fusion_model
-
-
-# 读取模型并预测
-def load_predict(model, dealed_test_fuzzy, dealed_test, texts):
-    print(">>>in load_predict function...")
-    predicted_result = model.predict([dealed_test_fuzzy, dealed_test])
-    # print(predicted_result)
-    # print("predicted_result's type = ", type(predicted_result))
-    predicted_result = list(predicted_result)
-    texts = list(texts)
-
-    length = len(texts)
     data = []
-    for i in range(length):
-        # print("result:" + list(predicted_result[i]) + ", TEXT:" + test[i])
-        # print("predicted = ", predicted_result[i])
-        current_predicted = list(predicted_result[i])
-        # print("text = ", texts[i])
-        current = [current_predicted[0], current_predicted[1], current_predicted[2], texts[i]]
-        print("current = ", current)
-        data.append(current)
 
-    # 写入csv文件
-    with codecs.open("result/predicted.csv", "a", "utf-8_sig") as f:
+    for index, row in origin_data.iterrows():
+        d = [row["id"], row["content"]]
+
+        location = [row["location_traffic_convenience"], row["location_distance_from_business_district"], row["location_easy_to_find"]]
+        service = [row["service_wait_time"], row["service_waiters_attitude"], row["service_parking_convenience"], row["service_serving_speed"]]
+        price = [row["price_level"], row["price_cost_effective"], row["price_discount"]]
+        environment = [row["environment_decoration"], row["environment_noise"], row["environment_space"], row["environment_cleaness"]]
+        dish = [row["dish_portion"], row["dish_taste"], row["dish_look"], row["dish_recommendation"]]
+        others = [row["others_overall_experience"], row["others_willing_to_consume_again"]]
+
+        location = processLabel(location)
+        service = processLabel(service)
+        price = processLabel(price)
+        environment = processLabel(environment)
+        dish = processLabel(dish)
+        others = processLabel(others)
+
+        d.append(location)
+        d.append(service)
+        d.append(price)
+        d.append(environment)
+        d.append(dish)
+        d.append(others)
+
+        data.append(d)
+        # print("d = ", d)
+    print("data = ", data)
+    # with codecs.open("data/sentiment_analysis_validation_set_new_without_others.csv", "wb", "utf-8") as f:
+    with codecs.open("data/sentiment_analysis_training_set_new_without_others.csv", "w", "utf-8") as f:
         writer = csv.writer(f)
+        writer.writerow(header)
         writer.writerows(data)
         f.close()
 
-    print(">>>end of load_predict function...")
+    print("end of processDataToTarget function in dataProcess.py...")
+
+
+# 传入细粒度属性的label，输出粗粒度属性label
+def processLabel(aspect):
+    # print("aspect = ", aspect)
+    if -2 not in aspect:  # 如果标签没有-2，则求整体平均
+        average = np.average(np.array(aspect))
+    else:  # label中有-2分为两种情况
+        length = len(set(aspect))
+
+        if length > 1:  # 不全是-2
+            while -2 in aspect:
+                aspect.remove(-2)
+            average = np.average(aspect)
+        else:  # 全是-2
+            average = -2
+
+    # 如果average非整数&≠-2
+    if average != -2:
+        if average > 0:
+            average = 1
+        elif average < 0:
+            average = -1
+        else:
+            average = 0
+
+    # print("average = ", average)
+    return average
+
+
+# 根据类别label数量，计算得到class_weight
+def calculate_class_weight(labels):
+    print(">>>in calculate_class_weights function of dataProcess.py...")
+    print("labels = ", labels)
+    class_weights = []
+    for label in labels:
+        max_value = max(label.values())
+        print(label.get(-2), label.get(-1), label.get(0), label.get(1))
+        class_weights.append({0: max_value / label.get(-2), 1: max_value / label.get(-1), 2: max_value / label.get(0), 3: max_value / label.get(1)})
+
+    print("class_weights = ", class_weights)
+
+    print(">>>end of calculate_class_weights function in dataProcess.py...")
+
+    return class_weights
+
+
+def getStopList():
+    stoplist = pd.read_csv('stopwords.txt').values
+    return stoplist
+
+
+# 处理数据得到输入语料的文本
+def processDataToTexts(data, stoplist):
+    print(">>>in processDataToTexts of dataProcess.py...")
+    # print("data[review] = ", data["review"])
+
+    # 去标点符号
+    # print(">>>去标点符号ing。。。")
+    data['words'] = data['review'].apply(lambda x: re.sub("[\s+\.\!\/_,$%^*(+\"\'～]+|[+——！，。？、~@#￥%……&*（）．；：】【|]+", "", str(x)))
+    # jieba分词
+    # print(">>>jieba分词ing。。。")
+    data['words'] = data['words'].apply(lambda x: list(jieba.cut(x)))
+
+    # 去掉开头
+    data['words'] = data['words'].apply(lambda x: x[1:-1])
+    data['len'] = data['words'].apply(lambda x: len(x))
+    maxlen = data['len'].max()
+    words_dict = []
+    texts = []
+
+    # 去掉停用词
+    # print(">>>去停用词ing in DataProcess.py...")
+    for index, row in data.iterrows():
+        line = [word.strip() for word in list(row['words']) if word not in stoplist]
+        # print("line = ", line)
+
+        words_dict.extend([word for word in line])
+        texts.append(line)
+
+    # print("words_dict's length = ", len(words_dict))
+    # print("data[words] = ", data["words"])
+
+    print(">>>end of processDataToTexts in dataProcess.py...")
+
+    return texts
+
+
+# 处理数据生成训练集 验证集 测试集
+# def processData(data, stoplist, dict_length, maxlen, ratios):
+def processData(data, stoplist, dict_length, maxlen, ratios, data_medical, data_financial, data_traveling):
+    print(">>>in processData function...")
+
+    # print(words_dict)
+    # print(texts)
+    texts = processDataToTexts(data, stoplist)
+    texts_medical = processDataToTexts(data_medical, stoplist)
+    texts_financial = processDataToTexts(data_financial, stoplist)
+    texts_traveling = processDataToTexts(data_traveling, stoplist)
+    '''
+    '''
+
+    stop_data = pd.DataFrame(texts)
+
+    # 利用keras的Tokenizer进行onehot，并调整未等长数组
+    tokenizer = Tokenizer(num_words=dict_length)
+    tokenizer.fit_on_texts(texts)
+
+    word_index = tokenizer.word_index
+    # print("word_index = ", word_index)
+
+    data_w = tokenizer.texts_to_sequences(texts)
+    data_T = sequence.pad_sequences(data_w, maxlen=maxlen)
+    data_w_medical = tokenizer.texts_to_sequences(texts_medical)
+    data_T_medical = sequence.pad_sequences(data_w_medical, maxlen=maxlen)
+    data_w_financial = tokenizer.texts_to_sequences(texts_financial)
+    data_T_financial = sequence.pad_sequences(data_w_financial, maxlen=maxlen)
+    data_w_traveling = tokenizer.texts_to_sequences(texts_traveling)
+    data_T_traveling = sequence.pad_sequences(data_w_traveling, maxlen=maxlen)
+    '''
+    '''
+
+    # 数据划分，重新划分为训练集，测试集和验证集
+    data_length = data_T.shape[0]
+    print("data_length = ", data_length)
+    size_train = int(data_length * ratios[0])
+    size_val = int(data_length * ratios[1])
+
+    global dealed_train
+    global dealed_val
+    global dealed_test
+    dealed_train = data_T[: size_train]
+    dealed_val = data_T[size_train: (size_train + size_val)]
+    dealed_test = data_T[(size_train + size_val):]
+
+    dealed_val_medical = data_T_medical
+    dealed_val_financial = data_T_financial
+    dealed_val_traveling = data_T_traveling
+    '''
+    '''
+
+    global train  # 训练数据集，包括语料、标签、id、len（后期增加的）
+    global val  # 验证数据集，包括语料、标签、id、len（后期增加的）
+    global test  # 测试数据集，包括语料、标签、id、len（后期增加的）
+    train = data[: size_train]
+    val = data[size_train: (size_train + size_val)]
+    test = data[(size_train + size_val):]
+    # print(train.shape)
+    # print(val.shape)
+    # print(test.shape)
+    # print("test = ", test)
+    val_medical = data_medical
+    val_financial = data_financial
+    val_traveling = data_traveling
+    '''
+    '''
+
+    print(">>>end of processData function...")
+
+    # return dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index
+    return dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index, dealed_val_medical, dealed_val_financial, dealed_val_traveling, val_medical, val_financial, val_traveling
+
+
+# 处理数据生成训练集 验证集
+def processData3(origin_data, stoplist, dict_length, maxlen, ratio, dealed_fuzzy):
+    print(">>>in processData3 function...")
+    print("all_data's length = ", len(origin_data))
+
+    all_texts = processDataToTexts(origin_data, stoplist)
+    stop_data = pd.DataFrame(all_texts)
+
+    # 利用keras的Tokenizer进行onehot，并调整未等长数组
+    tokenizer = Tokenizer(num_words=dict_length)
+    tokenizer.fit_on_texts(all_texts)
+
+    word_index = tokenizer.word_index
+
+    data_w = tokenizer.texts_to_sequences(all_texts)
+    data_T = sequence.pad_sequences(data_w, maxlen=maxlen)
+
+    # 数据划分，重新划分为训练集，测试集和验证集
+    data_length = data_T.shape[0]
+    print("data_length = ", data_length)
+
+    size_train = int(data_length * ratio)
+    print("size_train's length = ", size_train)
+
+    # 数据划分，重新划分为训练集和验证集
+    global dealed_train
+    global dealed_val
+    dealed_train = data_T[: size_train]
+    dealed_val = data_T[size_train:]
+    global dealed_fuzzy_train
+    global dealed_fuzzy_val
+    dealed_fuzzy_train = dealed_fuzzy[: size_train]
+    dealed_fuzzy_val = dealed_fuzzy[size_train:]
+
+    train = origin_data[: size_train]
+    val = origin_data[size_train:]
+    print("val's length = ", len(val))
+
+    print(">>>end of processData function...")
+
+    return dealed_train, dealed_val, train, val, word_index, data_T, tokenizer, dealed_fuzzy_train, dealed_fuzzy_val
+
+
+# 处理数据生成训练集 验证集 测试集
+# 处理输入预料，生成训练集、验证集、测试集，其中训练集即为餐饮业+物流业数据，验证集分别为医疗业、金融业、旅游业数据
+def processData2(all_data, stoplist, dict_length, maxlen, ratios, dealed_train_fuzzy_concat, catering_length, medical_length, financial_length, traveling_length):
+    print(">>>in processData2 function...")
+
+    # all_data = np.concatenate((data, dealed_train_fuzzy_concat), axis=0)
+    print("all_data's length = ", len(all_data))
+
+    all_texts = processDataToTexts(all_data, stoplist)
+    stop_data = pd.DataFrame(all_texts)
+
+    # 利用keras的Tokenizer进行onehot，并调整未等长数组
+    tokenizer = Tokenizer(num_words=dict_length)
+    tokenizer.fit_on_texts(all_texts)
+
+    # print(words_dict)
+    # print(texts)
+
+    word_index = tokenizer.word_index
+    # print("word_index = ", word_index)
+
+    data_w = tokenizer.texts_to_sequences(all_texts)
+    data_T = sequence.pad_sequences(data_w, maxlen=maxlen)
+
+    # 数据划分，重新划分为训练集，测试集和验证集
+    data_length = data_T.shape[0]
+    print("data_length = ", data_length)
+    # if data_length != dealed_train_fuzzy_length:
+    #     print(">>>>>>>>>>出错啦！！！训练集长度有问题！！！！")
+    size_train = int(catering_length * ratios[0])
+    print("size_train's length = ", size_train)
+    print("catering_length = ", catering_length)
+
+    # 数据划分，重新划分为训练集，测试集和验证集
+    global dealed_train
+    global dealed_val
+    dealed_train = data_T[: size_train]
+    dealed_val = data_T[size_train: catering_length]
+
+    dealed_val_1 = data_T[catering_length: medical_length + catering_length]
+    dealed_val_2 = data_T[medical_length + catering_length: medical_length + catering_length + financial_length]
+    dealed_val_3 = data_T[medical_length + catering_length + financial_length:]
+    print("dealed_val_1's length = ", len(dealed_val_1))
+    print("dealed_val_2's length = ", len(dealed_val_2))
+    print("dealed_val_3's length = ", len(dealed_val_3))
+    print("data_T's length = ", len(data_T))
+    print("medical_length + catering_length + financial_length's length = ", medical_length + catering_length + financial_length)
+
+    train = all_data[: size_train]
+    val = all_data[size_train: catering_length]
+    print("val's length = ", len(val))
+    val_1 = all_data[catering_length: medical_length + catering_length]
+    val_2 = all_data[medical_length + catering_length: medical_length + catering_length + financial_length]
+    val_3 = all_data[medical_length + catering_length + financial_length:]
+    print("val_1's length = ", len(val_1))
+    print("val_2's length = ", len(val_2))
+    print("val_3's length = ", len(val_3))
+
+    print(">>>end of processData function...")
+
+    return dealed_train, dealed_val, dealed_val_1, dealed_val_2, dealed_val_3, train, val, val_1, val_2, val_3, word_index
+
+
+# 确定maxlen
+def calculate_maxlen(texts):
+    maxlen = 0
+
+    # 直接取最长的评论长度
+    '''
+    for line in texts:
+        if maxlen < len(line):
+            maxlen = len(line)
+    '''
+
+    # 取评论长度的平均值+两个评论的标准差（假设评论长度的分布满足正态分布，则maxlen可以涵盖95左右的样本）
+    lines_length = [len(line) for line in texts]
+    lines_length = np.array(lines_length)
+
+    maxlen = np.mean(lines_length) + 2 * np.std(lines_length)
+    maxlen = int(maxlen)
+
+    return maxlen
+
+
+# 传入语料数据，输出不同属性-label的样本数,依次为位置、服务、价格、环境、菜品、其他
+def calculate_sample_number(origin_data):
+    aspects = ["location", "service", "price", "environment", "dish", "others"]
+
+    result = []
+    for aspect in aspects:
+        current = list(origin_data[aspect])
+        # print(aspect, " = ", current)
+        result.append(Counter(current))
+
+    return result
+
+
+def build_model(max_words, embedding_dim, maxlen):
+    print(">>>Building the model...")
+    model = Sequential()
+    model.add(Embedding(max_words, embedding_dim, input_length=maxlen))
+    model.add(Conv1D(64, 3, activation='relu'))
+    model.add(MaxPooling1D(5))
+    # model.add(Dropout(0.5))
+    model.add(Conv1D(64, 3, activation='relu'))
+    # model.add(Dropout(0.5))
+    model.add(GlobalMaxPooling1D())
+    # model.add(layers.Dense(32, activation='relu'))
+    model.add(Dense(4, activation='softmax'))
+    return model
+
+
+def build_model2(max_words, embedding_dim, maxlen):
+    print(">>>Building the model...")
+    model = Sequential()
+    model.add(Embedding(max_words, embedding_dim, input_length=maxlen))
+    conv1 = Conv1D(64, 3, activation='relu')
+    conv11 = Conv1D(64, 3, activation='relu')
+    added = keras.layers.add([conv1, conv11])
+    model.add(added)
+    pooling1 = MaxPooling1D(5)
+    model.add(pooling1)
+    # model.add(Dropout(0.5))
+    conv2 = Conv1D(64, 3, activation='relu')
+    model.add(conv2)
+    # model.add(Dropout(0.5))
+    model.add(GlobalMaxPooling1D())
+    # model.add(layers.Dense(32, activation='relu'))
+    dense = Dense(4, activation='softmax')
+    model.add(dense)
+    return model
+
+
+def train_CNN(train_x, test_x, val_x, y_cols, debug=False, folds=1):
+    print(">>>in train_CNN function...")
+    # print(train_x, test_x, val_x, y_cols)
+    # print("train:", train)
+    # print("val:", val)
+    # print("test:", test)
+    model = build_model()
+
+    print(model.summary())
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['acc'])
+    F1_scores = 0
+    F1_score = 0
+    result = {}
+    if debug:
+        y_cols = ['location_traffic_convenience']
+    for index, col in enumerate(y_cols):
+        train_y = train[col] + 2
+        val_y = val[col] + 2
+        y_val_pred = 0
+        y_test_pred = 0
+        #         epochs=[5,10]   , stratify=train_y
+        for i in range(folds):
+            y_train_onehot = to_categorical(train_y)
+            history = model.fit(train_x, y_train_onehot, epochs=3, batch_size=64, validation_split=0.2)
+
+            # 预测验证集和测试集
+            y_val_pred = model.predict(val_x)
+            y_test_pred += model.predict(test_x)
+
+        y_val_pred = np.argmax(y_val_pred, axis=1)
+
+        F1_score = f1_score(y_val_pred, val_y, average='macro')
+        F1_scores += F1_score
+
+        print('第', index, '个细粒度', col, 'f1_score:', F1_score, 'ACC_score:', accuracy_score(y_val_pred, val_y))
+        y_test_pred = np.argmax(y_test_pred, axis=1)
+        result[col] = y_test_pred-2
+    print('all F1_score:', F1_scores/len(y_cols))
+    print("result:", result)
+    return result
+
+
+# 用训练的模型预测数据，入参是模型、语料、真实标签，输出准确率、召回率、F1
+def adaption_predict(path):
+    print(">>>in adaption_predict function of dataProcess_sentence.py...")
+    model = load_model(path)
+
+    print(model.summary())
+
+    ratios = [0.98, 0.01]
+    dict_length = 150000  # 词典的长度，后期可以测试？？
+    origin_data, y_cols = initData2(1)
+    stoplist = getStopList()
+    word_feature = KMC.read_excel2()
+    input_texts = processDataToTexts(origin_data, stoplist)
+    # 首先需要根据输入语料获取其模糊特征及词向量表示
+    input_word_feature = fsys.calculate_sentiment_words_feature(input_texts, word_feature)
+    dealed_train_fuzzy, dealed_val_fuzzy, dealed_test_fuzzy = fsys.calculate_fuzzy_feature(input_word_feature, ratios)
+    input_texts = processDataToTexts(origin_data, stoplist)
+    fuzzy_maxlen = fsys.calculate_input_dimension(dealed_train_fuzzy)
+    # maxlen要保证和模型训练的时候句子长度一致
+    maxlen = 53
+    print("maxlen = ", maxlen)
+
+    dealed_train, dealed_val, dealed_test, train, val, test, texts, word_index = processData(origin_data, stoplist,
+                                                                                             dict_length, maxlen, ratios)
+
+    print("dealed_train.shape = ", dealed_train.shape)
+    print("dealed_train_fuzzy.shape = ", dealed_train_fuzzy.shape)
+    print("train.shape = ", train.shape)
+
+    labels = train["label"]
+
+    y_val_pred = model.predict([dealed_train_fuzzy, dealed_train])
+
+    y_val_pred = np.argmax(y_val_pred, axis=1)
+
+    # 准确率：在所有预测为正的样本中，确实为正的比例
+    # 召回率：本身为正的样本中，被预测为正的比例
+    # print("val_y = ", val_y)
+    print("y_val_pred = ", list(y_val_pred))
+    precision, recall, fscore, support = score(labels, y_val_pred)
+    print("precision = ", precision)
+    print("recall = ", recall)
+    print("fscore = ", fscore)
+    print("support = ", support)
+
+    report = classification_report(labels, y_val_pred, digits=4, output_dict=True)
+
+    print(report)
+
+    print(">>>end of adaption_predict function in dataProcess_sentence.py...")
 

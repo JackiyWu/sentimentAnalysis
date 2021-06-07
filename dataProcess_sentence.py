@@ -104,25 +104,69 @@ def initDataForFive(sampling, debug=False):
     data_financial = data.loc[data['type'] == str("金融服务")]
     data_traveling = data.loc[data['type'] == str("旅游住宿")]
 
+    # 对所有数据下采样
+    ratio = 0.5
+    if sampling:
+        data_logistics = lower_sampling(data_logistics, ratio)
+        data_catering = lower_sampling(data_catering, ratio)
+        data_medical = lower_sampling(data_medical, ratio)
+        data_financial = lower_sampling(data_financial, ratio)
+        data_traveling = lower_sampling(data_traveling, ratio)
+
     y_cols = data.columns.values.tolist()
     all_data = pd.concat([data_logistics, data_catering, data_medical, data_financial, data_traveling])
     data = pd.concat([data_logistics, data_catering, data_medical, data_financial, data_traveling])
-    '''
     all_data = shuffle(all_data)
+
+    '''
     # 是否下采样
     if sampling:
         ratio = 0.5
         all_data = lower_sampling(all_data, ratio)
+    '''
 
     data = shuffle(data)
-    '''
     field = "allFields"
 
-    return data, y_cols, all_data, field
+    dict_names = {0: 'logistics', 1: 'catering', 2: 'medical', 3: 'financial', 4: 'traveling'}
+    dict_datas = {0: data_logistics, 1: data_catering, 2: data_medical, 3: data_financial, 4: data_traveling}
+
+    # 生成测试数据集
+    data_test = []
+    data_test_names = []
+    for i in range(5):
+        # if i not in [id1, id2, id3]:
+        data_test.append(dict_datas.get(i))
+        data_test_names.append(dict_names.get(i))
+
+    return data, y_cols, all_data, field, data_test, data_test_names
+
+
+# 生成分领域数据
+def initDataForField():
+    print(">>>in the function of initDataForField...")
+    columns = ['id', 'type', 'review', 'label']
+    data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
+    print("initData4 data's length = ", len(data))
+
+    data_logistics = data.loc[data['type'] == str("物流快递")]
+    print("data_logistics's length = ", len(data_logistics))
+    data_catering = data.loc[data['type'] == str("食品餐饮")]
+    data_medical = data.loc[data['type'] == str("医疗服务")]
+    data_financial = data.loc[data['type'] == str("金融服务")]
+    data_traveling = data.loc[data['type'] == str("旅游住宿")]
+
+    y_logistics = data_logistics['label']
+    y_catering = data_catering['label']
+    y_medical = data_medical['label']
+    y_financial = data_financial['label']
+    y_traveling = data_traveling['label']
+
+    return data, data_logistics, data_catering, data_medical, data_financial, data_traveling, y_logistics, y_catering, y_medical, y_financial, y_traveling
 
 
 # 接收四个参数
-def initDataForThree(id1, id2, id3, sampling):
+def initDataForThree(id1, id2, id3, sampling, debug=False):
     print(">>>in the function of initDataForThree...")
     columns = ['id', 'type', 'review', 'label']
     data = pd.read_csv("datasets/baidu/data_train.csv", sep='\t', names=columns, encoding='utf-8')
@@ -154,9 +198,33 @@ def initDataForThree(id1, id2, id3, sampling):
 
     all_data = shuffle(all_data)
     field = name_1 + name_2 + name_3
+    if debug:
+        all_data = all_data[:50]
     data = all_data
 
-    return data, y_cols, all_data, field
+    # 生成测试数据集
+    data_test = []
+    data_test_names = []
+    for i in range(5):
+        # if i not in [id1, id2, id3]:
+        data_test.append(dict_datas.get(i))
+        data_test_names.append(dict_names.get(i))
+
+    return data, y_cols, all_data, field, data_test, data_test_names
+
+
+# 生成指定数据集的padding
+def generatePadding(tokenizer, stoplist, maxlen, data_test):
+    print(">>>in generatePadding function...")
+    data_test_T = []
+    for data in data_test:
+        all_texts = processDataToTexts(data, stoplist)
+
+        data_w = tokenizer.texts_to_sequences(all_texts)
+        data_T = sequence.pad_sequences(data_w, maxlen=maxlen)
+        data_test_T.append(data_T)
+
+    return data_test_T
 
 
 # 接收三个参数，debug和ids
@@ -191,9 +259,19 @@ def initDataForTwo(id1, id2, sampling, debug=False):
 
     all_data = shuffle(all_data)
     field = name_1 + name_2
+    if debug:
+        all_data = all_data[:100]
     data = all_data
 
-    return data, y_cols, all_data, field
+    # 生成测试数据集
+    data_test = []
+    data_test_names = []
+    for i in range(5):
+        # if i not in [id1, id2, id3]:
+        data_test.append(dict_datas.get(i))
+        data_test_names.append(dict_names.get(i))
+
+    return data, y_cols, all_data, field, data_test, data_test_names
 
 
 # 接收两个参数，debug和排除的领域数据
@@ -232,12 +310,20 @@ def initDataForFour(field_id, sampling, debug=False):
     all_data = shuffle(all_data)
     data = all_data
 
-    return data, y_cols, all_data, field
+    # 生成测试数据集
+    data_test = []
+    data_test_names = []
+    for i in range(5):
+        # if i not in [id1, id2, id3]:
+        data_test.append(dict_datas.get(i))
+        data_test_names.append(dict_names.get(i))
+
+    return data, y_cols, all_data, field, data_test, data_test_names
 
 
 # 接收两个参数，debug和数据集id（单个数据集）
 # field id:物流-0，餐饮-1，医疗-2，金融-3，旅游-4
-def initDataForOne(field_id, debug=False):
+def initDataForOne(field_id, sampling, debug=False):
     print(">>>in the function of initDataForOne...")
 
     columns = ['id', 'type', 'review', 'label']
@@ -252,30 +338,33 @@ def initDataForOne(field_id, debug=False):
     data_traveling = data.loc[data['type'] == str("旅游住宿")]
 
     y_cols = data.columns.values.tolist()
-    if field_id == 0:
-        field = "logistics"
-        data = data_logistics
-        all_data = pd.concat([data_logistics, data_catering, data_medical, data_financial, data_traveling])
-    elif field_id == 1:
-        field = "catering"
-        data = data_catering
-        all_data = pd.concat([data_catering, data_logistics, data_medical, data_financial, data_traveling])
-    elif field_id == 2:
-        field = "medical"
-        data = data_medical
-        all_data = pd.concat([data_medical, data_logistics, data_catering, data_financial, data_traveling])
-    elif field_id == 3:
-        field = "financial"
-        data = data_financial
-        all_data = pd.concat([data_financial, data_logistics, data_catering, data_medical, data_traveling])
-    elif field_id == 4:
-        field = "traveling"
-        data = data_traveling
-        all_data = pd.concat([data_traveling, data_logistics, data_catering, data_medical, data_financial])
 
-    data = shuffle(data)
+    dict_names = {0: 'logistics', 1: 'catering', 2: 'medical', 3: 'financial', 4: 'traveling'}
+    dict_datas = {0: data_logistics, 1: data_catering, 2: data_medical, 3: data_financial, 4: data_traveling}
+    field = ""
+    temp = []
+    for i in range(5):
+        if i == field_id:
+            all_data = dict_datas.get(i)
+            field = dict_names.get(i)
 
-    return data, y_cols, all_data, field
+    # 下采样
+    if sampling:
+        ratio = 0.5
+        all_data = lower_sampling(all_data, ratio)
+
+    all_data = shuffle(all_data)
+    data = all_data
+
+    # 生成测试数据集
+    data_test = []
+    data_test_names = []
+    for i in range(5):
+        # if i not in [id1, id2, id3]:
+        data_test.append(dict_datas.get(i))
+        data_test_names.append(dict_names.get(i))
+
+    return data, y_cols, all_data, field, data_test, data_test_names
 
 
 # 接收两个入参，将第二个领域的中性语料放入第一个里面，升采样
@@ -366,6 +455,10 @@ def lower_sampling(data, ratio):
 
     final_data = pd.concat([neutral_data, negative_data, positive_data])
     print("final_data.shape = ", final_data.shape)
+    print("三种情感极性的数据集长度为。。。")
+    print("负向：", len(negative_data))
+    print("中性：", len(neutral_data))
+    print("正向：", len(positive_data))
 
     print(">>>end of lower_sampling function...")
     return final_data
@@ -474,10 +567,10 @@ def processDataToTexts(data, stoplist):
     # print("data[review] = ", data["review"])
 
     # 去标点符号
-    print(">>>去标点符号ing。。。")
+    # print(">>>去标点符号ing。。。")
     data['words'] = data['review'].apply(lambda x: re.sub("[\s+\.\!\/_,$%^*(+\"\'～]+|[+——！，。？、~@#￥%……&*（）．；：】【|]+", "", str(x)))
     # jieba分词
-    print(">>>jieba分词ing。。。")
+    # print(">>>jieba分词ing。。。")
     data['words'] = data['words'].apply(lambda x: list(jieba.cut(x)))
 
     # 去掉开头
@@ -488,14 +581,15 @@ def processDataToTexts(data, stoplist):
     texts = []
 
     # 去掉停用词
-    print(">>>去停用词ing in DataProcess.py...")
+    # print(">>>去停用词ing in DataProcess.py...")
     for index, row in data.iterrows():
         line = [word.strip() for word in list(row['words']) if word not in stoplist]
+        # print("line = ", line)
 
         words_dict.extend([word for word in line])
         texts.append(line)
 
-    # print("texts = ", texts)
+    # print("words_dict's length = ", len(words_dict))
     # print("data[words] = ", data["words"])
 
     print(">>>end of processDataToTexts in dataProcess.py...")
@@ -579,7 +673,7 @@ def processData(data, stoplist, dict_length, maxlen, ratios, data_medical, data_
 
 
 # 处理数据生成训练集 验证集
-def processData3(origin_data, stoplist, dict_length, maxlen, ratios):
+def processData3(origin_data, stoplist, dict_length, maxlen, ratio, dealed_fuzzy):
     print(">>>in processData3 function...")
     print("all_data's length = ", len(origin_data))
 
@@ -599,14 +693,18 @@ def processData3(origin_data, stoplist, dict_length, maxlen, ratios):
     data_length = data_T.shape[0]
     print("data_length = ", data_length)
 
-    size_train = int(data_length * ratios[0])
+    size_train = int(data_length * ratio)
     print("size_train's length = ", size_train)
 
-    # 数据划分，重新划分为训练集，测试集和验证集
+    # 数据划分，重新划分为训练集和验证集
     global dealed_train
     global dealed_val
     dealed_train = data_T[: size_train]
     dealed_val = data_T[size_train:]
+    global dealed_fuzzy_train
+    global dealed_fuzzy_val
+    dealed_fuzzy_train = dealed_fuzzy[: size_train]
+    dealed_fuzzy_val = dealed_fuzzy[size_train:]
 
     train = origin_data[: size_train]
     val = origin_data[size_train:]
@@ -614,7 +712,7 @@ def processData3(origin_data, stoplist, dict_length, maxlen, ratios):
 
     print(">>>end of processData function...")
 
-    return dealed_train, dealed_val, train, val, word_index, data_T
+    return dealed_train, dealed_val, train, val, word_index, data_T, tokenizer, dealed_fuzzy_train, dealed_fuzzy_val
 
 
 # 处理数据生成训练集 验证集 测试集

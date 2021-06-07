@@ -48,12 +48,13 @@ if __name__ == "__main__":
     # for ids in ids_two:  # 针对两个数据集
     for ids in ids_three:  # 针对三个数据集
         dict_length = 150000
-        sampling = False
+        sampling = True
         # origin_data, y_cols, all_data, field = dp_s.initDataForOne(id, DEBUG)
         # origin_data, y_cols, all_data, field = dp_s.initDataForTwo(ids[0], ids[1], sampling, DEBUG)
-        origin_data, y_cols, all_data, field = dp_s.initDataForThree(ids[0], ids[1], ids[2], sampling)
+        origin_data, y_cols, all_data, field, data_tests, data_test_names = dp_s.initDataForThree(ids[0], ids[1], ids[2], sampling, DEBUG)
         # origin_data, y_cols, all_data, field = dp_s.initDataForFour(id, sampling, DEBUG)
         # origin_data, y_cols, all_data, field = dp_s.initDataForFive(sampling, DEBUG)
+        # print("origin_data's length = ", len(origin_data))
         # 训练集 验证集 测试集 分割比例，包括两个数：训练集比例、验证集比例
         ratios = [0.7, 0.29]
         # 获取停用词
@@ -61,9 +62,11 @@ if __name__ == "__main__":
         # 获取输入语料的文本（去标点符号和停用词后）
         print("》》》获取输入语料的文本（去标点符号和停用词后）。。。")
         input_texts = dp_s.processDataToTexts(origin_data, stoplist)
+        print("input_texts's length = ", len(input_texts))
 
         # 确定单个输入语料的长度
         # 输入语料的长度，后期可以测试不同长度对结果的影响，参考hotelDataEmbedding.py的处理？？
+        # print(input_texts)
         maxlen = dp_s.calculate_maxlen(input_texts)
         # maxlen = 52
         print("maxlen = ", maxlen)
@@ -84,6 +87,10 @@ if __name__ == "__main__":
 
         dealed_train, dealed_val, train, val, word_index, dealed_data, tokenizer = dp_s.processData3(origin_data, stoplist, dict_length, maxlen, ratios)
         print("dealed_data's type = ", type(dealed_data))
+        # 生成测试集的padding
+        dealed_tests = dp_s.generatePadding(tokenizer, stoplist, maxlen, data_tests)
+        # 生成测试集的模糊特征
+
 
         if DEBUG:
             embedding_matrix = np.zeros((len(word_index) + 1, 300))
@@ -94,15 +101,15 @@ if __name__ == "__main__":
         dict_length = min(dict_length, len(word_index) + 1)
         print("dict_length = ", dict_length)
 
-        epochs = [3]
+        epochs = [2]
         batch_sizes = [128]
         learning_rate = 0.001
-        filters = [128]
+        filters = [32]
         # filters = [128, 256]
         window_sizes = [4]
         # window_sizes = [3, 4, 5, 6]
-        dropouts = [0.3]
-        full_connects = [128]
+        dropouts = [0.5]
+        full_connects = [16]
         balanceds = [True]
 
         # 自动跑模型
@@ -114,10 +121,11 @@ if __name__ == "__main__":
                             for dropout in dropouts:
                                 for balanced in balanceds:
                                     exp_name = "epoch_" + str(epoch) + "_batchSize_" + str(batch_size) + \
-                                                 "_cnnFilter_" + str(cnn_filter) + "_windowSize_" + str(window_size) + \
-                                                 "_fullConnected_" + str(full_connect)
+                                               "_cnnFilter_" + str(cnn_filter) + "_windowSize_" + str(window_size) + \
+                                               "_fullConnected_" + str(full_connect)
                                     print("exp_name = ", exp_name)
-                                    model_name = "FusionMLP"
+                                    model_name = "CNN"
+
                                     if model_name == 'CNN':
                                         model_name = 'CNN_' + field
                                         model = ff_s.create_cnn_model(maxlen, dict_length, cnn_filter, embedding_matrix, window_size, dropout)
@@ -153,10 +161,10 @@ if __name__ == "__main__":
                                     else:
                                         pass
                                     if model_name.startswith("Fusion"):
-                                        ff_s.train_fusion_model(model, origin_data, dealed_data, dealed_fuzzy, epoch, exp_name, batch_size, model_name)
+                                        ff_s.train_fusion_model(model, origin_data, dealed_data, dealed_fuzzy, epoch, exp_name, batch_size, model_name, dealed_tests, data_tests, data_test_names)
                                         print("训练结束。。")
                                     else:
-                                        ff_s.train_all_model_cross_validation(model, origin_data, dealed_data, epoch, exp_name, batch_size, model_name)
+                                        ff_s.train_all_model_cross_validation(model, origin_data, dealed_data, epoch, exp_name, batch_size, model_name, dealed_tests, data_tests, data_test_names)
                                         print("训练结束。。")
 
 print(">>>This is the end of main_train_sentence_new.py...")
